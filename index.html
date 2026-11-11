@@ -727,26 +727,31 @@ async function resendConfirmation() {
   }
 }
 
+
 /* ================= PROFILE AND ACCESS ================= */
 
-
 async function loadProfile(user, expectedType = accountType) {
+  if (!user || !user.id) {
+    throw new Error("Invalid login session. Please sign in again.");
+  }
+
   const { data: profile, error } = await sb
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .maybeSingle();
 
-  // DEBUG: Check the actual account and database response
-  console.log("AUTH USER ID:", user.id);
-  console.log("AUTH EMAIL:", user.email);
-  console.log("EXPECTED CATEGORY:", expectedType);
-  console.log("PROFILE DATA:", profile);
-  console.log("DATABASE ROLE:", profile?.role);
-  console.log("PROFILE ERROR:", error);
+  console.log("DOCUKEEP PROFILE DEBUG:", {
+    authUserId: user.id,
+    authEmail: user.email,
+    expectedCategory: expectedType,
+    profile,
+    databaseRole: profile?.role,
+    databaseStatus: profile?.status,
+    error
+  });
 
   if (error) {
-    console.error("Profile loading error:", error);
     await sb.auth.signOut();
     throw new Error("Could not load your profile: " + error.message);
   }
@@ -760,6 +765,11 @@ async function loadProfile(user, expectedType = accountType) {
   const actualStatus = String(profile.status || "").trim().toLowerCase();
   const selectedCategory = String(expectedType || "").trim().toLowerCase();
 
+  if (!["student", "teacher", "staff"].includes(actualRole)) {
+    await sb.auth.signOut();
+    throw new Error("Your account has an invalid role.");
+  }
+
   if (actualStatus !== "approved") {
     await sb.auth.signOut();
 
@@ -770,48 +780,23 @@ async function loadProfile(user, expectedType = accountType) {
     );
   }
 
-  if (!["student", "teacher", "staff"].includes(actualRole)) {
-    await sb.auth.signOut();
-    throw new Error("Your account has an invalid role.");
-  }
-
-  if (selectedCategory && actualRole !== selectedCategory) {
-    await sb.auth.signOut();
-
-    throw new Error(
-      `Category mismatch. Selected: ${selectedCategory}. Database role: ${actualRole}.`
-    );
-  }
-
-  // Keep the rest of your original loadProfile code below this point.
-}
-
-
-  const selectedCategory = String(expectedType || "").trim().toLowerCase();
-  const actualRole = String(profile.role || "").trim().toLowerCase();
-
-  console.log("PROFILE ROLE CHECK:", {
-    selectedCategory,
-    databaseRole: actualRole,
-    authUserId: user.id,
-    accountEmail: user.email,
-    profileStatus: profile.status
-  });
-
-  if (selectedCategory && actualRole !== selectedCategory) {
+  if (
+    selectedCategory &&
+    ["student", "teacher", "staff"].includes(selectedCategory) &&
+    actualRole !== selectedCategory
+  ) {
     await sb.auth.signOut();
     throw new Error(
       `Category mismatch. Selected: ${selectedCategory}. Database role: ${actualRole}.`
     );
   }
 
-  // Verify role against the actual signed-in email.
-  if (profile.role === "student" && !validEmail(user.email, "student")) {
+  if (actualRole === "student" && !validEmail(user.email, "student")) {
     await sb.auth.signOut();
     throw new Error("Student accounts must use a personal Gmail address.");
   }
 
-  if (profile.role === "teacher" && !validEmail(user.email, "teacher")) {
+  if (actualRole === "teacher" && !validEmail(user.email, "teacher")) {
     await sb.auth.signOut();
     throw new Error("Teacher accounts must use an official DepEd email.");
   }
@@ -822,14 +807,21 @@ async function loadProfile(user, expectedType = accountType) {
   $("auth").classList.add("hidden");
   $("app").classList.remove("hidden");
 
-  $("who").textContent = profile.full_name + " · " + profile.role.toUpperCase();
-  $("greeting").textContent = "Welcome, " + profile.full_name;
+  $("who").textContent =
+    (profile.full_name || "User") + " · " + actualRole.toUpperCase();
 
-  $("adminNav").classList.toggle("hidden", profile.role !== "staff");
+  $("greeting").textContent =
+    "Welcome, " + (profile.full_name || "User");
+
+  $("adminNav").classList.toggle("hidden", actualRole !== "staff");
 
   await loadDocuments();
   await updateOfflineStatus();
-  if(navigator.onLine) syncOfflineUploads();
+
+  if (navigator.onLine) {
+    syncOfflineUploads();
+  }
+
   go("dashboard");
 }
 
