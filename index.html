@@ -1,0 +1,1177 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DocuKeep | Smart School File System</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#172b4d">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root{
+ --navy:#172b4d;--blue:#2862a5;--pale:#edf4fd;
+ --bg:#f4f7fb;--ink:#243247;--muted:#718096;
+ --line:#e3eaf2;--green:#16845b;--red:#bf4141
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px "Segoe UI",Arial,sans-serif}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.6;cursor:not-allowed}
+.hidden{display:none!important}
+
+.authscreen{
+ min-height:100vh;display:grid;place-items:center;
+ padding:22px;background:linear-gradient(135deg,#eaf1fa,#f8fbff)
+}
+.authcard{
+ width:min(480px,100%);background:white;border:1px solid var(--line);
+ border-radius:18px;padding:28px;box-shadow:0 18px 55px #172b4d18
+}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:23px}
+.logo{
+ width:43px;height:43px;border-radius:12px;background:var(--navy);
+ color:white;display:grid;place-items:center;font-size:23px;font-weight:900
+}
+.brand b{font-size:21px;color:var(--navy)}
+.muted{color:var(--muted)}
+h1{font-size:25px;color:var(--navy);margin:0 0 7px}
+p{color:var(--muted);line-height:1.5}
+.stack{display:grid;gap:12px}
+.authcard input,.authcard select,.field input,.field select,.field textarea{
+ width:100%;padding:11px;border:1px solid var(--line);
+ border-radius:8px;background:white
+}
+.btn{
+ border:0;background:var(--blue);color:white;
+ border-radius:8px;padding:11px 15px;font-weight:650
+}
+.btn.secondary{background:white;color:var(--blue);border:1px solid #cbd8e8}
+.btn.danger{background:#fff0f0;color:var(--red)}
+.btn.green{background:#e8f7ef;color:var(--green)}
+.btn.small{padding:7px 10px;font-size:12px}
+.switch{text-align:center;margin-top:15px}
+.link{border:0;background:none;color:var(--blue);font-weight:700}
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}
+.choice button{
+ padding:20px 10px;border:1px solid var(--line);border-radius:12px;
+ background:#f8fbff;color:var(--navy);font-weight:700
+}
+.choice button:hover{border-color:var(--blue);background:var(--pale)}
+.notice{
+ padding:11px 13px;border-radius:9px;background:var(--pale);
+ color:#486487;font-size:12px;line-height:1.5;margin:12px 0
+}
+.notice.warn{background:#fff6e5;color:#815d1c}
+.notice.ok{background:#e9f7ef;color:#236d4e}
+
+.app{min-height:100vh}
+.sidebar{
+ position:fixed;inset:0 auto 0 0;width:235px;background:var(--navy);
+ padding:20px 14px;color:white;display:flex;flex-direction:column
+}
+.sidebar .brand{padding:0 7px 25px}
+.sidebar .logo{background:white;color:var(--blue)}
+.sidebar .brand b{color:white}
+.sidebar .brand small{color:#bdcde0}
+.nav button{
+ display:block;width:100%;text-align:left;border:0;background:transparent;
+ color:#dce7f5;padding:12px;border-radius:8px;margin:2px 0
+}
+.nav button:hover,.nav button.active{background:#2b4a74;color:white}
+.navlabel{font-size:10px;letter-spacing:1.3px;color:#9db1cd;padding:12px 9px}
+.main{margin-left:235px}
+.top{
+ height:68px;background:white;border-bottom:1px solid var(--line);
+ display:flex;justify-content:space-between;align-items:center;
+ padding:0 25px;position:sticky;top:0;z-index:2
+}
+.content{max-width:1400px;margin:auto;padding:25px}
+.page{display:none}
+.page.active{display:block}
+.heading{
+ display:flex;justify-content:space-between;gap:12px;
+ align-items:center;margin-bottom:20px
+}
+.heading h1{margin:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:16px}
+.panel,.stat{
+ background:white;border:1px solid var(--line);
+ border-radius:12px;padding:17px;margin-bottom:15px
+}
+.stat strong{display:block;font-size:27px;color:var(--navy);margin:8px 0}
+.stat small{color:var(--muted)}
+.panel h2{font-size:16px;color:var(--navy);margin:0 0 14px}
+.field{display:grid;gap:6px;margin:10px 0}
+.field label{font-size:12px;font-weight:700;color:#5c6c80}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tablewrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th,td{text-align:left;padding:11px;border-bottom:1px solid #edf1f5;font-size:12px}
+th{font-size:10px;text-transform:uppercase;color:#8090a4}
+.pill{display:inline-block;border-radius:30px;padding:5px 9px;background:#edf1f6;font-size:10px;font-weight:700}
+.pill.pending{background:#fff4dc;color:#a96d12}
+.pill.approved{background:#e6f6ed;color:#16845b}
+.pill.rejected{background:#ffeded;color:#bf4141}
+.actions{display:flex;gap:5px;flex-wrap:wrap}
+.empty{padding:25px;text-align:center;color:var(--muted)}
+.toast{
+ position:fixed;bottom:18px;right:18px;background:var(--navy);
+ color:white;padding:12px 16px;border-radius:9px;display:none;z-index:10;
+ max-width:min(420px,calc(100% - 36px))
+}
+.toast.show{display:block}
+
+@media(max-width:760px){
+ .sidebar{position:static;width:auto;padding:10px}
+ .sidebar .brand{padding:0 6px 8px}
+ .nav{display:flex;overflow:auto}
+ .navlabel{display:none}
+ .nav button{white-space:nowrap;width:auto;padding:9px}
+ .main{margin:0}
+ .top{height:auto;min-height:58px;padding:10px 13px}
+ .content{padding:15px}
+ .stats{grid-template-columns:1fr 1fr}
+ .heading{align-items:flex-start;flex-direction:column}
+ .grid{grid-template-columns:1fr}
+}
+
+/* DocuKeep enhancements */
+.viewer-backdrop{position:fixed;inset:0;background:#0b1930b8;z-index:30;display:none;align-items:center;justify-content:center;padding:18px}
+.viewer-backdrop.open{display:flex}.viewer{background:#fff;border-radius:14px;width:min(1100px,100%);height:min(88vh,900px);display:flex;flex-direction:column;overflow:hidden}.viewer-head{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;justify-content:space-between}.viewer-body{flex:1;min-height:0;background:#eef2f7}.viewer-body iframe,.viewer-body img{width:100%;height:100%;border:0;object-fit:contain}.syncbar{position:sticky;top:68px;z-index:1;background:#fff7e7;color:#795719;padding:8px 14px;border-bottom:1px solid #f1dfb8;font-size:12px;display:none}.syncbar.show{display:block}.feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.feature{border:1px solid var(--line);border-radius:10px;padding:14px;background:#fbfdff}.folder-color{width:14px;height:14px;border-radius:4px;display:inline-block;vertical-align:middle;margin-right:6px}@media(max-width:760px){.feature-grid{grid-template-columns:1fr}.viewer-backdrop{padding:6px}.viewer{height:94vh}}
+
+</style>
+</head>
+
+<body>
+
+<section class="authscreen" id="auth">
+ <div class="authcard">
+
+  <div class="brand">
+   <div class="logo">D</div>
+   <div>
+    <b>DocuKeep</b>
+    <div class="muted">Smart School File System</div>
+   </div>
+  </div>
+
+  <div id="choose">
+   <h1>Welcome to DocuKeep</h1>
+   <p>Choose your account type to continue.</p>
+
+   <div class="choice">
+    <button onclick="selectType('student')">🎓<br>Student</button>
+    <button onclick="selectType('teacher')">📘<br>Teacher</button>
+   </div>
+
+   <button class="btn secondary" style="width:100%" onclick="selectType('staff')">
+    Staff / Administrator sign in
+   </button>
+
+   <div class="notice">
+    Students use a personal Gmail account. Teachers use their official
+    DepEd email (@deped.gov.ph). Staff accounts are created by the administrator.
+   </div>
+  </div>
+
+  <div id="authform" class="hidden">
+
+   <button class="link" onclick="backChoice()">← Change account type</button>
+
+   <h1 id="formTitle">Student sign in</h1>
+   <p id="formDescription">Use your personal Gmail address.</p>
+
+   <form id="loginForm" class="stack">
+    <input id="email" type="email" autocomplete="username"
+           placeholder="Email address" required>
+
+    <input id="password" type="password" autocomplete="current-password"
+           placeholder="Password" required>
+
+    <button class="btn" type="submit">Sign in</button>
+   </form>
+
+   <form id="signupForm" class="stack hidden">
+    <input id="fullName" placeholder="Full name" autocomplete="name" required>
+
+    <input id="signupEmail" type="email"
+           placeholder="Email address" autocomplete="email" required>
+
+    <input id="department" placeholder="Grade / section or department" required>
+
+    <input id="signupPassword" type="password" minlength="8"
+           placeholder="Create password (minimum 8 characters)" required>
+
+    <input id="confirmPassword" type="password" minlength="8"
+           placeholder="Confirm password" required>
+
+    <button class="btn" type="submit">Create account</button>
+   </form>
+
+   <div class="switch" id="signupSwitch">
+    New user?
+    <button class="link" onclick="toggleForm(true)">Create an account</button>
+   </div>
+
+   <div class="switch hidden" id="loginSwitch">
+    Already registered?
+    <button class="link" onclick="toggleForm(false)">Sign in</button>
+   </div>
+
+   <div class="switch" id="resendSwitch">
+    Didn't receive a confirmation email?
+    <button class="link" type="button" onclick="resendConfirmation()">
+     Resend confirmation
+    </button>
+   </div>
+
+   <div id="authMsg" class="notice">
+    Your account must be approved by staff before you can use DocuKeep.
+   </div>
+
+  </div>
+ </div>
+</section>
+
+<div class="app hidden" id="app">
+
+ <aside class="sidebar">
+  <div class="brand">
+   <div class="logo">D</div>
+   <div>
+    <b>DocuKeep</b>
+    <small>Smart School File System</small>
+   </div>
+  </div>
+
+  <div class="navlabel">WORKSPACE</div>
+
+  <nav class="nav">
+   <button class="active" data-page="dashboard">▦ Dashboard</button>
+   <button data-page="documents">▤ My Documents</button>
+   <button data-page="upload">＋ Upload Document</button>
+   <button data-page="tracking">◷ Submission Tracking</button>
+    <button data-page="folders">▣ My Folders</button>
+    <button data-page="notifications">♧ Notifications <span id="notificationCount"></span></button>
+    <button data-page="premium">★ Premium Plan</button>
+   <button id="adminNav" class="hidden" data-page="admin">
+    ⚙ Staff Administration
+   </button>
+  </nav>
+
+  <div style="margin-top:auto;color:#bdcde0;font-size:11px;padding:12px">
+   Organize. Track. Retrieve.
+  </div>
+ </aside>
+
+ <main class="main">
+  <header class="top">
+   <span id="crumb">Dashboard</span>
+   <span>
+    <b id="who"></b>
+    &nbsp;
+    <button class="btn secondary small" onclick="signOut()">Sign out</button>
+   </span>
+  </header>
+
+  <div class="syncbar" id="syncbar">Offline mode: files are saved on this device and are NOT yet uploaded to the server. <span id="queueCount">0</span> waiting.</div>
+   <div class="content">
+
+   <section class="page active" id="page-dashboard">
+    <div class="heading">
+     <div>
+      <h1 id="greeting">Dashboard</h1>
+      <p>Your document workspace and submission activity.</p>
+     </div>
+     <button class="btn" onclick="go('upload')">＋ Upload document</button>
+    </div>
+
+    <div class="stats">
+     <div class="stat">Total documents<strong id="total">0</strong>
+      <small>Accessible to your account</small></div>
+     <div class="stat">Pending review<strong id="pending">0</strong>
+      <small>Awaiting staff review</small></div>
+     <div class="stat">Approved<strong id="approved">0</strong>
+      <small>Completed submissions</small></div>
+    </div>
+
+    <div class="panel">
+     <h2>Recent documents</h2>
+     <div id="recent" class="empty">No documents yet.</div>
+    </div>
+   </section>
+
+   <section class="page" id="page-documents">
+    <div class="heading">
+     <div><h1>My Documents</h1><p>Documents submitted by your account.</p></div>
+    </div>
+    <div class="panel tablewrap">
+     <table>
+      <thead><tr>
+       <th>Title</th><th>Category</th><th>Date</th><th>Status</th><th>File</th>
+      </tr></thead>
+      <tbody id="docRows"></tbody>
+     </table>
+     <div id="docEmpty" class="empty hidden">No documents found.</div>
+    </div>
+   </section>
+
+   <section class="page" id="page-upload">
+    <div class="heading">
+     <div><h1>Upload Document</h1><p>Submit a school document for review or record keeping.</p></div>
+    </div>
+    <div class="panel">
+     <form id="uploadForm">
+      <div class="grid">
+       <div class="field"><label>Document file(s) *</label><input id="file" type="file" multiple required></div>
+       <div class="field"><label>Document title *</label><input id="title" required placeholder="e.g. Quarterly report"></div>
+       <div class="field">
+        <label>Category *</label>
+        <select id="category" required>
+         <option value="">Select category</option>
+         <option>Lesson Plans</option><option>Class Records</option>
+         <option>Student Grades</option><option>Attendance Sheets</option>
+         <option>Accomplishment Reports</option><option>Forms & Requests</option>
+         <option>Administrative</option><option>Other</option>
+        </select>
+       </div>
+       <div class="field"><label>School year</label><input id="year" value="2026–2027"></div>
+       <div class="field"><label>Department / subject</label><input id="subject"></div>
+       <div class="field"><label>Due date</label><input id="due" type="date"></div>
+        <div class="field"><label>Save in folder</label><select id="uploadFolder"><option value="">No folder</option></select></div>
+       <div class="field">
+        <label>Submission type</label>
+        <select id="type">
+         <option>For review</option><option>For record keeping</option>
+         <option>Final submission</option>
+        </select>
+       </div>
+       <div class="field"><label>Description</label><input id="description" placeholder="Optional notes"></div>
+      </div>
+      <button class="btn" type="submit">Upload and submit</button><div id="uploadProgress" class="notice" style="display:none;margin-top:12px">Preparing upload…</div>
+     </form>
+    </div>
+   </section>
+
+   <section class="page" id="page-tracking">
+    <div class="heading">
+     <div><h1>Submission Tracking</h1><p>Check the review status of your documents.</p></div>
+    </div>
+    <div class="panel" id="tracking"></div>
+   </section>
+
+   <section class="page" id="page-admin">
+    <div class="heading">
+     <div><h1>Staff Administration</h1><p>Manage account approvals and submitted documents.</p></div>
+    </div>
+    <div class="notice warn">
+     Restricted staff area. Access is checked against the signed-in account role.
+    </div>
+    <div class="panel">
+     <h2>User Role Management</h2>
+     <p class="muted" style="font-size:12px">Search accounts and change their access role. Role changes are processed securely by the database.</p>
+     <div class="grid" style="margin-bottom:12px">
+      <div class="field"><label for="userSearch">Search by name or email</label><input id="userSearch" type="search" placeholder="Search users…" oninput="filterManagedUsers()"></div>
+      <div class="field"><label for="userRoleFilter">Filter by role</label><select id="userRoleFilter" onchange="filterManagedUsers()"><option value="all">All roles</option><option value="student">Student</option><option value="teacher">Teacher</option><option value="staff">Staff</option></select></div>
+     </div>
+     <div class="tablewrap">
+      <table style="min-width:780px">
+       <thead><tr><th>Name / Email</th><th>Department</th><th>Current role</th><th>Change role</th><th>Account status</th></tr></thead>
+       <tbody id="managedUsers"><tr><td colspan="5">Loading users…</td></tr></tbody>
+      </table>
+     </div>
+    </div>
+    <div class="panel">
+     <h2>Pending account registrations</h2>
+     <p class="muted" style="font-size:12px">New student and teacher registrations appear here.</p>
+     <div id="requests"><div class="empty">Loading account requests…</div></div>
+    </div>
+    <div class="panel">
+     <h2>All school submissions</h2>
+     <div class="tablewrap">
+      <table>
+       <thead><tr><th>Owner</th><th>Document</th><th>Category</th><th>Date</th><th>Status / Actions</th></tr></thead>
+       <tbody id="allRows"></tbody>
+      </table>
+     </div>
+    </div>
+   </section>
+
+  </div>
+ </main>
+</div>
+
+
+<div class="viewer-backdrop" id="previewModal" role="dialog" aria-modal="true" aria-label="Document preview"><div class="viewer"><div class="viewer-head"><b id="previewTitle">Document preview</b><div class="actions"><button class="btn secondary small" id="previewDownload">Download</button><button class="btn danger small" onclick="closePreview()">Close</button></div></div><div class="viewer-body" id="previewBody"></div></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= SUPABASE CONFIG ================= */
+
+const SUPABASE_URL = "https://feosauhytpcjaqipqgfy.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_EoMNarJJpRYxmB5luiDlxA_RWnDPab1";
+
+const TEACHER_EMAIL_DOMAIN = "deped.gov.ph";
+const BUCKET = "docukeep-files";
+
+const sb = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  }
+);
+
+let accountType = null;
+let currentProfile = null;
+let documents = [];
+let toastTimer = null;
+
+const $ = id => document.getElementById(id);
+
+/* ================= GENERAL FUNCTIONS ================= */
+
+function toast(message) {
+  const el = $("toast");
+  el.textContent = message;
+  el.classList.add("show");
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 5000);
+}
+
+function escapeHTML(v = "") {
+  return String(v).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+function dateText(v) {
+  return v ? new Date(v).toLocaleDateString() : "—";
+}
+
+function validEmail(email, type) {
+  const parts = email.toLowerCase().split("@");
+  if (parts.length !== 2) return false;
+
+  if (type === "student") return parts[1] === "gmail.com";
+  if (type === "teacher") return parts[1] === TEACHER_EMAIL_DOMAIN;
+  return type === "staff";
+}
+
+function statusClass(status) {
+  return String(status || "").toLowerCase().replace(/[^a-z]/g, "");
+}
+function studentDocumentStatus(d){if(d.due_date && new Date(d.due_date+"T23:59:59")<new Date() && !["approved","rejected"].includes(d.status))return "overdue";return d.status==="pending"?"submitted":d.status;}
+
+function setAuthMessage(message, kind = "") {
+  $("authMsg").textContent = message;
+  $("authMsg").className = "notice" + (kind ? " " + kind : "");
+}
+
+function friendlyAuthError(error) {
+  const message = error?.message || "Unknown error";
+  const code = error?.code || "";
+
+  if (code === "email_not_confirmed" ||
+      message.toLowerCase().includes("email not confirmed")) {
+    return "Supabase reports that this email is not confirmed. Your database may show a confirmation timestamp, but the Auth service is still rejecting it. Verify the exact email and Auth user in the same Supabase project.";
+  }
+
+  if (message.toLowerCase().includes("invalid login credentials")) {
+    return "Incorrect email or password. Check both and try again.";
+  }
+
+  if (message.toLowerCase().includes("too many requests")) {
+    return "Too many attempts. Please wait a few minutes before trying again.";
+  }
+
+  return message;
+}
+
+/* ================= ACCOUNT TYPE ================= */
+
+function selectType(type) {
+  accountType = type;
+
+  $("choose").classList.add("hidden");
+  $("authform").classList.remove("hidden");
+
+  $("formDescription").textContent =
+    type === "student" ? "Use your personal Gmail account." :
+    type === "teacher" ? "Use your official DepEd email (@deped.gov.ph)." :
+    "Use the staff account provided by your administrator.";
+
+  $("signupSwitch").classList.toggle("hidden", type === "staff");
+  $("resendSwitch").classList.toggle("hidden", type === "staff");
+
+  setAuthMessage(
+    type === "staff"
+      ? "Staff accounts cannot be registered here."
+      : "New registrations remain pending until approved by authorized staff."
+  );
+
+  toggleForm(false);
+}
+
+function backChoice() {
+  accountType = null;
+  $("authform").classList.add("hidden");
+  $("choose").classList.remove("hidden");
+}
+
+function toggleForm(signup) {
+  $("loginForm").classList.toggle("hidden", signup);
+  $("signupForm").classList.toggle("hidden", !signup);
+
+  $("signupSwitch").classList.toggle("hidden", signup || accountType === "staff");
+  $("loginSwitch").classList.toggle("hidden", !signup);
+  $("resendSwitch").classList.toggle("hidden", signup || accountType === "staff");
+
+  $("formTitle").textContent =
+    (accountType === "student" ? "Student" :
+     accountType === "teacher" ? "Teacher" : "Staff") +
+    (signup ? " registration" : " sign in");
+}
+
+/* ================= LOGIN ================= */
+
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  if (!accountType) return toast("Choose an account type first.");
+
+  const email = $("email").value.trim().toLowerCase();
+  const password = $("password").value;
+
+  if (!validEmail(email, accountType)) {
+    return toast(
+      accountType === "student"
+        ? "Students must use a personal @gmail.com address."
+        : accountType === "teacher"
+          ? "Teachers must use an official @deped.gov.ph address."
+          : "Invalid staff email."
+    );
+  }
+
+  const button = $("loginForm").querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.textContent = "Signing in...";
+
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      console.error("Supabase sign-in error:", error);
+      throw error;
+    }
+
+    if (!data.user) throw new Error("Supabase did not return a user.");
+
+    await loadProfile(data.user, accountType);
+
+  } catch (err) {
+    console.error("DocuKeep login error:", err);
+
+    const message = friendlyAuthError(err);
+    setAuthMessage("Login failed: " + message, "warn");
+    toast("Login failed: " + message);
+
+  } finally {
+    button.disabled = false;
+    button.textContent = "Sign in";
+  }
+});
+
+/* ================= REGISTRATION ================= */
+
+$("signupForm").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  if (!["student", "teacher"].includes(accountType)) {
+    return toast("Choose Student or Teacher registration.");
+  }
+
+  const fullName = $("fullName").value.trim();
+  const email = $("signupEmail").value.trim().toLowerCase();
+  const department = $("department").value.trim();
+  const password = $("signupPassword").value;
+  const confirmPassword = $("confirmPassword").value;
+
+  if (!fullName || !department) return toast("Complete all required fields.");
+  if (!validEmail(email, accountType)) {
+    return toast(accountType === "student"
+      ? "Students must use a personal Gmail address."
+      : "Teachers must use an official @deped.gov.ph address.");
+  }
+  if (password.length < 8) return toast("Password must contain at least 8 characters.");
+  if (password !== confirmPassword) return toast("Passwords do not match.");
+
+  const button = $("signupForm").querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.textContent = "Creating account...";
+  setAuthMessage("Submitting your registration...");
+
+  try {
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          requested_role: accountType,
+          department
+        }
+      }
+    });
+
+    if (error) throw error;
+
+    if (!data.user) {
+      throw new Error("Supabase did not return a registered user.");
+    }
+
+    // Supabase may return a masked response for an existing email.
+    if (Array.isArray(data.user.identities) &&
+        data.user.identities.length === 0) {
+      throw new Error(
+        "This email may already be registered. Try signing in instead or use another email address."
+      );
+    }
+
+    console.log("DocuKeep signup:", {
+      userId: data.user.id,
+      email: data.user.email,
+      role: accountType,
+      sessionCreated: !!data.session
+    });
+
+    // Do not sign out globally. There may be another active session.
+    // The registration screen does not open the app automatically.
+
+    $("signupForm").reset();
+    toggleForm(false);
+
+    setAuthMessage(
+      data.session
+        ? "Registration submitted. Your account must be approved by staff before using DocuKeep."
+        : "Registration created. Check your email for a confirmation link if Supabase requires it. Then sign in after confirmation and staff approval.",
+      "ok"
+    );
+
+    toast("Registration request submitted.");
+
+  } catch (err) {
+    console.error("DocuKeep signup error:", err);
+    const message = friendlyAuthError(err);
+    setAuthMessage("Registration failed: " + message, "warn");
+    toast("Signup failed: " + message);
+
+  } finally {
+    button.disabled = false;
+    button.textContent = "Create account";
+  }
+});
+
+/* ================= RESEND CONFIRMATION ================= */
+
+async function resendConfirmation() {
+  const email = $("email").value.trim().toLowerCase();
+
+  if (!email) {
+    return toast("Enter your email in the sign-in email field first.");
+  }
+
+  if (!validEmail(email, accountType)) {
+    return toast("Enter an email valid for the selected account type.");
+  }
+
+  try {
+    const { error } = await sb.auth.resend({
+      type: "signup",
+      email
+    });
+
+    if (error) throw error;
+
+    setAuthMessage(
+      "If this account requires confirmation, Supabase has processed the resend request. Check your inbox and spam folder.",
+      "ok"
+    );
+
+    toast("Confirmation request processed.");
+
+  } catch (err) {
+    console.error("Resend confirmation error:", err);
+    toast("Could not resend confirmation: " + err.message);
+  }
+}
+
+/* ================= PROFILE AND ACCESS ================= */
+
+async function loadProfile(user, expectedType = accountType) {
+  const { data: profile, error } = await sb
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Profile loading error:", error);
+    await sb.auth.signOut();
+    throw new Error("Could not load your profile: " + error.message);
+  }
+
+  if (!profile) {
+    await sb.auth.signOut();
+    throw new Error("Your profile was not found. Contact the administrator.");
+  }
+
+  if (profile.status !== "approved") {
+    await sb.auth.signOut();
+
+    throw new Error(
+      profile.status === "pending"
+        ? "Your account is awaiting staff approval."
+        : "Your account is not approved. Contact the administrator."
+    );
+  }
+
+  if (!["student", "teacher", "staff"].includes(profile.role)) {
+    await sb.auth.signOut();
+    throw new Error("Your account has an invalid role.");
+  }
+
+  if (expectedType && profile.role !== expectedType) {
+    await sb.auth.signOut();
+    throw new Error("This account belongs to a different sign-in category.");
+  }
+
+  // Verify role against the actual signed-in email.
+  if (profile.role === "student" && !validEmail(user.email, "student")) {
+    await sb.auth.signOut();
+    throw new Error("Student accounts must use a personal Gmail address.");
+  }
+
+  if (profile.role === "teacher" && !validEmail(user.email, "teacher")) {
+    await sb.auth.signOut();
+    throw new Error("Teacher accounts must use an official DepEd email.");
+  }
+
+  currentProfile = profile;
+  accountType = profile.role;
+
+  $("auth").classList.add("hidden");
+  $("app").classList.remove("hidden");
+
+  $("who").textContent = profile.full_name + " · " + profile.role.toUpperCase();
+  $("greeting").textContent = "Welcome, " + profile.full_name;
+
+  $("adminNav").classList.toggle("hidden", profile.role !== "staff");
+
+  await loadDocuments();
+  await updateOfflineStatus();
+  if(navigator.onLine) syncOfflineUploads();
+  go("dashboard");
+}
+
+/* ================= DOCUMENTS ================= */
+
+async function loadDocuments() {
+  if (!currentProfile) return;
+
+  const { data, error } = await sb
+    .from("documents")
+    .select("id,title,category,created_at,status,owner_id,owner_name,storage_path,file_name,mime_type,size_bytes,due_date,school_year,department,folder_id,sha256")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Document loading error:", error);
+    toast("Could not load documents: " + error.message);
+    return;
+  }
+
+  documents = data || [];
+  renderDocuments();
+  updateStorageStats();
+  if(currentProfile.role!=="staff"){loadFolders();loadNotifications();}
+}
+
+function renderDocuments() {
+  if (!currentProfile) return;
+
+  const own = documents.filter(d =>
+    currentProfile.role === "staff" ||
+    d.owner_id === currentProfile.id
+  );
+
+  $("total").textContent = own.length;
+  $("pending").textContent = own.filter(d => d.status === "pending").length;
+  $("approved").textContent = own.filter(d => d.status === "approved").length;
+
+  $("recent").innerHTML = own.slice(0, 5).map(d => `
+    <p>
+      <b>${escapeHTML(d.title)}</b>
+      · ${escapeHTML(d.category)}
+      · <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span>
+    </p>
+  `).join("") || '<div class="empty">No documents yet.</div>';
+
+  $("docRows").innerHTML = own.map(d => `
+    <tr>
+      <td>${escapeHTML(d.title)}</td>
+      <td>${escapeHTML(d.category)}</td>
+      <td>${dateText(d.created_at)}</td>
+      <td><span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span></td>
+      <td><div class="actions"><button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button><button class="btn secondary small" onclick="downloadDoc('${d.id}')">Download</button></div></td>
+    </tr>
+  `).join("");
+
+  $("docEmpty").classList.toggle("hidden", own.length > 0);
+
+  $("tracking").innerHTML = own.map(d => `
+    <p>
+      <b>${escapeHTML(d.title)}</b>
+      · ${dateText(d.created_at)}
+      · <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span>
+    </p>
+  `).join("") || '<div class="empty">No submissions yet.</div>';
+
+  if (currentProfile.role === "staff") renderAdmin();
+}
+
+/* ================= UPLOAD DOCUMENT + OFFLINE QUEUE ================= */
+const DB_NAME = "docukeep-offline-v1", STORE = "pendingUploads";
+function openOfflineDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>req.result.createObjectStore(STORE,{keyPath:"id"});req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+async function queueOfflineUpload(job){const db=await openOfflineDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).put(job);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});}
+async function getQueuedUploads(){const db=await openOfflineDB();return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
+async function removeQueuedUpload(id){const db=await openOfflineDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
+function humanBytes(n){if(!n)return "0 B";const u=["B","KB","MB","GB","TB"];let i=0;while(n>=1024&&i<u.length-1){n/=1024;i++;}return n.toFixed(i?1:0)+" "+u[i];}
+async function syncOfflineUploads(){if(!navigator.onLine||!currentProfile)return;let jobs=[];try{jobs=await getQueuedUploads();}catch(e){console.warn(e);return;}for(const job of jobs){try{toast("Uploading queued file: "+job.fileName);await uploadJob(job);await removeQueuedUpload(job.id);}catch(err){console.error("Offline sync failed",err);job.lastError=err.message;await queueOfflineUpload(job);break;}}await updateOfflineStatus();await loadDocuments();}
+async function uploadJob(job){const path=job.path;const {error:upErr}=await sb.storage.from(BUCKET).upload(path,job.file,{upsert:false,contentType:job.mimeType||undefined});if(upErr && !String(upErr.message||"").toLowerCase().includes("already exists"))throw upErr;
+ const {error:dbErr}=await sb.from("documents").upsert({id:job.id,title:job.title,category:job.category,school_year:job.schoolYear,department:job.department,due_date:job.dueDate||null,submission_type:job.submissionType,description:job.description,folder_id:job.folderId||null,sha256:job.sha256||null,owner_id:job.ownerId,owner_name:job.ownerName,storage_path:path,file_name:job.fileName,mime_type:job.mimeType,size_bytes:job.sizeBytes,status:"pending"},{onConflict:"id",ignoreDuplicates:true});if(dbErr)throw dbErr;}
+async function updateOfflineStatus(){let count=0;try{count=(await getQueuedUploads()).length;}catch(e){}$("syncbar").classList.toggle("show",!navigator.onLine||count>0);$("queueCount").textContent=count;}
+window.addEventListener("online",()=>{updateOfflineStatus();syncOfflineUploads();});window.addEventListener("offline",updateOfflineStatus);
+$("uploadForm").addEventListener("submit",async e=>{e.preventDefault();if(!currentProfile)return toast("Please sign in first.");const files=Array.from($("file").files||[]);if(!files.length)return toast("Choose at least one file.");const button=e.target.querySelector('button[type="submit"]');button.disabled=true;button.textContent="Processing files…";let ok=0,queued=0,failed=0,done=0;const progress=$("uploadProgress");progress.style.display="block";
+ try{for(const file of files){progress.textContent=`Processing ${done+1} of ${files.length}: ${file.name}`;if(file.size>25*1024*1024){failed++;toast(file.name+" exceeds the 25 MB per-file limit.");continue;}const id=crypto.randomUUID(),safeName=file.name.replace(/[^\w.\-]/g,"_");const hash=await sha256File(file);const duplicate=hash&&documents.find(d=>d.owner_id===currentProfile.id&&d.sha256===hash);if(duplicate&&!confirm(`This file appears to duplicate "${duplicate.file_name||duplicate.title}". Upload another copy anyway?`)){continue;}const job={id,path:`${currentProfile.id}/${id}/${safeName}`,file,sha256:hash,title:files.length===1?$("title").value.trim():($("title").value.trim()||file.name),category:$("category").value,schoolYear:$("year").value,department:$("subject").value,dueDate:$("due").value,submissionType:$("type").value,description:$("description").value,folderId:$("uploadFolder").value||null,ownerId:currentProfile.id,ownerName:currentProfile.full_name,fileName:file.name,mimeType:file.type,sizeBytes:file.size,createdAt:new Date().toISOString()};
+ if(!job.title||!job.category){throw new Error("Enter a document title and category before uploading.");}
+ if(!navigator.onLine){await queueOfflineUpload(job);queued++;done++;progress.textContent=`${done} of ${files.length} processed`;continue;}
+ try{await uploadJob(job);ok++;}catch(err){if(!navigator.onLine){await queueOfflineUpload(job);queued++;}else{failed++;console.error("Upload failed",err);toast(file.name+": "+err.message);}}done++;progress.textContent=`${done} of ${files.length} processed`;
+ }
+ if(ok||queued){if(files.length===1&&ok){e.target.reset();$("year").value="2026–2027";}await loadDocuments();toast(`${ok} uploaded, ${queued} waiting for internet, ${failed} failed.`);}await updateOfflineStatus();
+ }catch(err){console.error(err);toast("Could not process upload: "+err.message);}finally{button.disabled=false;button.textContent="Upload and submit";$("uploadProgress").style.display="none";}
+});
+
+/* ================= DOWNLOAD ================= */
+
+async function sha256File(file){try{const digest=await crypto.subtle.digest("SHA-256",await file.arrayBuffer());return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");}catch(e){console.warn("SHA-256 unavailable",e);return null;}}
+async function getSignedDocumentUrl(d){const {data,error}=await sb.storage.from(BUCKET).createSignedUrl(d.storage_path,300);if(error)throw error;return data.signedUrl;}
+async function downloadDoc(id){const d=documents.find(x=>x.id===id);if(!d)return;try{const url=await getSignedDocumentUrl(d);const a=document.createElement("a");a.href=url;a.target="_blank";a.rel="noopener";a.download=d.file_name||d.title;a.click();}catch(e){toast("Unable to create download link: "+e.message);}}
+async function previewDoc(id){const d=documents.find(x=>x.id===id);if(!d)return;try{const url=await getSignedDocumentUrl(d);$("previewTitle").textContent=d.file_name||d.title;$("previewBody").innerHTML="";const mime=(d.mime_type||"").toLowerCase(),name=(d.file_name||"").toLowerCase();if(mime==="application/pdf"||name.endsWith(".pdf")){const f=document.createElement("iframe");f.src=url;f.title="PDF preview";$("previewBody").appendChild(f);}else if(mime.startsWith("image/")||/\.(png|jpe?g|webp)$/i.test(name)){const img=document.createElement("img");img.src=url;img.alt=d.file_name;$("previewBody").appendChild(img);}else{$("previewBody").innerHTML='<div class="empty"><h3>Preview not available</h3><p>This format cannot be previewed in the current viewer. Use Download to open it with a compatible application.</p></div>';}
+ $("previewDownload").onclick=()=>downloadDoc(id);$("previewModal").classList.add("open");}catch(e){toast("Unable to preview document: "+e.message);}}
+function closePreview(){$("previewModal").classList.remove("open");$("previewBody").innerHTML="";}
+$("previewModal").addEventListener("click",e=>{if(e.target.id==="previewModal")closePreview();});
+
+/* ================= FOLDERS, NOTIFICATIONS, STORAGE ================= */
+async function updateStorageStats(){const bytes=(documents||[]).filter(d=>d.owner_id===currentProfile?.id).reduce((s,d)=>s+Number(d.size_bytes||0),0);$("storageUsed").textContent=humanBytes(bytes);$("storageLimit").textContent="25 MB per file";$("storageRemaining").textContent="Per-file limit applies";}
+async function loadFolders(){if(!currentProfile)return;const {data,error}=await sb.from("docukeep_folders").select("id,name,color,created_at").eq("owner_id",currentProfile.id).order("created_at");if(error){$("folderList").innerHTML='<div class="empty">Folders unavailable. Apply the database migration first.</div>';return;}$("folderList").innerHTML=(data||[]).map(f=>`<div class="feature"><span class="folder-color" style="background:${escapeHTML(f.color||"#2862a5")}"></span><b>${escapeHTML(f.name)}</b><p class="muted">${documents.filter(d=>d.folder_id===f.id).length} documents · Created ${dateText(f.created_at)}</p><button class="btn secondary small" onclick="showFolderDocuments('${f.id}')">View documents</button></div>`).join("")||'<div class="empty">No folders yet. Create your first folder.</div>';const select=$("uploadFolder");if(select){select.innerHTML='<option value="">No folder</option>'+(data||[]).map(f=>`<option value="${f.id}">${escapeHTML(f.name)}</option>`).join("");}}
+function showFolderDocuments(folderId){const items=documents.filter(d=>d.folder_id===folderId&&d.owner_id===currentProfile.id);$("docRows").innerHTML=items.map(d=>`<tr><td>${escapeHTML(d.title)}</td><td>${escapeHTML(d.category)}</td><td>${dateText(d.created_at)}</td><td>${escapeHTML(d.status)}</td><td><button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button></td></tr>`).join("");$("docEmpty").classList.toggle("hidden",items.length>0);go("documents");}
+$("folderForm").addEventListener("submit",async e=>{e.preventDefault();if(!currentProfile)return;const {error}=await sb.from("docukeep_folders").insert({owner_id:currentProfile.id,name:$("folderName").value.trim(),color:$("folderColor").value});if(error)return toast("Could not create folder: "+error.message);e.target.reset();await loadFolders();toast("Folder created.");});
+async function loadNotifications(){if(!currentProfile)return;const {data,error}=await sb.from("docukeep_notifications").select("id,title,message,created_at,is_read").eq("user_id",currentProfile.id).order("created_at",{ascending:false}).limit(100);if(error){$("notificationList").innerHTML='<div class="empty">Notifications unavailable. Apply the database migration first.</div>';return;}const unread=(data||[]).filter(n=>!n.is_read).length;$("notificationCount").textContent=unread?`(${unread})`:"";$("notificationList").innerHTML=(data||[]).map(n=>`<div style="padding:12px;border-bottom:1px solid var(--line);${n.is_read?"opacity:.65":""}"><b>${escapeHTML(n.title)}</b><p>${escapeHTML(n.message)}</p><small class="muted">${dateText(n.created_at)} · ${n.is_read?"Read":"Unread"}</small>${n.is_read?"":` <button class="btn secondary small" onclick="markNotificationRead('${n.id}')">Mark read</button>`}</div>`).join("")||'<div class="empty">You have no notifications.</div>';}
+async function markNotificationRead(id){const {error}=await sb.from("docukeep_notifications").update({is_read:true}).eq("id",id).eq("user_id",currentProfile.id);if(error)return toast(error.message);loadNotifications();}
+async function markAllNotificationsRead(){if(!currentProfile)return;const {error}=await sb.from("docukeep_notifications").update({is_read:true}).eq("user_id",currentProfile.id).eq("is_read",false);if(error)return toast(error.message);loadNotifications();toast("Notifications marked as read.");}
+
+/* ================= STAFF ADMINISTRATION ================= */
+
+async function renderAdmin() {
+  if (currentProfile?.role !== "staff") {
+    $("requests").innerHTML = '<div class="empty">Staff access required.</div>';
+    return;
+  }
+
+  $("requests").innerHTML = '<div class="empty">Loading account requests…</div>';
+
+  const { data: users, error } = await sb
+    .from("profiles")
+    .select("id,full_name,email,role,department,created_at")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Approval loading error:", error);
+    $("requests").innerHTML = '<div class="empty">Could not load account requests.</div>';
+    toast("Unable to load approvals: " + error.message);
+    return;
+  }
+
+  $("requests").innerHTML = (users || []).map(u => `
+    <div style="padding:12px 0;border-bottom:1px solid #eee">
+      <b>${escapeHTML(u.full_name)}</b> · ${escapeHTML(u.role)}
+      <br>
+      <small>
+        ${escapeHTML(u.email)}
+        · ${escapeHTML(u.department || "No department supplied")}
+        · Registered ${dateText(u.created_at)}
+      </small>
+      <div class="actions" style="margin-top:8px">
+        <button class="btn green small" onclick="reviewUser('${u.id}','approved')">Approve</button>
+        <button class="btn danger small" onclick="reviewUser('${u.id}','rejected')">Reject</button>
+      </div>
+    </div>
+  `).join("") || '<div class="empty">No pending registrations.</div>';
+
+  const { data: allUsers, error: allUsersError } = await sb
+    .from("profiles")
+    .select("id,full_name,email,role,department,status,created_at")
+    .order("created_at", { ascending: false });
+
+  if (allUsersError) {
+    $("managedUsers").innerHTML = `<tr><td colspan="5">Could not load users: ${escapeHTML(allUsersError.message)}</td></tr>`;
+  } else {
+    managedUsersCache = allUsers || [];
+    filterManagedUsers();
+  }
+
+  $("allRows").innerHTML = documents.map(d => `
+    <tr>
+      <td>${escapeHTML(d.owner_name || "")}</td>
+      <td>${escapeHTML(d.title)}</td>
+      <td>${escapeHTML(d.category)}</td>
+      <td>${dateText(d.created_at)}</td>
+      <td>
+       <span class="pill ${statusClass(d.status)}">${escapeHTML(d.status)}</span>
+       <div class="actions" style="margin-top:6px">
+        <button class="btn green small" onclick="reviewDoc('${d.id}','approved')">Approve</button>
+        <button class="btn secondary small" onclick="reviewDoc('${d.id}','needs_revision')">Return</button>
+        <button class="btn danger small" onclick="reviewDoc('${d.id}','rejected')">Reject</button>
+       </div>
+      </td>
+    </tr>
+  `).join("");
+}
+
+let managedUsersCache = [];
+
+function filterManagedUsers() {
+  const search = ($("userSearch")?.value || "").trim().toLowerCase();
+  const roleFilter = $("userRoleFilter")?.value || "all";
+  const filtered = managedUsersCache.filter(u => {
+    const matchesSearch = !search || `${u.full_name || ""} ${u.email || ""}`.toLowerCase().includes(search);
+    const matchesRole = roleFilter === "all" || u.role === roleFilter;
+    return matchesSearch && matchesRole;
+  });
+
+  $("managedUsers").innerHTML = filtered.map(u => {
+    const isSelf = u.id === currentProfile?.id;
+    return `<tr>
+      <td><b>${escapeHTML(u.full_name || "Unnamed user")}</b><br><small>${escapeHTML(u.email || "")}</small></td>
+      <td>${escapeHTML(u.department || "—")}</td>
+      <td><span class="pill ${u.role === "staff" ? "approved" : "pending"}">${escapeHTML(u.role)}</span></td>
+      <td><div class="actions">
+        <select id="role-${u.id}" aria-label="New role for ${escapeHTML(u.email || u.full_name || "user")}" ${isSelf ? "disabled" : ""} style="padding:6px;border:1px solid var(--line);border-radius:7px">
+          <option value="student" ${u.role === "student" ? "selected" : ""}>Student</option>
+          <option value="teacher" ${u.role === "teacher" ? "selected" : ""}>Teacher</option>
+          <option value="staff" ${u.role === "staff" ? "selected" : ""}>Staff / Admin</option>
+        </select>
+        <button class="btn small" onclick="changeUserRole('${u.id}')" ${isSelf ? "disabled title=\"You cannot change your own role\"" : ""}>Save</button>
+      </div></td>
+      <td>${escapeHTML(u.status || "unknown")}${isSelf ? " · You" : ""}</td>
+    </tr>`;
+  }).join("") || '<tr><td colspan="5" class="empty">No matching accounts found.</td></tr>';
+}
+
+async function changeUserRole(userId) {
+  if (currentProfile?.role !== "staff") return toast("Staff access required.");
+  if (userId === currentProfile.id) return toast("You cannot change your own role.");
+  const select = document.getElementById(`role-${userId}`);
+  const newRole = select?.value;
+  if (!["student", "teacher", "staff"].includes(newRole)) return toast("Choose a valid role.");
+  const user = managedUsersCache.find(u => u.id === userId);
+  if (!user) return toast("User not found. Refresh the list.");
+  if (newRole === user.role) return toast("This account already has that role.");
+  const label = newRole === "staff" ? "Staff / Admin" : newRole.charAt(0).toUpperCase() + newRole.slice(1);
+  if (!confirm(`Change ${user.email} from ${user.role} to ${label}?`)) return;
+
+  const { error } = await sb.rpc("manage_docukeep_user_role", {
+    p_user_id: userId,
+    p_new_role: newRole
+  });
+  if (error) {
+    console.error("Role update error:", error);
+    return toast("Could not change role: " + error.message);
+  }
+  toast(`Role updated to ${label}.`);
+  await renderAdmin();
+}
+
+/* ================= APPROVE / REJECT ACCOUNTS ================= */
+
+async function reviewUser(id, status) {
+  if (currentProfile?.role !== "staff") return toast("Staff access required.");
+
+  if (!["approved", "rejected"].includes(status)) {
+    return toast("Invalid account status.");
+  }
+
+  const { error } = await sb.rpc("approve_docukeep_profile", {
+    p_user_id: id,
+    p_status: status
+  });
+
+  if (error) {
+    console.error("Account approval error:", error);
+    return toast("Could not update account: " + error.message);
+  }
+
+  toast("Account " + status + ".");
+  await renderAdmin();
+}
+
+/* ================= REVIEW DOCUMENTS ================= */
+
+async function reviewDoc(id, status) {
+  if (currentProfile?.role !== "staff") return toast("Staff access required.");
+
+  if (!["approved", "needs_revision", "rejected"].includes(status)) {
+    return toast("Invalid document status.");
+  }
+
+  const { error } = await sb.from("documents").update({
+    status,
+    reviewed_at: new Date().toISOString(),
+    reviewed_by: currentProfile.id
+  }).eq("id", id);
+
+  if (error) return toast("Could not update document: " + error.message);
+
+  toast("Document status updated.");
+  await loadDocuments();
+}
+
+/* ================= NAVIGATION ================= */
+
+function go(page) {
+  const allowedPages = ["dashboard", "documents", "upload", "tracking", "folders", "notifications", "premium", "admin"];
+
+  if (!allowedPages.includes(page)) return;
+
+  if (!currentProfile) return toast("Please sign in first.");
+
+  if (page === "admin" && currentProfile.role !== "staff") {
+    return toast("Staff access required.");
+  }
+
+  document.querySelectorAll(".page").forEach(x => x.classList.remove("active"));
+  $("page-" + page).classList.add("active");
+
+  document.querySelectorAll("[data-page]").forEach(x => {
+    x.classList.toggle("active", x.dataset.page === page);
+  });
+
+  $("crumb").textContent = {
+    dashboard: "Dashboard",
+    documents: "My Documents",
+    upload: "Upload Document",
+    tracking: "Submission Tracking",
+    folders: "My Folders",
+    notifications: "Notifications",
+    premium: "Premium Plan",
+    admin: "Staff Administration"
+  }[page];
+
+  if (page === "admin") renderAdmin();
+  window.scrollTo(0, 0);
+}
+
+document.querySelectorAll("[data-page]").forEach(button => {
+  button.addEventListener("click", () => go(button.dataset.page));
+});
+
+/* ================= SIGN OUT ================= */
+
+async function signOut() {
+  const { error } = await sb.auth.signOut();
+
+  if (error) return toast("Sign out failed: " + error.message);
+
+  currentProfile = null;
+  documents = [];
+  accountType = null;
+
+  $("app").classList.add("hidden");
+  $("auth").classList.remove("hidden");
+
+  $("loginForm").reset();
+  $("signupForm").reset();
+
+  backChoice();
+  toast("Successfully signed out.");
+}
+
+/* ================= RESTORE SESSION ================= */
+
+(async function restoreSession() {
+  try {
+    const { data, error } = await sb.auth.getSession();
+    if (error) throw error;
+
+    const session = data.session;
+    if (!session) return;
+
+    // Restore account type from the trusted profile.
+    const { data: profile, error: profileError } = await sb
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .maybeSingle();
+
+    if (profileError) throw profileError;
+
+    if (!profile || profile.status !== "approved") {
+      await sb.auth.signOut();
+
+      toast(
+        profile?.status === "pending"
+          ? "Your registration is waiting for staff approval."
+          : "Your account is not approved. Contact the administrator."
+      );
+      return;
+    }
+
+    currentProfile = profile;
+    accountType = profile.role;
+
+    $("auth").classList.add("hidden");
+    $("app").classList.remove("hidden");
+
+    $("who").textContent = profile.full_name + " · " + profile.role.toUpperCase();
+    $("greeting").textContent = "Welcome, " + profile.full_name;
+
+    $("adminNav").classList.toggle("hidden", profile.role !== "staff");
+
+    await loadDocuments();
+    await updateOfflineStatus();
+    if(navigator.onLine) syncOfflineUploads();
+    go("dashboard");
+
+  } catch (err) {
+    console.error("Session restore error:", err);
+    toast("Could not restore your session: " + err.message);
+  }
+})();
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(e=>console.warn("PWA service worker unavailable",e)));}
+updateOfflineStatus();
+</script>
+</body>
+</html>
