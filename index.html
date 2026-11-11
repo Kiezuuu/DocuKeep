@@ -729,12 +729,21 @@ async function resendConfirmation() {
 
 /* ================= PROFILE AND ACCESS ================= */
 
+
 async function loadProfile(user, expectedType = accountType) {
   const { data: profile, error } = await sb
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .maybeSingle();
+
+  // DEBUG: Check the actual account and database response
+  console.log("AUTH USER ID:", user.id);
+  console.log("AUTH EMAIL:", user.email);
+  console.log("EXPECTED CATEGORY:", expectedType);
+  console.log("PROFILE DATA:", profile);
+  console.log("DATABASE ROLE:", profile?.role);
+  console.log("PROFILE ERROR:", error);
 
   if (error) {
     console.error("Profile loading error:", error);
@@ -747,20 +756,36 @@ async function loadProfile(user, expectedType = accountType) {
     throw new Error("Your profile was not found. Contact the administrator.");
   }
 
-  if (profile.status !== "approved") {
+  const actualRole = String(profile.role || "").trim().toLowerCase();
+  const actualStatus = String(profile.status || "").trim().toLowerCase();
+  const selectedCategory = String(expectedType || "").trim().toLowerCase();
+
+  if (actualStatus !== "approved") {
     await sb.auth.signOut();
 
     throw new Error(
-      profile.status === "pending"
+      actualStatus === "pending"
         ? "Your account is awaiting staff approval."
         : "Your account is not approved. Contact the administrator."
     );
   }
 
-  if (!["student", "teacher", "staff"].includes(profile.role)) {
+  if (!["student", "teacher", "staff"].includes(actualRole)) {
     await sb.auth.signOut();
     throw new Error("Your account has an invalid role.");
   }
+
+  if (selectedCategory && actualRole !== selectedCategory) {
+    await sb.auth.signOut();
+
+    throw new Error(
+      `Category mismatch. Selected: ${selectedCategory}. Database role: ${actualRole}.`
+    );
+  }
+
+  // Keep the rest of your original loadProfile code below this point.
+}
+
 
   const selectedCategory = String(expectedType || "").trim().toLowerCase();
   const actualRole = String(profile.role || "").trim().toLowerCase();
