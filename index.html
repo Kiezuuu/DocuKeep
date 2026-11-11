@@ -542,21 +542,26 @@ function toggleForm(signup) {
     (signup ? " registration" : " sign in");
 }
 
+
 /* ================= LOGIN ================= */
 
 $("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
 
-  if (!accountType) return toast("Choose an account type first.");
+  const selectedType = String(accountType || "").trim().toLowerCase();
+
+  if (!selectedType) {
+    return toast("Choose an account type first.");
+  }
 
   const email = $("email").value.trim().toLowerCase();
   const password = $("password").value;
 
-  if (!validEmail(email, accountType)) {
+  if (!validEmail(email, selectedType)) {
     return toast(
-      accountType === "student"
+      selectedType === "student"
         ? "Students must use a personal @gmail.com address."
-        : accountType === "teacher"
+        : selectedType === "teacher"
           ? "Teachers must use an official @deped.gov.ph address."
           : "Invalid staff email."
     );
@@ -572,14 +577,16 @@ $("loginForm").addEventListener("submit", async e => {
       password
     });
 
-    if (error) {
-      console.error("Supabase sign-in error:", error);
-      throw error;
-    }
-
+    if (error) throw error;
     if (!data.user) throw new Error("Supabase did not return a user.");
 
-    await loadProfile(data.user, accountType);
+    console.log("LOGIN DEBUG:", {
+      selectedCategory: selectedType,
+      authUserId: data.user.id,
+      email: data.user.email
+    });
+
+    await loadProfile(data.user, selectedType);
 
   } catch (err) {
     console.error("DocuKeep login error:", err);
@@ -594,197 +601,6 @@ $("loginForm").addEventListener("submit", async e => {
   }
 });
 
-/* ================= REGISTRATION ================= */
-
-$("signupForm").addEventListener("submit", async e => {
-  e.preventDefault();
-
-  if (!["student", "teacher"].includes(accountType)) {
-    return toast("Choose Student or Teacher registration.");
-  }
-
-  const fullName = $("fullName").value.trim();
-  const email = $("signupEmail").value.trim().toLowerCase();
-  const department = $("department").value.trim();
-  const password = $("signupPassword").value;
-  const confirmPassword = $("confirmPassword").value;
-
-  if (!fullName || !department) return toast("Complete all required fields.");
-  if (!validEmail(email, accountType)) {
-    return toast(accountType === "student"
-      ? "Students must use a personal Gmail address."
-      : "Teachers must use an official @deped.gov.ph address.");
-  }
-  if (password.length < 8) return toast("Password must contain at least 8 characters.");
-  if (password !== confirmPassword) return toast("Passwords do not match.");
-
-  const button = $("signupForm").querySelector('button[type="submit"]');
-  button.disabled = true;
-  button.textContent = "Creating account...";
-  setAuthMessage("Submitting your registration...");
-
-  try {
-    const { data, error } = await sb.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          requested_role: accountType,
-          department
-        }
-      }
-    });
-
-    if (error) throw error;
-
-    if (!data.user) {
-      throw new Error("Supabase did not return a registered user.");
-    }
-
-    // Supabase may return a masked response for an existing email.
-    if (Array.isArray(data.user.identities) &&
-        data.user.identities.length === 0) {
-      throw new Error(
-        "This email may already be registered. Try signing in instead or use another email address."
-      );
-    }
-
-    console.log("DocuKeep signup:", {
-      userId: data.user.id,
-      email: data.user.email,
-      role: accountType,
-      sessionCreated: !!data.session
-    });
-
-    // Do not sign out globally. There may be another active session.
-    // The registration screen does not open the app automatically.
-
-    $("signupForm").reset();
-    toggleForm(false);
-
-    setAuthMessage(
-      data.session
-        ? "Registration submitted. Your account must be approved by staff before using DocuKeep."
-        : "Registration created. Check your email for a confirmation link if Supabase requires it. Then sign in after confirmation and staff approval.",
-      "ok"
-    );
-
-    toast("Registration request submitted.");
-
-  } catch (err) {
-    console.error("DocuKeep signup error:", err);
-    const message = friendlyAuthError(err);
-    setAuthMessage("Registration failed: " + message, "warn");
-    toast("Signup failed: " + message);
-
-  } finally {
-    button.disabled = false;
-    button.textContent = "Create account";
-  }
-});
-
-/* ================= RESEND CONFIRMATION ================= */
-
-async function resendConfirmation() {
-  const email = $("email").value.trim().toLowerCase();
-
-  if (!email) {
-    return toast("Enter your email in the sign-in email field first.");
-  }
-
-  if (!validEmail(email, accountType)) {
-    return toast("Enter an email valid for the selected account type.");
-  }
-
-  try {
-    const { error } = await sb.auth.resend({
-      type: "signup",
-      email
-    });
-
-    if (error) throw error;
-
-    setAuthMessage(
-      "If this account requires confirmation, Supabase has processed the resend request. Check your inbox and spam folder.",
-      "ok"
-    );
-
-    toast("Confirmation request processed.");
-
-  } catch (err) {
-    console.error("Resend confirmation error:", err);
-    toast("Could not resend confirmation: " + err.message);
-  }
-}
-
-/* ================= PROFILE AND ACCESS ================= */
-
-async function loadProfile(user, expectedType = accountType) {
-  const { data: profile, error } = await sb
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Profile loading error:", error);
-    await sb.auth.signOut();
-    throw new Error("Could not load your profile: " + error.message);
-  }
-
-  if (!profile) {
-    await sb.auth.signOut();
-    throw new Error("Your profile was not found. Contact the administrator.");
-  }
-
-  if (profile.status !== "approved") {
-    await sb.auth.signOut();
-
-    throw new Error(
-      profile.status === "pending"
-        ? "Your account is awaiting staff approval."
-        : "Your account is not approved. Contact the administrator."
-    );
-  }
-
-  if (!["student", "teacher", "staff"].includes(profile.role)) {
-    await sb.auth.signOut();
-    throw new Error("Your account has an invalid role.");
-  }
-
-  if (expectedType && profile.role !== expectedType) {
-    await sb.auth.signOut();
-    throw new Error("This account belongs to a different sign-in category.");
-  }
-
-  // Verify role against the actual signed-in email.
-  if (profile.role === "student" && !validEmail(user.email, "student")) {
-    await sb.auth.signOut();
-    throw new Error("Student accounts must use a personal Gmail address.");
-  }
-
-  if (profile.role === "teacher" && !validEmail(user.email, "teacher")) {
-    await sb.auth.signOut();
-    throw new Error("Teacher accounts must use an official DepEd email.");
-  }
-
-  currentProfile = profile;
-  accountType = profile.role;
-
-  $("auth").classList.add("hidden");
-  $("app").classList.remove("hidden");
-
-  $("who").textContent = profile.full_name + " · " + profile.role.toUpperCase();
-  $("greeting").textContent = "Welcome, " + profile.full_name;
-
-  $("adminNav").classList.toggle("hidden", profile.role !== "staff");
-
-  await loadDocuments();
-  await updateOfflineStatus();
-  if(navigator.onLine) syncOfflineUploads();
-  go("dashboard");
-}
 
 /* ================= DOCUMENTS ================= */
 
