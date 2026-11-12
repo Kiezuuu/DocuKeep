@@ -917,6 +917,7 @@
     .nav button[data-page="upload"]::before { content: "＋"; }
     .nav button[data-page="tracking"]::before { content: "◷"; }
     .nav button[data-page="folders"]::before { content: "▱"; }
+    .nav button[data-page="classrooms"]::before { content: "♧"; }
     .nav button[data-page="notifications"]::before { content: "♧"; }
     .nav button[data-page="premium"]::before { content: "✧"; }
     .nav button[data-page="admin"]::before { content: "⚙"; }
@@ -925,6 +926,7 @@
     .nav button[data-page="upload"]::after { content: "Upload Document"; }
     .nav button[data-page="tracking"]::after { content: "Submission Tracking"; }
     .nav button[data-page="folders"]::after { content: "My Folders"; }
+    .nav button[data-page="classrooms"]::after { content: "Classrooms"; }
     .nav button[data-page="notifications"]::after { content: "Notifications"; }
     .nav button[data-page="premium"]::after { content: "Premium Plan"; }
     .nav button[data-page="admin"]::after { content: "Staff Administration"; }
@@ -1293,7 +1295,7 @@
                 <button class="active" data-page="dashboard">▦ Dashboard</button><button data-page="documents">▤ My
                     Documents</button><button data-page="upload">＋ Upload Document</button><button
                     data-page="tracking">◷ Submission Tracking</button><button data-page="folders">▣ My
-                    Folders</button><button data-page="notifications">♧ Notifications <span
+                    Folders</button><button data-page="classrooms">▣ Classrooms</button><button data-page="notifications">♧ Notifications <span
                         id="notificationCount"></span></button><button data-page="premium">★ Premium
                     Plan</button><button id="adminNav" class="hidden" data-page="admin">⚙ Staff Administration</button>
             </nav>
@@ -1452,6 +1454,31 @@
                         <div id="folderList" class="feature-grid">
                             <div class="empty">Loading folders…</div>
                         </div>
+                    </div>
+                </section>
+                <section class="page" id="page-classrooms">
+                    <div class="heading">
+                        <div><h1>Classrooms</h1><p>Share classroom folders and learning materials with approved members.</p></div>
+                    </div>
+                    <div class="panel" id="teacherClassroomPanel">
+                        <h2>Create a classroom</h2>
+                        <p class="muted">Available to all approved teachers, including Free accounts.</p>
+                        <form id="classroomForm" class="grid">
+                            <div class="field"><label for="classroomName">Classroom name</label><input id="classroomName" maxlength="80" required placeholder="e.g. Grade 10 - Rizal"></div>
+                            <div><button class="btn" type="submit">Create classroom</button></div>
+                        </form>
+                    </div>
+                    <div class="panel">
+                        <h2>Join a classroom</h2>
+                        <p class="muted">Enter the code shared by your teacher. You can also join by opening an invitation link.</p>
+                        <form id="joinClassroomForm" class="grid">
+                            <div class="field"><label for="classJoinCode">Class code</label><input id="classJoinCode" maxlength="32" autocomplete="off" placeholder="Enter class code"></div>
+                            <div><button class="btn secondary" type="submit">Join classroom</button></div>
+                        </form>
+                    </div>
+                    <div class="panel">
+                        <h2>Your classrooms</h2>
+                        <div id="classroomList" class="feature-grid"><div class="empty">Loading classrooms…</div></div>
                     </div>
                 </section>
                 <section class="page" id="page-notifications">
@@ -1691,8 +1718,13 @@ let documentSearchTerm = "";
 let selectedUploadFiles = [];
 let cancelUploadRequested = false;
 let folderCache = [];
+let classroomCache = [];
 
 const $ = id => document.getElementById(id);
+try {
+    const inviteOnLoad = new URLSearchParams(window.location.search).get("join");
+    if (inviteOnLoad) sessionStorage.setItem("docukeep_pending_class_invite", inviteOnLoad);
+} catch (_) {}
 
 /* =========================================================
    GENERAL HELPERS
@@ -2014,6 +2046,8 @@ async function loadProfile(user, expectedType = null) {
 
     await loadPremiumStatus();
     await loadDocuments();
+    await loadClassrooms();
+    await processClassInviteLink();
     await updateOfflineStatus();
     await loadMySubscriptionRequests();
 
@@ -2366,6 +2400,7 @@ async function loadDocuments() {
         loadNotifications(),
         renderQueuedUploadManager()
     ]);
+    renderDocuments();
 }
 
 function reviewCommentHTML(d) {
@@ -2417,6 +2452,7 @@ function renderDocumentCards(items) {
                 <div class="document-card-actions">
                     <button class="btn secondary small" onclick="event.stopPropagation();previewDoc('${d.id}')">Preview</button>
                     <button class="btn secondary small" onclick="event.stopPropagation();downloadDoc('${d.id}')">Download</button>
+                    ${d.owner_id === currentProfile?.id ? `<select class="btn secondary small" aria-label="Move document to folder" onclick="event.stopPropagation()" onchange="event.stopPropagation();moveDocument('${d.id}',this.value)"><option value="" ${!d.folder_id ? "selected" : ""}>No folder</option>${folderCache.filter(f=>f.owner_id===currentProfile.id).map(f=>`<option value="${f.id}" ${d.folder_id===f.id?"selected":""}>${escapeHTML(f.name)}</option>`).join("")}</select>${["teacher","staff"].includes(currentProfile?.role) ? `<button class="btn secondary small" onclick="event.stopPropagation();shareDocument('${d.id}')">Share</button><button class="btn secondary small" onclick="event.stopPropagation();unshareDocument('${d.id}')">Revoke share</button>` : ""}` : ""}
                     ${(d.owner_id === currentProfile?.id || currentProfile?.role === "staff") ? `<button class="btn danger small" title="${currentProfile?.role === "staff" && d.owner_id !== currentProfile?.id ? "Admin: delete this user's document" : "Delete your document"}" onclick="event.stopPropagation();deleteDocument('${d.id}')">Delete</button>` : ""}
                 </div>
             </article>`;
@@ -2461,6 +2497,7 @@ function documentPreviewPanelHTML(d) {
         <div class="preview-panel-actions">
             <button class="btn" onclick="previewDoc('${d.id}')">Open preview</button>
             <button class="btn secondary" onclick="downloadDoc('${d.id}')">Download</button>
+            ${d.owner_id === currentProfile?.id && ["teacher","staff"].includes(currentProfile?.role) ? `<button class="btn secondary" onclick="shareDocument('${d.id}')">Share</button><button class="btn secondary" onclick="unshareDocument('${d.id}')">Revoke share</button>` : ""}
         </div>
         ${(d.owner_id === currentProfile?.id || currentProfile?.role === "staff") ? `<button class="btn danger small preview-delete-button" onclick="deleteDocument('${d.id}')">${currentProfile?.role === "staff" && d.owner_id !== currentProfile?.id ? "Admin: delete document" : "Delete document"}</button>` : ""}`;
 }
@@ -3066,8 +3103,7 @@ async function loadFolders() {
 
     const { data, error } = await sb
         .from("docukeep_folders")
-        .select("id,name,color,parent_id,created_at")
-        .eq("owner_id", currentProfile.id)
+        .select("id,name,color,parent_id,created_at,owner_id")
         .order("created_at");
 
     if (error) {
@@ -3100,7 +3136,8 @@ async function loadFolders() {
 
     $("folderList").innerHTML = sorted.map(f => {
         const childCount = folderCache.filter(x => x.parent_id === f.id).length;
-        const docCount = documents.filter(d => d.folder_id === f.id && d.owner_id === currentProfile.id).length;
+        const docCount = documents.filter(d => d.folder_id === f.id).length;
+        const isFolderOwner = f.owner_id === currentProfile.id;
         const path = breadcrumb(f);
         return `
         <div class="folder-card" style="--folder-accent:${escapeHTML(f.color || "#2862a5")};--folder-depth:${Math.min(depthOf(f),4)}">
@@ -3119,16 +3156,15 @@ async function loadFolders() {
             <p class="muted">Created ${dateText(f.created_at)}</p>
             <div class="folder-card-actions folder-management-actions">
                 <button class="btn secondary small" onclick="showFolderDocuments('${f.id}')">Open</button>
-                <button class="btn secondary small" onclick="createSubfolder('${f.id}')">＋ Subfolder</button>
-                <button class="btn secondary small" onclick="renameFolder('${f.id}')">Rename</button>
-                ${isPremium ? `
+                ${isFolderOwner ? `<button class="btn secondary small" onclick="createSubfolder('${f.id}')">＋ Subfolder</button><button class="btn secondary small" onclick="renameFolder('${f.id}')">Rename</button>${currentProfile.role === "teacher" ? `<button class="btn secondary small" onclick="shareFolder('${f.id}')">Share</button><button class="btn secondary small" onclick="unshareFolder('${f.id}')">Revoke share</button>` : ""}` : `<span class="muted">Shared with you</span>`}
+                ${isFolderOwner && isPremium ? `
                     <label class="folder-edit-color" title="Change folder color">
                         <input type="color" value="${escapeHTML(f.color || "#2862a5")}" aria-label="Change ${escapeHTML(f.name)} folder color"
                             onchange="updateFolderColor('${f.id}',this.value)">
                         <span>✎</span>
-                    </label>` : `
-                    <span class="folder-locked-color" title="Custom colors are a Premium feature">✦ <span>Premium</span></span>`}
-                <button class="btn danger small" onclick="deleteFolder('${f.id}')">Delete</button>
+                    </label>` : isFolderOwner ? `
+                    <span class="folder-locked-color" title="Custom colors are a Premium feature">✦ <span>Premium</span></span>` : ""}
+                ${isFolderOwner ? `<button class="btn danger small" onclick="deleteFolder('${f.id}')">Delete</button>` : ""}
             </div>
         </div>`;
     }).join("") || '<div class="empty">No folders yet. Create your first folder above.</div>';
@@ -3146,15 +3182,15 @@ async function loadFolders() {
 
     $("uploadFolder").innerHTML =
         '<option value="">No folder</option>' +
-        sorted.map(f => `<option value="${f.id}">${"　".repeat(Math.min(depthOf(f),4))}${escapeHTML(f.name)}</option>`).join("");
+        sorted.filter(f => f.owner_id === currentProfile.id).map(f => `<option value="${f.id}">${"　".repeat(Math.min(depthOf(f),4))}${escapeHTML(f.name)}</option>`).join("");
 
     $("folderParent").innerHTML =
         '<option value="">No parent (top-level folder)</option>' +
-        sorted.map(f => `<option value="${f.id}">${"　".repeat(Math.min(depthOf(f),4))}${escapeHTML(f.name)}</option>`).join("");
+        sorted.filter(f => f.owner_id === currentProfile.id).map(f => `<option value="${f.id}">${"　".repeat(Math.min(depthOf(f),4))}${escapeHTML(f.name)}</option>`).join("");
 }
 
 function showFolderDocuments(id) {
-    const items = documents.filter(d => d.folder_id === id && d.owner_id === currentProfile.id);
+    const items = documents.filter(d => d.folder_id === id);
     documentSearchTerm = "";
     const search = $("documentSearch");
     if (search) search.value = "";
@@ -3192,6 +3228,7 @@ window.renameFolder = renameFolder;
 async function deleteFolder(id) {
     const f = folderCache.find(x => x.id === id);
     if (!f) return;
+    if (f.owner_id !== currentProfile.id) return toast("Only the folder owner can delete this folder.");
     const hasDocs = documents.some(d => d.folder_id === id && d.owner_id === currentProfile.id);
     const hasChildren = folderCache.some(x => x.parent_id === id);
     if (hasDocs || hasChildren) {
@@ -3248,6 +3285,217 @@ $("folderForm").addEventListener("submit", async e => {
     await loadFolders();
     toast(parentId ? "Subfolder created." : "Folder created.");
 });
+
+/* =========================================================
+   CLASSROOMS AND SHARING
+========================================================= */
+
+async function loadClassrooms() {
+    if (!currentProfile) return;
+    const panel = $("teacherClassroomPanel");
+    if (panel) panel.classList.toggle("hidden", currentProfile.role !== "teacher" && currentProfile.role !== "staff");
+    const { data, error } = await sb.from("docukeep_groups")
+        .select("id,name,created_by,created_at")
+        .order("created_at", { ascending: false });
+    if (error) {
+        $("classroomList").innerHTML = `<div class="empty">Could not load classrooms: ${escapeHTML(error.message)}</div>`;
+        return;
+    }
+    classroomCache = data || [];
+    if (!classroomCache.length) {
+        $("classroomList").innerHTML = '<div class="empty">No classrooms yet. A teacher can create one or you can join using a class code.</div>';
+        return;
+    }
+    const cards = await Promise.all(classroomCache.map(async g => {
+        const { count } = await sb.from("docukeep_group_members").select("user_id", { count: "exact", head: true }).eq("group_id", g.id);
+        const isOwner = g.created_by === currentProfile.id || currentProfile.role === "staff";
+        let roster = "";
+        if (isOwner) {
+            const { data: members } = await sb.rpc("docukeep_list_group_members", { p_group_id: g.id });
+            roster = (members || []).map(m => `<div class="muted" style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin:6px 0"><span>${escapeHTML(m.full_name || m.email || "Student")} · ${escapeHTML(m.email || "")}</span>${m.user_id !== g.created_by ? `<button class="btn danger small" onclick="removeClassroomMember('${g.id}','${m.user_id}')">Remove</button>` : `<span>Teacher</span>`}</div>`).join("");
+        }
+        return `<article class="panel" style="margin:0;min-width:0"><h3>${escapeHTML(g.name)}</h3><p class="muted">${isOwner ? `${Number(count || 0)} member(s) · Your classroom` : "Joined classroom"}</p>${isOwner ? `<div class="document-card-actions"><button class="btn small" onclick="generateClassInvite('${g.id}')">Generate / renew code</button><button class="btn secondary small" onclick="disableClassInvite('${g.id}')">Disable code</button></div><div id="invite-${g.id}" class="notice hidden" style="margin-top:10px"></div><div style="margin-top:12px"><b>Members</b>${roster || '<p class="muted">No members listed.</p>'}</div>` : ""}</article>`;
+    }));
+    $("classroomList").innerHTML = cards.join("");
+}
+
+$("classroomForm")?.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!currentProfile || !["teacher", "staff"].includes(currentProfile.role)) return toast("Only approved teachers can create classrooms.");
+    const name = $("classroomName").value.trim();
+    if (!name) return toast("Enter a classroom name.");
+    const { data, error } = await sb.from("docukeep_groups")
+        .insert({ name, created_by: currentProfile.id })
+        .select("id,name,created_by,created_at").single();
+    if (error) return toast("Could not create classroom: " + error.message);
+    const { error: memberError } = await sb.from("docukeep_group_members").insert({ group_id: data.id, user_id: currentProfile.id });
+    if (memberError) console.warn("Teacher membership record was not added:", memberError.message);
+    $("classroomName").value = "";
+    await loadClassrooms();
+    await generateClassInvite(data.id);
+    toast("Classroom created.");
+});
+
+async function generateClassInvite(groupId) {
+    const { data, error } = await sb.rpc("docukeep_create_group_invite", { p_group_id: groupId, p_expires_at: null });
+    if (error) return toast("Could not generate class invitation: " + error.message);
+    const invite = Array.isArray(data) ? data[0] : data;
+    if (!invite?.join_code || !invite?.invite_token) return toast("Invitation created, but no code was returned.");
+    const link = `${SITE_URL}?join=${encodeURIComponent(invite.invite_token)}`;
+    const host = $("invite-" + groupId);
+    if (host) {
+        host.classList.remove("hidden");
+        host.innerHTML = `<b>Class code:</b> <strong>${escapeHTML(invite.join_code)}</strong><br><small>Invitation link: ${escapeHTML(link)}</small><div class="document-card-actions"><button class="btn secondary small" onclick="copyClassInvite('${escapeHTML(invite.join_code)}')">Copy code</button><button class="btn secondary small" onclick="copyClassInvite('${escapeHTML(link)}')">Copy invitation link</button></div><small>Generating a new code disables the previous code and link.</small>`;
+    }
+    toast("New class code and invitation link generated.");
+}
+window.generateClassInvite = generateClassInvite;
+
+async function copyClassInvite(value) {
+    try { await navigator.clipboard.writeText(value); toast("Copied to clipboard."); }
+    catch (_) { prompt("Copy this invitation:", value); }
+}
+window.copyClassInvite = copyClassInvite;
+
+async function disableClassInvite(groupId) {
+    if (!confirm("Disable the current class code and invitation link? Students will no longer be able to join with them.")) return;
+    const { error } = await sb.rpc("docukeep_disable_group_invite", { p_group_id: groupId });
+    if (error) return toast("Could not disable invitation: " + error.message);
+    const host = $("invite-" + groupId);
+    if (host) host.classList.add("hidden");
+    toast("Class invitation disabled.");
+}
+window.disableClassInvite = disableClassInvite;
+
+async function joinClassroom(code, token = null) {
+    const { data, error } = await sb.rpc("docukeep_join_group", { p_code: code || null, p_token: token || null });
+    if (error) throw error;
+    await loadClassrooms();
+    toast("You have joined the classroom. Shared materials are now available.");
+    return data;
+}
+
+$("joinClassroomForm")?.addEventListener("submit", async e => {
+    e.preventDefault();
+    const code = $("classJoinCode").value.trim();
+    if (!code) return toast("Enter a class code.");
+    try { await joinClassroom(code); $("classJoinCode").value = ""; await loadDocuments(); }
+    catch (err) { toast("Could not join classroom: " + err.message); }
+});
+
+async function processClassInviteLink() {
+    const params = new URLSearchParams(window.location.search);
+    let token = params.get("join");
+    try { token = token || sessionStorage.getItem("docukeep_pending_class_invite"); } catch (_) {}
+    if (!token || !currentProfile) return;
+    try {
+        await joinClassroom(null, token);
+        params.delete("join");
+        try { sessionStorage.removeItem("docukeep_pending_class_invite"); } catch (_) {}
+        const next = window.location.pathname + (params.toString() ? "?" + params.toString() : "") + window.location.hash;
+        window.history.replaceState({}, "", next);
+        await loadDocuments();
+        go("classrooms");
+    } catch (err) {
+        toast("Class invitation could not be used: " + err.message);
+    }
+}
+
+async function removeClassroomMember(groupId, userId) {
+    if (!confirm("Remove this member from the classroom? They will lose access to classroom-shared files.")) return;
+    const { error } = await sb.rpc("docukeep_remove_group_member", { p_group_id: groupId, p_user_id: userId });
+    if (error) return toast("Could not remove member: " + error.message);
+    await loadClassrooms();
+    toast("Classroom member removed.");
+}
+window.removeClassroomMember = removeClassroomMember;
+
+async function resolveShareTarget() {
+    const availableGroups = classroomCache.filter(g => g.created_by === currentProfile.id).map(g => g.name).join(", ");
+    const value = prompt(`Enter a classroom name or approved user's email address. Your classrooms: ${availableGroups || "none created"}`);
+    if (value === null || !value.trim()) return null;
+    const group = classroomCache.find(g => g.created_by === currentProfile.id && g.name.toLowerCase() === value.trim().toLowerCase());
+    if (group) return { group_id: group.id };
+    const { data, error } = await sb.rpc("docukeep_find_approved_user", { p_email: value.trim() });
+    if (error) throw error;
+    const user = Array.isArray(data) ? data[0] : data;
+    if (!user?.user_id) throw Error("No approved user was found for that email address.");
+    if (user.user_id === currentProfile.id) throw Error("You already own this item.");
+    return { user_id: user.user_id };
+}
+
+async function shareFolder(folderId) {
+    const folder = folderCache.find(f => f.id === folderId);
+    if (!folder || folder.owner_id !== currentProfile.id || currentProfile.role !== "teacher") return toast("Only the teacher who owns this folder can share it.");
+    try {
+        const target = await resolveShareTarget();
+        if (!target) return;
+        const { error } = await sb.from("docukeep_folder_access").insert({ folder_id: folderId, ...target, permission: "view", granted_by: currentProfile.id });
+        if (error) throw error;
+        toast("Folder shared. Authorized members can access files in this folder and its subfolders.");
+    } catch (err) { toast("Could not share folder: " + err.message); }
+}
+window.shareFolder = shareFolder;
+
+async function shareDocument(documentId) {
+    const item = documents.find(d => d.id === documentId);
+    if (!item || item.owner_id !== currentProfile.id || !["teacher","staff"].includes(currentProfile.role)) return toast("Only the teacher who owns this file can share it.");
+    try {
+        const target = await resolveShareTarget();
+        if (!target) return;
+        const { error } = await sb.from("docukeep_document_access").insert({ document_id: documentId, ...target, permission: "view", granted_by: currentProfile.id });
+        if (error) throw error;
+        toast("Document shared with the selected user or classroom.");
+    } catch (err) { toast("Could not share document: " + err.message); }
+}
+window.shareDocument = shareDocument;
+
+async function revokeGrant(table, key, itemId, target) {
+    const query = sb.from(table).delete().eq(key, itemId);
+    if (target.group_id) query.eq("group_id", target.group_id);
+    else query.eq("user_id", target.user_id);
+    const { error } = await query;
+    if (error) throw error;
+}
+
+async function unshareFolder(folderId) {
+    try {
+        const folder = folderCache.find(f => f.id === folderId);
+        if (!folder || folder.owner_id !== currentProfile.id) return toast("Only the folder owner can revoke sharing.");
+        const target = await resolveShareTarget();
+        if (!target) return;
+        if (!confirm("Revoke this user's or classroom's access to the folder?")) return;
+        await revokeGrant("docukeep_folder_access", "folder_id", folderId, target);
+        toast("Folder access revoked.");
+    } catch (err) { toast("Could not revoke folder access: " + err.message); }
+}
+window.unshareFolder = unshareFolder;
+
+async function unshareDocument(documentId) {
+    try {
+        const item = documents.find(d => d.id === documentId);
+        if (!item || item.owner_id !== currentProfile.id || !["teacher","staff"].includes(currentProfile.role)) return toast("Only the teacher who owns this file can revoke sharing.");
+        const target = await resolveShareTarget();
+        if (!target) return;
+        if (!confirm("Revoke this user's or classroom's access to the document?")) return;
+        await revokeGrant("docukeep_document_access", "document_id", documentId, target);
+        toast("Document access revoked.");
+    } catch (err) { toast("Could not revoke document access: " + err.message); }
+}
+window.unshareDocument = unshareDocument;
+
+async function moveDocument(documentId, folderId) {
+    const item = documents.find(d => d.id === documentId);
+    if (!item || item.owner_id !== currentProfile.id) return toast("Only the file owner can move this document.");
+    const nextFolder = folderId || null;
+    const { error } = await sb.from("documents").update({ folder_id: nextFolder }).eq("id", documentId).eq("owner_id", currentProfile.id);
+    if (error) return toast("Could not move document: " + error.message);
+    item.folder_id = nextFolder;
+    await loadFolders();
+    renderDocuments();
+    toast(nextFolder ? "Document moved to folder." : "Document removed from its folder. The file was not deleted.");
+}
+window.moveDocument = moveDocument;
 
 /* =========================================================
    NOTIFICATIONS
@@ -4114,6 +4362,7 @@ function go(page) {
         "upload",
         "tracking",
         "folders",
+        "classrooms",
         "notifications",
         "premium",
         "admin"
@@ -4145,6 +4394,7 @@ function go(page) {
         upload: "Upload Document",
         tracking: "Submission Tracking",
         folders: "My Folders",
+        classrooms: "Classrooms",
         notifications: "Notifications",
         premium: "Premium Plan",
         admin: "Staff Administration"
@@ -4153,6 +4403,7 @@ function go(page) {
     if (page === "admin") renderAdmin();
     if (page === "premium") loadMySubscriptionRequests();
     if (page === "folders") loadFolders();
+    if (page === "classrooms") loadClassrooms();
     if (page === "notifications") loadNotifications();
 
     window.scrollTo(0, 0);
