@@ -547,6 +547,68 @@
             overflow-wrap: anywhere
         }
 
+        .plan-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px
+        }
+
+        .plan-card {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 16px;
+            background: #fbfdff;
+            display: flex;
+            flex-direction: column;
+            gap: 10px
+        }
+
+        .plan-card h3 {
+            margin: 0;
+            color: var(--navy)
+        }
+
+        .plan-card .period {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--blue)
+        }
+
+        .plan-card ul {
+            padding-left: 18px;
+            margin: 0;
+            line-height: 1.8;
+            color: #52647b;
+            font-size: 12px
+        }
+
+        .plan-card .btn {
+            margin-top: auto
+        }
+
+        .sub-status {
+            padding: 13px;
+            border-radius: 10px;
+            background: #edf4fd;
+            color: #294d78;
+            margin-bottom: 14px
+        }
+
+        .sub-status.expired {
+            background: #fff1e9;
+            color: #98501c
+        }
+
+        .sub-table {
+            min-width: 760px
+        }
+
+        @media(max-width:760px) {
+            .plan-grid {
+                grid-template-columns: 1fr
+            }
+        }
+
         @media(max-width:760px) {
             .sidebar {
                 position: static;
@@ -843,15 +905,73 @@
                     <div class="heading">
                         <div>
                             <h1>Premium Plan</h1>
-                            <p>DocuKeep plan information.</p>
+                            <p>Choose a subscription period and request activation from the DocuKeep administrator.</p>
                         </div>
                     </div>
                     <div class="panel">
-                        <h2>DocuKeep standard access</h2>
-                        <p>Your account can use document uploads, folders, submission tracking, and notifications
-                            according to permissions assigned by your school.</p>
-                        <div class="notice">Premium subscriptions and online payments are not enabled in this version.
-                            Contact your administrator for plan information.</div>
+                        <h2>My subscription</h2>
+                        <div id="mySubscriptionStatus" class="sub-status">Loading your subscription…</div>
+                        <div id="mySubscriptionHistory" class="muted" style="font-size:12px"></div>
+                    </div>
+                    <div class="panel">
+                        <h2>Premium features</h2>
+                        <p>Premium gives your account access to these additional tools while your subscription is
+                            active:</p>
+                        <div class="feature-grid">
+                            <div class="feature"><b>128GB storage</b>
+                                <p class="muted">Expanded account storage quota.</p>
+                            </div>
+                            <div class="feature"><b>Bulk upload</b>
+                                <p class="muted">Upload multiple school documents together.</p>
+                            </div>
+                            <div class="feature"><b>Delete duplicates</b>
+                                <p class="muted">Review and remove duplicate files.</p>
+                            </div>
+                            <div class="feature"><b>Digital document tracker</b>
+                                <p class="muted">Keep track of document submissions and status.</p>
+                            </div>
+                            <div class="feature"><b>Custom folder colors</b>
+                                <p class="muted">Organize folders with your preferred colors.</p>
+                            </div>
+                            <div class="feature"><b>Group file access</b>
+                                <p class="muted">Share selected documents with approved group members.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h2>Choose your subscription</h2>
+                        <p>All three options include the Premium features listed above. Subscription time starts after
+                            the administrator confirms your payment and activates your account.</p>
+                        <div class="plan-grid">
+                            <div class="plan-card">
+                                <h3>Weekly</h3>
+                                <div class="period">7 days</div>
+                                <p class="muted">Premium access for one week.</p>
+                                <div class="notice">Price and payment instructions will be provided by the
+                                    administrator.</div><button class="btn"
+                                    onclick="requestSubscription('week')">Request weekly plan</button>
+                            </div>
+                            <div class="plan-card">
+                                <h3>Monthly</h3>
+                                <div class="period">1 month</div>
+                                <p class="muted">Premium access for one month.</p>
+                                <div class="notice">Price and payment instructions will be provided by the
+                                    administrator.</div><button class="btn"
+                                    onclick="requestSubscription('month')">Request monthly plan</button>
+                            </div>
+                            <div class="plan-card">
+                                <h3>Yearly</h3>
+                                <div class="period">1 year</div>
+                                <p class="muted">Premium access for one year.</p>
+                                <div class="notice">Price and payment instructions will be provided by the
+                                    administrator.</div><button class="btn"
+                                    onclick="requestSubscription('year')">Request yearly plan</button>
+                            </div>
+                        </div>
+                        <div class="notice warn" style="margin-top:14px">How payment works: Submit a request, then the
+                            administrator will contact you using your registered email with the payment details. Pay the
+                            administrator directly. Your Premium plan will only start after the administrator verifies
+                            the payment and activates it. DocuKeep does not collect online payments.</div>
                     </div>
                 </section>
                 <section class="page" id="page-admin">
@@ -891,6 +1011,30 @@
                                 <tbody id="managedUsers">
                                     <tr>
                                         <td colspan="5">Loading users…</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h2>Premium subscription requests</h2>
+                        <p class="muted" style="font-size:12px">Verify payment outside DocuKeep, then activate the
+                            selected plan here. The user's student/teacher account role will remain unchanged; Premium
+                            is stored as a separate subscription entitlement.</p>
+                        <div class="tablewrap">
+                            <table class="sub-table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Requested plan</th>
+                                        <th>Requested on</th>
+                                        <th>Activate duration</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="subscriptionRequests">
+                                    <tr>
+                                        <td colspan="5">Loading subscription requests…</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -940,7 +1084,7 @@
         const SUPABASE_ANON_KEY = "sb_publishable_yfLj3YnmOh9PiwVV-HDpgA__Hc5ymr4";
         const TEACHER_EMAIL_DOMAIN = "deped.gov.ph", BUCKET = "docukeep-files", SITE_URL = "https://kiezuuu.github.io/DocuKeep/";
         const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } });
-        let accountType = null, currentProfile = null, documents = [], managedUsersCache = [], toastTimer = null, recoveryMode = false;
+        let accountType = null, currentProfile = null, documents = [], managedUsersCache = [], toastTimer = null, recoveryMode = false, currentEntitlement = null;
         const $ = id => document.getElementById(id);
         function toast(message) { const el = $("toast"); el.textContent = message; el.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 5000) }
         function escapeHTML(v = "") { return String(v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])) }
@@ -957,7 +1101,7 @@
         function showForgot() { hideAllAuthForms(); $("forgotForm").classList.remove("hidden"); $("forgotSwitch").classList.add("hidden"); $("signupSwitch").classList.add("hidden"); $("resendSwitch").classList.add("hidden"); $("loginSwitch").classList.remove("hidden"); $("formTitle").textContent = "Reset your password" }
         function hideForgot() { toggleForm(false) }
         window.selectType = selectType; window.backChoice = backChoice; window.toggleForm = toggleForm; window.showForgot = showForgot; window.hideForgot = hideForgot;
-        async function loadProfile(user, expectedType = null) { if (!user?.id) throw Error("Invalid login session. Please sign in again."); const { data: p, error } = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle(); console.log("DocuKeep profile check", { authId: user.id, email: user.email, profileId: p?.id, role: p?.role, status: p?.status, error }); if (error) throw Error("Could not load your profile: " + error.message); if (!p) throw Error("Your Auth account has no matching profiles row. Ask staff to repair the profile in this Supabase project."); const role = String(p.role || "").toLowerCase(), status = String(p.status || "").toLowerCase(); if (!["student", "teacher", "staff"].includes(role)) throw Error("Invalid account role."); if (status !== "approved") throw Error(status === "pending" ? "Your account is awaiting staff approval." : "Your account is not approved. Contact the administrator."); if (expectedType && role !== expectedType) throw Error(`Wrong sign-in category. This account's database role is ${role}. Select ${role} to sign in.`); if (role === "student" && !validEmail(user.email, "student")) throw Error("Student accounts must use a personal Gmail address."); if (role === "teacher" && !validEmail(user.email, "teacher")) throw Error("Teacher accounts must use an official DepEd email."); currentProfile = { ...p, role }; accountType = role; $("auth").classList.add("hidden"); $("app").classList.remove("hidden"); $("who").textContent = (p.full_name || "User") + " · " + role.toUpperCase(); $("greeting").textContent = "Welcome, " + (p.full_name || "User"); $("adminNav").classList.toggle("hidden", role !== "staff"); await loadDocuments(); await updateOfflineStatus(); if (navigator.onLine) syncOfflineUploads(); go("dashboard") }
+        async function loadProfile(user, expectedType = null) { if (!user?.id) throw Error("Invalid login session. Please sign in again."); const { data: p, error } = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle(); console.log("DocuKeep profile check", { authId: user.id, email: user.email, profileId: p?.id, role: p?.role, status: p?.status, error }); if (error) throw Error("Could not load your profile: " + error.message); if (!p) throw Error("Your Auth account has no matching profiles row. Ask staff to repair the profile in this Supabase project."); const role = String(p.role || "").toLowerCase(), status = String(p.status || "").toLowerCase(); if (!["student", "teacher", "staff"].includes(role)) throw Error("Invalid account role."); if (status !== "approved") throw Error(status === "pending" ? "Your account is awaiting staff approval." : "Your account is not approved. Contact the administrator."); if (expectedType && role !== expectedType) throw Error(`Wrong sign-in category. This account's database role is ${role}. Select ${role} to sign in.`); if (role === "student" && !validEmail(user.email, "student")) throw Error("Student accounts must use a personal Gmail address."); if (role === "teacher" && !validEmail(user.email, "teacher")) throw Error("Teacher accounts must use an official DepEd email."); currentProfile = { ...p, role }; accountType = role; await loadMySubscription(); $("auth").classList.add("hidden"); $("app").classList.remove("hidden"); $("who").textContent = (p.full_name || "User") + " · " + role.toUpperCase(); $("greeting").textContent = "Welcome, " + (p.full_name || "User"); $("adminNav").classList.toggle("hidden", role !== "staff"); await loadDocuments(); await updateOfflineStatus(); if (navigator.onLine) syncOfflineUploads(); go("dashboard") }
         $("loginForm").addEventListener("submit", async e => { e.preventDefault(); if (!accountType) return toast("Choose an account type first."); const type = accountType, email = $("email").value.trim().toLowerCase(), password = $("password").value; if (!validEmail(email, type)) return toast(type === "student" ? "Use a personal @gmail.com address." : type === "teacher" ? "Use an official @deped.gov.ph address." : "Enter a valid staff email."); const b = e.target.querySelector('button[type="submit"]'); b.disabled = true; b.textContent = "Signing in…"; try { const { data, error } = await sb.auth.signInWithPassword({ email, password }); if (error) throw error; await loadProfile(data.user, type) } catch (err) { console.error("Login error", err); await sb.auth.signOut(); setAuthMessage("Login failed: " + friendlyAuthError(err), "warn"); toast("Login failed: " + friendlyAuthError(err)) } finally { b.disabled = false; b.textContent = "Sign in" } });
         $("signupForm").addEventListener("submit", async e => { e.preventDefault(); if (!["student", "teacher"].includes(accountType)) return toast("Only students and teachers can register here."); const full_name = $("fullName").value.trim(), email = $("signupEmail").value.trim().toLowerCase(), department = $("department").value.trim(), password = $("signupPassword").value; if (!full_name || !department) return toast("Complete all required fields."); if (!validEmail(email, accountType)) return toast(accountType === "student" ? "Use a personal Gmail address." : "Use an official @deped.gov.ph address."); if (password.length < 8) return toast("Password must contain at least 8 characters."); if (password !== $("confirmPassword").value) return toast("Passwords do not match."); const b = e.target.querySelector("button[type=submit]"); b.disabled = true; b.textContent = "Creating account…"; try { const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: SITE_URL, data: { full_name, requested_role: accountType, department } } }); if (error) throw error; if (!data.user) throw Error("Supabase did not return a user."); if (data.user.identities?.length === 0) throw Error("This email may already be registered. Try signing in."); if (data.session) await sb.auth.signOut(); e.target.reset(); toggleForm(false); setAuthMessage("Registration submitted. Confirm your email if required, then wait for staff approval.", "ok"); toast("Registration request submitted.") } catch (err) { setAuthMessage("Registration failed: " + friendlyAuthError(err), "warn"); toast("Signup failed: " + friendlyAuthError(err)) } finally { b.disabled = false; b.textContent = "Create account" } });
         $("forgotForm").addEventListener("submit", async e => { e.preventDefault(); const email = $("forgotEmail").value.trim().toLowerCase(); if (!validEmail(email, accountType)) return toast("Enter an email valid for the selected account type."); const b = e.target.querySelector("button[type=submit]"); b.disabled = true; try { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SITE_URL }); if (error) throw error; setAuthMessage("If the account exists, a password-reset link has been sent. Check your inbox and spam folder.", "ok"); toast("Password reset request processed.") } catch (err) { toast("Could not send reset email: " + err.message) } finally { b.disabled = false } });
@@ -990,7 +1134,53 @@
         async function loadNotifications() { if (!currentProfile) return; const { data, error } = await sb.from("docukeep_notifications").select("id,title,message,created_at,is_read").eq("user_id", currentProfile.id).order("created_at", { ascending: false }).limit(100); if (error) { $("notificationList").innerHTML = '<div class="empty">Notifications unavailable. Check table and RLS policies.</div>'; return } const rows = data || [], unread = rows.filter(n => !n.is_read).length; $("notificationCount").textContent = unread ? `(${unread})` : ""; $("notificationList").innerHTML = rows.map(n => `<div style="padding:12px;border-bottom:1px solid var(--line);${n.is_read ? "opacity:.65" : ""}"><b>${escapeHTML(n.title)}</b><p>${escapeHTML(n.message)}</p><small class="muted">${dateText(n.created_at)} · ${n.is_read ? "Read" : "Unread"}</small>${n.is_read ? "" : ` <button class="btn secondary small" onclick="markNotificationRead('${n.id}')">Mark read</button>`}</div>`).join("") || '<div class="empty">You have no notifications.</div>' }
         async function markNotificationRead(id) { const { error } = await sb.from("docukeep_notifications").update({ is_read: true }).eq("id", id).eq("user_id", currentProfile.id); if (error) return toast(error.message); loadNotifications() }
         async function markAllNotificationsRead() { if (!currentProfile) return; const { error } = await sb.from("docukeep_notifications").update({ is_read: true }).eq("user_id", currentProfile.id).eq("is_read", false); if (error) return toast(error.message); await loadNotifications(); toast("Notifications marked as read") } window.markNotificationRead = markNotificationRead; window.markAllNotificationsRead = markAllNotificationsRead;
-        async function renderAdmin() { if (currentProfile?.role !== "staff") { $("requests").innerHTML = '<div class="empty">Staff access required.</div>'; return } $("requests").innerHTML = '<div class="empty">Loading…</div>'; const { data: users, error } = await sb.from("profiles").select("id,full_name,email,role,department,created_at").eq("status", "pending").order("created_at"); if (error) { $("requests").innerHTML = '<div class="empty">Could not load requests: ' + escapeHTML(error.message) + '</div>'; return } $("requests").innerHTML = (users || []).map(u => `<div style="padding:12px 0;border-bottom:1px solid #eee"><b>${escapeHTML(u.full_name)}</b> · ${escapeHTML(u.role)}<br><small>${escapeHTML(u.email)} · ${escapeHTML(u.department || "No department")} · ${dateText(u.created_at)}</small><div class="actions" style="margin-top:8px"><button class="btn green small" onclick="reviewUser('${u.id}','approved')">Approve</button><button class="btn danger small" onclick="reviewUser('${u.id}','rejected')">Reject</button></div></div>`).join("") || '<div class="empty">No pending registrations.</div>'; const { data: all, error: allErr } = await sb.from("profiles").select("id,full_name,email,role,department,status,created_at").order("created_at", { ascending: false }); if (allErr) $("managedUsers").innerHTML = `<tr><td colspan="5">${escapeHTML(allErr.message)}</td></tr>`; else { managedUsersCache = all || []; filterManagedUsers() } $("allRows").innerHTML = documents.map(d => `<tr><td>${escapeHTML(d.owner_name || "")}</td><td><b>${escapeHTML(d.title)}</b><br><small class="muted">${escapeHTML(d.file_name || "")}</small>${reviewCommentHTML(d)}</td><td>${escapeHTML(d.category)}</td><td>${dateText(d.created_at)}</td><td><span class="pill ${statusClass(d.status)}">${escapeHTML(d.status)}</span><div class="actions" style="margin-top:6px"><button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button><button class="btn secondary small" onclick="downloadDoc('${d.id}')">Download</button><button class="btn green small" onclick="reviewDoc('${d.id}','approved')">Approve</button><button class="btn secondary small" onclick="reviewDoc('${d.id}','needs_revision')">Return</button><button class="btn danger small" onclick="reviewDoc('${d.id}','rejected')">Reject</button></div></td></tr>`).join("") }
+        async function loadMySubscription() {
+            if (!currentProfile) return;
+            const { data, error } = await sb.from("docukeep_entitlements").select("plan,storage_limit_bytes,active,billing_period,starts_at,expires_at,updated_at").eq("user_id", currentProfile.id).maybeSingle();
+            if (error) { currentEntitlement = null; $("mySubscriptionStatus").textContent = "Subscription information is currently unavailable. Please try again later."; return }
+            currentEntitlement = data || { plan: "free", active: true, storage_limit_bytes: 26214400 };
+            const expiry = currentEntitlement.expires_at ? new Date(currentEntitlement.expires_at) : null;
+            const live = currentEntitlement.plan === "premium" && currentEntitlement.active && expiry && expiry.getTime() > Date.now();
+            const el = $("mySubscriptionStatus"); el.className = "sub-status" + (currentEntitlement.plan === "premium" && !live ? " expired" : "");
+            if (live) { el.innerHTML = `<b>Premium active</b><br>Plan: ${escapeHTML(currentEntitlement.billing_period || "Premium")} · Expires: ${expiry.toLocaleString()}<br>Storage allowance: 128 GB` }
+            else if (currentEntitlement.plan === "premium" || currentEntitlement.expires_at) { el.innerHTML = `<b>Premium expired</b><br>Your subscription ended${expiry ? " on " + expiry.toLocaleString() : ""}. Request a new plan to restore Premium access.` }
+            else { el.innerHTML = "<b>Free plan</b><br>You do not currently have an active Premium subscription." }
+            const { data: requests, error: reqErr } = await sb.from("docukeep_subscription_requests").select("billing_period,status,created_at,admin_note").eq("user_id", currentProfile.id).order("created_at", { ascending: false }).limit(5);
+            $("mySubscriptionHistory").innerHTML = reqErr ? "" : (requests || []).map(r => `<div style="padding:6px 0">Request: <b>${escapeHTML(r.billing_period)}</b> · ${escapeHTML(r.status)} · ${dateText(r.created_at)}${r.admin_note ? `<br>Admin note: ${escapeHTML(r.admin_note)}` : ""}</div>`).join("");
+        }
+        async function requestSubscription(period) {
+            if (!currentProfile || !['student', 'teacher'].includes(currentProfile.role)) return toast("Only approved student or teacher accounts can request Premium.");
+            if (!['week', 'month', 'year'].includes(period)) return;
+            const { data: pending, error: checkErr } = await sb.from("docukeep_subscription_requests").select("id").eq("user_id", currentProfile.id).eq("status", "pending").limit(1);
+            if (checkErr) return toast("Could not check existing requests: " + checkErr.message);
+            if (pending?.length) return toast("You already have a pending subscription request. Please wait for the administrator.");
+            if (!confirm(`Request the ${period} Premium plan? The administrator will contact you about payment.`)) return;
+            const { error } = await sb.from("docukeep_subscription_requests").insert({ user_id: currentProfile.id, plan: "premium", billing_period: period, user_note: "User requests manual payment instructions and Premium activation." });
+            if (error) return toast("Could not submit subscription request: " + error.message);
+            await loadMySubscription(); toast("Subscription request sent. Please wait for the administrator to contact you.");
+        }
+        window.requestSubscription = requestSubscription;
+        async function renderSubscriptionRequests() {
+            const body = $("subscriptionRequests"); if (currentProfile?.role !== "staff") { body.innerHTML = '<tr><td colspan="5">Staff access required.</td></tr>'; return }
+            const { data: reqs, error } = await sb.from("docukeep_subscription_requests").select("id,user_id,billing_period,status,created_at").eq("status", "pending").order("created_at", { ascending: true });
+            if (error) { body.innerHTML = `<tr><td colspan="5">${escapeHTML(error.message)}</td></tr>`; return }
+            const ids = [...new Set((reqs || []).map(r => r.user_id))];
+            const users = ids.length ? (await sb.from("profiles").select("id,full_name,email,role").in("id", ids)).data || [] : [];
+            const byId = Object.fromEntries(users.map(u => [u.id, u]));
+            body.innerHTML = (reqs || []).map(r => { const u = byId[r.user_id] || {}; return `<tr><td><b>${escapeHTML(u.full_name || "Unknown user")}</b><br><small>${escapeHTML(u.email || "")}</small><br><small>${escapeHTML(u.role || "")}</small></td><td>Premium · ${escapeHTML(r.billing_period)}</td><td>${dateText(r.created_at)}</td><td><select id="sub-period-${r.id}" style="padding:7px;border:1px solid var(--line);border-radius:7px"><option value="week" ${r.billing_period === "week" ? "selected" : ""}>1 week</option><option value="month" ${r.billing_period === "month" ? "selected" : ""}>1 month</option><option value="year" ${r.billing_period === "year" ? "selected" : ""}>1 year</option></select></td><td><div class="actions"><button class="btn green small" onclick="activateSubscription('${r.id}','${r.user_id}')">Confirm payment & activate</button><button class="btn danger small" onclick="rejectSubscription('${r.id}')">Reject</button></div></td></tr>` }).join("") || '<tr><td colspan="5" class="empty">No pending Premium requests.</td></tr>';
+        }
+        async function activateSubscription(requestId, userId) {
+            if (currentProfile?.role !== "staff") return toast("Staff access required.");
+            const period = $("sub-period-" + requestId)?.value; if (!['week', 'month', 'year'].includes(period)) return toast("Choose a valid subscription duration.");
+            if (!confirm("Have you verified the user's payment? Activating will start the subscription immediately.")) return;
+            const note = prompt("Optional payment/reference note for the admin record:") || null;
+            const { data, error } = await sb.rpc("activate_docukeep_subscription", { p_user_id: userId, p_duration: period, p_request_id: requestId, p_admin_note: note });
+            if (error) return toast("Activation failed: " + error.message);
+            toast("Premium activated until " + new Date(data).toLocaleString()); await renderSubscriptionRequests(); await loadMySubscription();
+        }
+        async function rejectSubscription(requestId) { if (currentProfile?.role !== "staff") return toast("Staff access required."); const note = prompt("Reason for rejecting this request (optional):"); if (note === null) return; const { error } = await sb.rpc("reject_docukeep_subscription_request", { p_request_id: requestId, p_admin_note: note || null }); if (error) return toast("Could not reject request: " + error.message); toast("Subscription request rejected."); await renderSubscriptionRequests() }
+        window.activateSubscription = activateSubscription; window.rejectSubscription = rejectSubscription;
+        async function renderAdmin() { if (currentProfile?.role !== "staff") { $("requests").innerHTML = '<div class="empty">Staff access required.</div>'; return } $("requests").innerHTML = '<div class="empty">Loading…</div>'; const { data: users, error } = await sb.from("profiles").select("id,full_name,email,role,department,created_at").eq("status", "pending").order("created_at"); if (error) { $("requests").innerHTML = '<div class="empty">Could not load requests: ' + escapeHTML(error.message) + '</div>'; return } $("requests").innerHTML = (users || []).map(u => `<div style="padding:12px 0;border-bottom:1px solid #eee"><b>${escapeHTML(u.full_name)}</b> · ${escapeHTML(u.role)}<br><small>${escapeHTML(u.email)} · ${escapeHTML(u.department || "No department")} · ${dateText(u.created_at)}</small><div class="actions" style="margin-top:8px"><button class="btn green small" onclick="reviewUser('${u.id}','approved')">Approve</button><button class="btn danger small" onclick="reviewUser('${u.id}','rejected')">Reject</button></div></div>`).join("") || '<div class="empty">No pending registrations.</div>'; const { data: all, error: allErr } = await sb.from("profiles").select("id,full_name,email,role,department,status,created_at").order("created_at", { ascending: false }); if (allErr) $("managedUsers").innerHTML = `<tr><td colspan="5">${escapeHTML(allErr.message)}</td></tr>`; else { managedUsersCache = all || []; filterManagedUsers() } await renderSubscriptionRequests(); $("allRows").innerHTML = documents.map(d => `<tr><td>${escapeHTML(d.owner_name || "")}</td><td><b>${escapeHTML(d.title)}</b><br><small class="muted">${escapeHTML(d.file_name || "")}</small>${reviewCommentHTML(d)}</td><td>${escapeHTML(d.category)}</td><td>${dateText(d.created_at)}</td><td><span class="pill ${statusClass(d.status)}">${escapeHTML(d.status)}</span><div class="actions" style="margin-top:6px"><button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button><button class="btn secondary small" onclick="downloadDoc('${d.id}')">Download</button><button class="btn green small" onclick="reviewDoc('${d.id}','approved')">Approve</button><button class="btn secondary small" onclick="reviewDoc('${d.id}','needs_revision')">Return</button><button class="btn danger small" onclick="reviewDoc('${d.id}','rejected')">Reject</button></div></td></tr>`).join("") }
 
         function filterManagedUsers() { const q = ($("userSearch")?.value || "").trim().toLowerCase(), rf = $("userRoleFilter")?.value || "all", arr = managedUsersCache.filter(u => (!q || `${u.full_name || ""} ${u.email || ""}`.toLowerCase().includes(q)) && (rf === "all" || u.role === rf)); $("managedUsers").innerHTML = arr.map(u => { const self = u.id === currentProfile?.id; return `<tr><td><b>${escapeHTML(u.full_name || "Unnamed user")}</b><br><small>${escapeHTML(u.email || "")}</small></td><td>${escapeHTML(u.department || "—")}</td><td><span class="pill ${u.role === "staff" ? "approved" : "pending"}">${escapeHTML(u.role)}</span></td><td><div class="actions"><select id="role-${u.id}" ${self ? "disabled" : ""} style="padding:6px;border:1px solid var(--line);border-radius:7px"><option value="student" ${u.role === "student" ? "selected" : ""}>Student</option><option value="teacher" ${u.role === "teacher" ? "selected" : ""}>Teacher</option><option value="staff" ${u.role === "staff" ? "selected" : ""}>Staff / Admin</option></select><button class="btn small" onclick="changeUserRole('${u.id}')" ${self ? "disabled" : ""}>Save</button></div></td><td>${escapeHTML(u.status || "unknown")}${self ? " · You" : ""}</td></tr>` }).join("") || '<tr><td colspan="5" class="empty">No matching accounts.</td></tr>' }
         async function changeUserRole(id) { if (currentProfile?.role !== "staff") return toast("Staff access required."); if (id === currentProfile.id) return toast("You cannot change your own role."); const role = $("role-" + id)?.value; if (!["student", "teacher", "staff"].includes(role)) return toast("Choose a valid role."); const u = managedUsersCache.find(x => x.id === id); if (!u) return toast("User not found."); if (role === u.role) return toast("Account already has that role."); if (!confirm(`Change ${u.email} from ${u.role} to ${role}?`)) return; const { error } = await sb.rpc("manage_docukeep_user_role", { p_user_id: id, p_new_role: role }); if (error) return toast("Role change failed: " + error.message); toast("Role updated."); await renderAdmin() }
@@ -1009,7 +1199,7 @@
             await loadDocuments();
         }
         window.filterManagedUsers = filterManagedUsers; window.changeUserRole = changeUserRole; window.reviewUser = reviewUser; window.reviewDoc = reviewDoc;
-        function go(page) { const allowed = ["dashboard", "documents", "upload", "tracking", "folders", "notifications", "premium", "admin"]; if (!allowed.includes(page)) return; if (!currentProfile) return toast("Please sign in first."); if (page === "admin" && currentProfile.role !== "staff") return toast("Staff access required."); document.querySelectorAll(".page").forEach(x => x.classList.remove("active")); $("page-" + page).classList.add("active"); document.querySelectorAll("[data-page]").forEach(x => x.classList.toggle("active", x.dataset.page === page)); $("crumb").textContent = ({ dashboard: "Dashboard", documents: "My Documents", upload: "Upload Document", tracking: "Submission Tracking", folders: "My Folders", notifications: "Notifications", premium: "Premium Plan", admin: "Staff Administration" })[page]; if (page === "admin") renderAdmin(); if (page === "folders") loadFolders(); if (page === "notifications") loadNotifications(); window.scrollTo(0, 0) } window.go = go; document.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => go(b.dataset.page)));
+        function go(page) { const allowed = ["dashboard", "documents", "upload", "tracking", "folders", "notifications", "premium", "admin"]; if (!allowed.includes(page)) return; if (!currentProfile) return toast("Please sign in first."); if (page === "admin" && currentProfile.role !== "staff") return toast("Staff access required."); document.querySelectorAll(".page").forEach(x => x.classList.remove("active")); $("page-" + page).classList.add("active"); document.querySelectorAll("[data-page]").forEach(x => x.classList.toggle("active", x.dataset.page === page)); $("crumb").textContent = ({ dashboard: "Dashboard", documents: "My Documents", upload: "Upload Document", tracking: "Submission Tracking", folders: "My Folders", notifications: "Notifications", premium: "Premium Plan", admin: "Staff Administration" })[page]; if (page === "admin") renderAdmin(); if (page === "premium") loadMySubscription(); if (page === "folders") loadFolders(); if (page === "notifications") loadNotifications(); window.scrollTo(0, 0) } window.go = go; document.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => go(b.dataset.page)));
         async function signOut() { const { error } = await sb.auth.signOut(); if (error) return toast("Sign out failed: " + error.message); currentProfile = null; documents = []; accountType = null; managedUsersCache = []; $("app").classList.add("hidden"); $("auth").classList.remove("hidden"); $("loginForm").reset(); $("signupForm").reset(); backChoice(); toast("Successfully signed out") } window.signOut = signOut;
         async function restoreSession() { const { data, error } = await sb.auth.getSession(); if (error) throw error; if (data.session) await loadProfile(data.session.user, null) }
         (async () => { try { await updateOfflineStatus(); const params = new URLSearchParams(location.hash.replace(/^#/, "")); const isRecovery = params.get("type") === "recovery"; if (isRecovery) { recoveryMode = true; $("choose").classList.add("hidden"); $("authform").classList.remove("hidden"); accountType = "student"; hideAllAuthForms(); $("resetForm").classList.remove("hidden"); $("formTitle").textContent = "Set a new password"; $("forgotSwitch").classList.add("hidden"); $("signupSwitch").classList.add("hidden"); $("resendSwitch").classList.add("hidden"); setAuthMessage("Enter and confirm your new password.") } else await restoreSession() } catch (e) { console.error("Startup/session restore", e); await sb.auth.signOut(); currentProfile = null; $("app").classList.add("hidden"); $("auth").classList.remove("hidden"); toast("Session could not be restored: " + e.message) } })();
