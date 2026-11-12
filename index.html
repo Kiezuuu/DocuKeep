@@ -743,7 +743,6 @@
         box-shadow: 0 2px 5px rgba(180, 130, 20, .15);
 }
 
-    
     /* =========================================================
        DOCUKEEP — FRONT-END VISUAL REFRESH
        Presentation-only overrides. Existing app logic and IDs
@@ -1166,7 +1165,34 @@
         .top .btn { padding: 7px 9px; }
     }
 
-    </style>
+    
+    
+    /* My Documents — reference-inspired file library */
+    .documents-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;margin-bottom:14px;background:#fff;border:1px solid #e5ebf3;border-radius:13px;box-shadow:var(--shadow-sm)}
+    .documents-toolbar-title{display:flex;flex-direction:column;gap:4px}.toolbar-eyebrow{color:#98a5b6;font-size:8px;font-weight:800;letter-spacing:1.15px}.documents-toolbar-title strong{color:#2a405c;font-size:13px}
+    .documents-toolbar-actions{display:flex;align-items:center;gap:9px}.doc-search-wrap{display:flex;align-items:center;gap:8px;width:min(250px,42vw);height:34px;padding:0 10px;border:1px solid #e3eaf2;border-radius:8px;color:#94a3b6;background:#fbfcfe}
+    .doc-search-wrap span{font-size:18px;line-height:1}.doc-search-wrap input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#3a4e67;font-size:10px}.doc-search-wrap input:focus{outline:0;box-shadow:none}
+    .documents-workspace{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;align-items:start}.documents-library{min-height:390px;padding:14px;background:#fff;border:1px solid #e5ebf3;border-radius:13px;box-shadow:var(--shadow-sm)}
+    .document-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}.document-card{min-width:0;padding:12px 11px 10px;border:1px solid #e7ebf1;border-radius:10px;background:linear-gradient(180deg,#fff,#fcfdff);cursor:pointer;transition:border-color .18s,box-shadow .18s,transform .18s}
+    .document-card:hover{border-color:#a9c6e7;box-shadow:0 7px 17px rgba(29,68,112,.08);transform:translateY(-2px)}.document-card.selected{border:1.5px solid #4384ce;box-shadow:0 0 0 3px rgba(55,123,197,.09)}
+    .document-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.file-type-icon{display:grid;place-items:center;width:39px;height:45px;position:relative;border:1px solid currentColor;border-radius:5px 5px 7px 7px;background:#f5f9ff;font-size:9px;font-weight:850;letter-spacing:.02em}
+    .file-type-icon:before{content:"";position:absolute;right:-1px;top:-1px;width:10px;height:10px;background:#fff;border-left:1px solid currentColor;border-bottom:1px solid currentColor;border-radius:0 4px 0 3px}.file-pdf{color:#e44d55;background:#fff6f6}.file-csv{color:#26a477;background:#f1fbf6}.file-doc{color:#3d8bcf;background:#f2f8ff}.file-img{color:#8a68c6;background:#f8f5ff}.file-file{color:#77879b;background:#f5f7fa}
+    .document-card-menu{color:#aab5c3;font-size:12px;letter-spacing:1px}.document-card-name{overflow:hidden;color:#344a64;font-size:10px;font-weight:750;line-height:1.45;text-overflow:ellipsis;white-space:nowrap}.document-card-meta{overflow:hidden;margin-top:3px;color:#9aa7b7;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+    .document-card-footer{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-top:12px;padding-top:9px;border-top:1px solid #eff2f6}.document-card-footer>span:last-child{color:#9aa6b5;font-size:8px;white-space:nowrap}.document-card-footer .pill{padding:3px 6px;font-size:8px}.document-card-actions{display:flex;gap:5px;margin-top:9px}.document-card-actions .btn{flex:1;min-width:0;padding:6px 4px;font-size:9px}
+    .document-preview-panel{min-width:0;padding:14px;background:#fff;border:1px solid #e5ebf3;border-radius:13px;box-shadow:var(--shadow-sm);position:sticky;top:88px}.preview-panel-heading{display:flex;align-items:center;justify-content:space-between;color:#d16d78;font-size:10px;font-weight:800}.preview-page-count{color:#9aa6b5;font-size:8px;font-weight:650;letter-spacing:.06em}
+    .preview-file-stage{display:grid;place-items:center;min-height:190px;margin:12px 0 11px;padding:14px;border:1px solid #edf0f4;border-radius:8px;background:#f8fafc}.preview-paper{width:126px;min-height:160px;padding:13px 11px;background:white;border:1px solid #e4e8ee;box-shadow:0 4px 12px rgba(27,48,75,.08)}
+    .preview-paper-mark{margin-bottom:9px;color:#4384ce;font-size:7px;font-weight:900;text-align:center}.preview-paper-title{overflow:hidden;margin-bottom:8px;color:#46566a;font-size:6px;font-weight:800;text-align:center;text-overflow:ellipsis;white-space:nowrap}.preview-paper-rule{height:2px;margin-bottom:9px;background:#dce4ee}.preview-paper-lines{height:3px;margin:6px 0;border-radius:2px;background:#e9edf2}.preview-paper-lines.short{width:58%}.preview-paper-lines.medium{width:78%}
+    .preview-panel-file-title{overflow:hidden;margin:5px 0 12px;color:#354b65;font-size:10px;font-weight:750;text-overflow:ellipsis;white-space:nowrap}.preview-detail-list{display:grid;gap:8px;padding-top:10px;border-top:1px solid #edf0f4}.preview-detail-list>div{display:flex;align-items:center;justify-content:space-between;gap:8px}.preview-detail-list>div>span:first-child{color:#8d9bad;font-size:9px}.preview-detail-list b{color:#52657d;font-size:9px;text-align:right}.preview-detail-list .pill{font-size:8px}
+    .preview-panel-actions{display:flex;gap:7px;margin-top:14px}.preview-panel-actions .btn{flex:1;padding:8px 6px;font-size:9px}.preview-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;gap:9px;color:#91a0b2;text-align:center}.preview-empty-icon{display:grid;place-items:center;width:45px;height:52px;margin-bottom:4px;border:1px solid #dce7f4;border-radius:8px;color:#4384ce;background:#f3f8ff;font-size:22px}.preview-empty b{color:#52657d;font-size:12px}.preview-empty span{max-width:180px;font-size:10px;line-height:1.5}
+    /* Folder tiles + Premium-only custom colors */
+    .folder-card{min-width:0;padding:17px;border:1px solid #e5ebf3;border-radius:13px;background:#fff;box-shadow:var(--shadow-sm);transition:transform .18s,box-shadow .18s}.folder-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}.folder-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.folder-art{width:51px;height:43px}.folder-art svg{width:100%;height:100%;overflow:visible}.folder-card-count{padding:4px 8px;border-radius:20px;color:#75869b;background:#f3f6fa;font-size:9px;font-weight:700}.folder-card-name{display:block;overflow:hidden;color:#304760;font-size:12px;text-overflow:ellipsis;white-space:nowrap}.folder-card p{margin:5px 0 13px;font-size:10px}.folder-card-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:10px;border-top:1px solid #eff2f6}.folder-card-actions .btn{font-size:9px}
+    .folder-edit-color{position:relative;display:grid;place-items:center;width:30px;height:30px;border:1px solid #e4eaf2;border-radius:8px;color:#637991;background:#fff;cursor:pointer}.folder-edit-color input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}.folder-edit-color span{pointer-events:none;font-size:14px}.folder-locked-color{display:flex;align-items:center;gap:4px;color:#b48a43;font-size:10px;font-weight:750}.folder-locked-color span{color:#9a8a70;font-size:9px}
+    .folder-color-field{min-width:220px}.folder-color-control{display:flex;align-items:center;gap:10px}.folder-color-control input[type=color]{width:45px;min-width:45px;height:38px;padding:3px;border:1px solid #e0e7f0;border-radius:8px;cursor:pointer}.folder-color-control input:disabled{opacity:.48;cursor:not-allowed}.folder-color-control span{color:#8998aa;font-size:10px;line-height:1.5}.folder-color-control span.premium-unlocked{color:#28734f}.premium-inline-label{margin-left:6px;padding:3px 6px;border-radius:12px;color:#a6782c;background:#fff6e7;font-size:8px;font-weight:850;letter-spacing:.04em}
+    @media(max-width:1100px){.documents-workspace{grid-template-columns:minmax(0,1fr) 245px}.document-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:760px){.documents-toolbar{align-items:flex-start;flex-direction:column}.documents-toolbar-actions{width:100%}.doc-search-wrap{flex:1;width:auto}.documents-workspace{grid-template-columns:1fr}.document-preview-panel{position:static}.document-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.preview-file-stage{min-height:160px}.feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:420px){.document-grid,.feature-grid{grid-template-columns:1fr}.documents-library{padding:10px}}
+
+</style>
 </head>
 
 <body>
@@ -1284,23 +1310,34 @@
                     <div class="heading">
                         <div>
                             <h1>My Documents</h1>
-                            <p>Documents submitted by your account.</p>
+                            <p>Browse, organize, and preview your submitted documents.</p>
                         </div>
                     </div>
-                    <div class="panel tablewrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Title</th>
-                                    <th>Category</th>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                    <th>File</th>
-                                </tr>
-                            </thead>
-                            <tbody id="docRows"></tbody>
-                        </table>
-                        <div id="docEmpty" class="empty hidden">No documents found.</div>
+                    <div class="documents-toolbar">
+                        <div class="documents-toolbar-title">
+                            <span class="toolbar-eyebrow">DOCUMENT LIBRARY</span>
+                            <strong>All documents</strong>
+                        </div>
+                        <div class="documents-toolbar-actions">
+                            <label class="doc-search-wrap">
+                                <span aria-hidden="true">⌕</span>
+                                <input id="documentSearch" type="search" placeholder="Search documents..." oninput="filterDocumentCards(this.value)">
+                            </label>
+                            <button class="btn secondary small" onclick="go('upload')">＋ Upload</button>
+                        </div>
+                    </div>
+                    <div class="documents-workspace">
+                        <div class="documents-library">
+                            <div id="docRows" class="document-grid"></div>
+                            <div id="docEmpty" class="empty hidden">No documents found.</div>
+                        </div>
+                        <aside class="document-preview-panel" id="documentPreviewPanel">
+                            <div class="preview-empty">
+                                <div class="preview-empty-icon">▤</div>
+                                <b>Select a document</b>
+                                <span>Choose a file to see its details and preview.</span>
+                            </div>
+                        </aside>
                     </div>
                 </section>
                 <section class="page" id="page-upload">
@@ -1370,8 +1407,15 @@
                         <form id="folderForm" class="grid">
                             <div class="field"><label for="folderName">Folder name</label><input id="folderName"
                                     required maxlength="80" placeholder="e.g. School Year 2026-2027"></div>
-                            <div class="field"><label for="folderColor">Folder color</label><input id="folderColor"
-                                    type="color" value="#2862a5"></div>
+                            <div class="field folder-color-field">
+                                <label for="folderColor">Folder color
+                                    <span class="premium-inline-label hidden" id="folderColorPremiumLabel">✦ PREMIUM</span>
+                                </label>
+                                <div class="folder-color-control">
+                                    <input id="folderColor" type="color" value="#2862a5">
+                                    <span id="folderColorHelp">Default folder color is available on Free. Upgrade to Premium to customize it.</span>
+                                </div>
+                            </div>
                             <div><button class="btn" type="submit">Create folder</button></div>
                         </form>
                     </div>
@@ -1614,6 +1658,8 @@ let toastTimer = null;
 let recoveryMode = false;
 let isPremium = false;
 let premiumExpiresAt = null;
+let selectedDocumentId = null;
+let documentSearchTerm = "";
 
 const $ = id => document.getElementById(id);
 
@@ -2299,68 +2345,114 @@ function reviewCommentHTML(d) {
         : "";
 }
 
+function documentFileKind(d) {
+    const name = (d.file_name || d.title || "").toLowerCase();
+    const mime = (d.mime_type || "").toLowerCase();
+    if (mime.includes("pdf") || name.endsWith(".pdf")) return "PDF";
+    if (mime.includes("spreadsheet") || /\.(csv|xls|xlsx)$/i.test(name)) return "CSV";
+    if (mime.includes("word") || /\.(doc|docx)$/i.test(name)) return "DOC";
+    if (mime.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(name)) return "IMG";
+    return "FILE";
+}
+
+function renderDocumentCards(items) {
+    const q = documentSearchTerm.trim().toLowerCase();
+    const filtered = items.filter(d => !q || [d.title, d.file_name, d.category, d.status]
+        .some(v => String(v || "").toLowerCase().includes(q)));
+    $("docRows").innerHTML = filtered.map(d => {
+        const kind = documentFileKind(d);
+        const active = d.id === selectedDocumentId ? " selected" : "";
+        return `
+            <article class="document-card${active}" onclick="selectDocumentPreview('${d.id}')" tabindex="0"
+                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDocumentPreview('${d.id}')}" >
+                <div class="document-card-top">
+                    <span class="file-type-icon file-${kind.toLowerCase()}">${kind}</span>
+                    <span class="document-card-menu" aria-hidden="true">•••</span>
+                </div>
+                <div class="document-card-name" title="${escapeHTML(d.title)}">${escapeHTML(d.title)}</div>
+                <div class="document-card-meta">${escapeHTML(d.category || "Uncategorized")}</div>
+                <div class="document-card-footer">
+                    <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span>
+                    <span>${dateText(d.created_at)}</span>
+                </div>
+                <div class="document-card-actions">
+                    <button class="btn secondary small" onclick="event.stopPropagation();previewDoc('${d.id}')">Preview</button>
+                    <button class="btn secondary small" onclick="event.stopPropagation();downloadDoc('${d.id}')">Download</button>
+                </div>
+            </article>`;
+    }).join("");
+    $("docEmpty").classList.toggle("hidden", filtered.length > 0);
+    if (!filtered.length) {
+        $("documentPreviewPanel").innerHTML = `<div class="preview-empty">
+            <div class="preview-empty-icon">▤</div>
+            <b>${items.length ? "No matching documents" : "Your library is empty"}</b>
+            <span>${items.length ? "Try another search term." : "Documents you submit will appear here."}</span>
+        </div>`;
+        return;
+    }
+    if (!filtered.some(d => d.id === selectedDocumentId)) selectedDocumentId = filtered[0].id;
+    documentPreviewPanelHTML(filtered.find(d => d.id === selectedDocumentId));
+}
+
+function documentPreviewPanelHTML(d) {
+    if (!d) return;
+    const kind = documentFileKind(d);
+    const fileName = d.file_name || d.title || "Document";
+    $("documentPreviewPanel").innerHTML = `
+        <div class="preview-panel-heading"><span>PREVIEW</span><span class="preview-page-count">DOCUMENT DETAILS</span></div>
+        <div class="preview-file-stage"><div class="preview-paper">
+            <div class="preview-paper-mark">${kind}</div>
+            <div class="preview-paper-title">${escapeHTML(d.title)}</div>
+            <div class="preview-paper-rule"></div>
+            <div class="preview-paper-lines"></div><div class="preview-paper-lines short"></div>
+            <div class="preview-paper-lines"></div><div class="preview-paper-lines medium"></div>
+            <div class="preview-paper-lines"></div><div class="preview-paper-lines short"></div>
+            <div class="preview-paper-lines"></div><div class="preview-paper-lines medium"></div>
+        </div></div>
+        <div class="preview-panel-file-title" title="${escapeHTML(fileName)}">${escapeHTML(fileName)}</div>
+        <div class="preview-detail-list">
+            <div><span>Category</span><b>${escapeHTML(d.category || "—")}</b></div>
+            <div><span>Date submitted</span><b>${dateText(d.created_at)}</b></div>
+            <div><span>Status</span><b><span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span></b></div>
+            <div><span>File type</span><b>${kind}</b></div>
+            <div><span>File size</span><b>${humanBytes(Number(d.size_bytes || 0))}</b></div>
+        </div>
+        <div class="preview-panel-actions">
+            <button class="btn" onclick="previewDoc('${d.id}')">Open preview</button>
+            <button class="btn secondary" onclick="downloadDoc('${d.id}')">Download</button>
+        </div>`;
+}
+
+function selectDocumentPreview(id) {
+    selectedDocumentId = id;
+    const own = documents.filter(d => currentProfile?.role === "staff" || d.owner_id === currentProfile?.id);
+    renderDocumentCards(own);
+}
+function filterDocumentCards(value) {
+    documentSearchTerm = value || "";
+    const own = documents.filter(d => currentProfile?.role === "staff" || d.owner_id === currentProfile?.id);
+    renderDocumentCards(own);
+}
+window.selectDocumentPreview = selectDocumentPreview;
+window.filterDocumentCards = filterDocumentCards;
+
 function renderDocuments() {
     if (!currentProfile) return;
-
-    const own = documents.filter(d =>
-        currentProfile.role === "staff" ||
-        d.owner_id === currentProfile.id
-    );
-
+    const own = documents.filter(d => currentProfile.role === "staff" || d.owner_id === currentProfile.id);
     $("total").textContent = own.length;
-
-    $("pending").textContent =
-        own.filter(d => d.status === "pending").length;
-
-    $("approved").textContent =
-        own.filter(d => d.status === "approved").length;
-
+    $("pending").textContent = own.filter(d => d.status === "pending").length;
+    $("approved").textContent = own.filter(d => d.status === "approved").length;
     $("recent").innerHTML = own.slice(0, 5).map(d => `
-        <p>
-            <b>${escapeHTML(d.title)}</b> ·
-            ${escapeHTML(d.category)} ·
-            <span class="pill ${statusClass(studentDocumentStatus(d))}">
-                ${escapeHTML(studentDocumentStatus(d))}
-            </span>
-        </p>
+        <p><b>${escapeHTML(d.title)}</b> · ${escapeHTML(d.category)} ·
+        <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span></p>
     `).join("") || '<div class="empty">No documents yet.</div>';
-
-    $("docRows").innerHTML = own.map(d => `
-        <tr>
-            <td>${escapeHTML(d.title)}</td>
-            <td>${escapeHTML(d.category)}</td>
-            <td>${dateText(d.created_at)}</td>
-            <td>
-                <span class="pill ${statusClass(studentDocumentStatus(d))}">
-                    ${escapeHTML(studentDocumentStatus(d))}
-                </span>
-                ${reviewCommentHTML(d)}
-            </td>
-            <td>
-                <div class="actions">
-                    <button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button>
-                    <button class="btn secondary small" onclick="downloadDoc('${d.id}')">Download</button>
-                </div>
-            </td>
-        </tr>
-    `).join("");
-
-    $("docEmpty").classList.toggle("hidden", own.length > 0);
-
+    renderDocumentCards(own);
     $("tracking").innerHTML = own.map(d => `
-        <p>
-            <b>${escapeHTML(d.title)}</b> ·
-            ${dateText(d.created_at)} ·
-            <span class="pill ${statusClass(studentDocumentStatus(d))}">
-                ${escapeHTML(studentDocumentStatus(d))}
-            </span>
-            ${reviewCommentHTML(d)}
-        </p>
+        <p><b>${escapeHTML(d.title)}</b> · ${dateText(d.created_at)} ·
+        <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span>
+        ${reviewCommentHTML(d)}</p>
     `).join("") || '<div class="empty">No submissions yet.</div>';
-
-    if (currentProfile.role === "staff") {
-        renderAdmin();
-    }
+    if (currentProfile.role === "staff") renderAdmin();
 }
 
 /* =========================================================
@@ -2843,24 +2935,42 @@ async function loadFolders() {
     }
 
     $("folderList").innerHTML = (data || []).map(f => `
-        <div class="feature">
-            <span class="folder-color"
-                style="background:${escapeHTML(f.color || "#2862a5")}">
-            </span>
-
-            <b>${escapeHTML(f.name)}</b>
-
-            <p class="muted">
-                ${documents.filter(d => d.folder_id === f.id).length}
-                documents · Created ${dateText(f.created_at)}
-            </p>
-
-            <button class="btn secondary small"
-                onclick="showFolderDocuments('${f.id}')">
-                View documents
-            </button>
+        <div class="folder-card" style="--folder-accent:${escapeHTML(f.color || "#2862a5")}">
+            <div class="folder-card-top">
+                <div class="folder-art" aria-hidden="true">
+                    <svg viewBox="0 0 48 40" role="img">
+                        <path d="M4 9.5A4.5 4.5 0 0 1 8.5 5h11l4 4h16A4.5 4.5 0 0 1 44 13.5v18a4.5 4.5 0 0 1-4.5 4.5h-31A4.5 4.5 0 0 1 4 31.5z" fill="var(--folder-accent)" opacity=".22"/>
+                        <path d="M4 13.5A4.5 4.5 0 0 1 8.5 9h31a4.5 4.5 0 0 1 4.5 4.5v18a4.5 4.5 0 0 1-4.5 4.5h-31A4.5 4.5 0 0 1 4 31.5z" fill="var(--folder-accent)"/>
+                        <path d="M5 17h38" stroke="white" stroke-opacity=".35" stroke-width="1.5"/>
+                    </svg>
+                </div>
+                <span class="folder-card-count">${documents.filter(d => d.folder_id === f.id).length} files</span>
+            </div>
+            <b class="folder-card-name">${escapeHTML(f.name)}</b>
+            <p class="muted">Created ${dateText(f.created_at)}</p>
+            <div class="folder-card-actions">
+                <button class="btn secondary small" onclick="showFolderDocuments('${f.id}')">Open folder <span aria-hidden="true">→</span></button>
+                ${isPremium ? `
+                    <label class="folder-edit-color" title="Change folder color">
+                        <input type="color" value="${escapeHTML(f.color || "#2862a5")}" aria-label="Change ${escapeHTML(f.name)} folder color"
+                            onchange="updateFolderColor('${f.id}',this.value)">
+                        <span>✎</span>
+                    </label>` : `
+                    <span class="folder-locked-color" title="Custom colors are a Premium feature">✦ <span>Premium</span></span>`}
+            </div>
         </div>
     `).join("") || '<div class="empty">No folders yet.</div>';
+
+    const colorInput = $("folderColor");
+    if (colorInput) {
+        colorInput.disabled = !isPremium;
+        colorInput.title = isPremium ? "Choose a custom folder color" : "Upgrade to Premium to choose custom folder colors";
+        $("folderColorPremiumLabel").classList.toggle("hidden", !isPremium);
+        $("folderColorHelp").textContent = isPremium
+            ? "Choose a color for your new folder."
+            : "Default folder color is available on Free. Upgrade to Premium to customize it.";
+        $("folderColorHelp").classList.toggle("premium-unlocked", isPremium);
+    }
 
     $("uploadFolder").innerHTML =
         '<option value="">No folder</option>' +
@@ -2870,32 +2980,33 @@ async function loadFolders() {
 }
 
 function showFolderDocuments(id) {
-    const items = documents.filter(d =>
-        d.folder_id === id &&
-        d.owner_id === currentProfile.id
-    );
-
-    $("docRows").innerHTML = items.map(d => `
-        <tr>
-            <td>${escapeHTML(d.title)}</td>
-            <td>${escapeHTML(d.category)}</td>
-            <td>${dateText(d.created_at)}</td>
-            <td>${escapeHTML(d.status)}</td>
-            <td>
-                <button class="btn secondary small"
-                    onclick="previewDoc('${d.id}')">
-                    Preview
-                </button>
-            </td>
-        </tr>
-    `).join("");
-
-    $("docEmpty").classList.toggle("hidden", items.length > 0);
-
+    const items = documents.filter(d => d.folder_id === id && d.owner_id === currentProfile.id);
+    documentSearchTerm = "";
+    const search = $("documentSearch");
+    if (search) search.value = "";
+    selectedDocumentId = items[0]?.id || null;
+    renderDocumentCards(items);
     go("documents");
 }
-
 window.showFolderDocuments = showFolderDocuments;
+
+async function updateFolderColor(id, color) {
+    if (!isPremium) {
+        toast("Custom folder colors are available with Premium.");
+        await loadFolders();
+        return;
+    }
+    const { error } = await sb.from("docukeep_folders").update({ color })
+        .eq("id", id).eq("owner_id", currentProfile.id);
+    if (error) {
+        toast("Could not update folder color: " + error.message);
+        await loadFolders();
+        return;
+    }
+    await loadFolders();
+    toast("Folder color updated.");
+}
+window.updateFolderColor = updateFolderColor;
 
 $("folderForm").addEventListener("submit", async e => {
     e.preventDefault();
@@ -2903,7 +3014,7 @@ $("folderForm").addEventListener("submit", async e => {
     if (!currentProfile) return;
 
     const name = $("folderName").value.trim();
-    const color = $("folderColor").value;
+    const color = isPremium ? $("folderColor").value : "#2862a5";
 
     if (!name) {
         return toast("Enter a folder name.");
