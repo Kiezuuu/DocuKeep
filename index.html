@@ -724,6 +724,25 @@
                 height: 94vh
             }
         }
+
+    .docukeep-premium-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: 7px;
+        padding: 4px 9px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #fff1b8, #f5cf65);
+        color: #704b00;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .5px;
+        vertical-align: middle;
+        white-space: nowrap;
+        border: 1px solid #e8c45c;
+        box-shadow: 0 2px 5px rgba(180, 130, 20, .15);
+}
+
     </style>
 </head>
 
@@ -1137,14 +1156,16 @@
     </div>
     <div class="toast" id="toast"></div>
    
+
 <script>
 /* =========================================================
    DOCUKEEP CLIENT
-   Never put the Supabase service_role key in this file.
+   Never place the Supabase service_role key in this file.
 ========================================================= */
 
 const SUPABASE_URL = "https://ihvvmmaudbkddwevialb.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_yfLj3YnmOh9PiwVV-HDpgA__Hc5ymr4";
+
 const TEACHER_EMAIL_DOMAIN = "deped.gov.ph";
 const BUCKET = "docukeep-files";
 const SITE_URL = "https://kiezuuu.github.io/DocuKeep/";
@@ -1168,6 +1189,8 @@ let documents = [];
 let managedUsersCache = [];
 let toastTimer = null;
 let recoveryMode = false;
+let isPremium = false;
+let premiumExpiresAt = null;
 
 const $ = id => document.getElementById(id);
 
@@ -1177,10 +1200,7 @@ const $ = id => document.getElementById(id);
 
 function toast(message) {
     const el = $("toast");
-    if (!el) {
-        console.log(message);
-        return;
-    }
+    if (!el) return;
 
     el.textContent = message;
     el.classList.add("show");
@@ -1234,19 +1254,22 @@ function studentDocumentStatus(d) {
     return d.status === "pending" ? "submitted" : d.status;
 }
 
-function setAuthMessage(message, type = "") {
+function setAuthMessage(m, k = "") {
     const el = $("authMsg");
     if (!el) return;
 
-    el.textContent = message;
-    el.className = "notice" + (type ? " " + type : "");
+    el.textContent = m;
+    el.className = "notice" + (k ? " " + k : "");
 }
 
 function friendlyAuthError(e) {
     const m = e?.message || "Unknown error";
     const c = e?.code || "";
 
-    if (c === "email_not_confirmed" || m.toLowerCase().includes("email not confirmed")) {
+    if (
+        c === "email_not_confirmed" ||
+        m.toLowerCase().includes("email not confirmed")
+    ) {
         return "Your email is not confirmed. Check your inbox or confirm the account in this same Supabase project.";
     }
 
@@ -1262,7 +1285,68 @@ function friendlyAuthError(e) {
 }
 
 /* =========================================================
-   AUTHENTICATION UI
+   PREMIUM BADGE
+========================================================= */
+
+function renderPremiumBadge() {
+    const who = $("who");
+    if (!who || !currentProfile) return;
+
+    const name = escapeHTML(currentProfile.full_name || "User");
+    const role = escapeHTML(currentProfile.role.toUpperCase());
+
+    const badge = isPremium
+        ? `<span class="docukeep-premium-badge" title="Active Premium Subscription">
+                👑 PREMIUM
+           </span>`
+        : "";
+
+    who.innerHTML = `${name} · ${role} ${badge}`;
+}
+
+async function loadPremiumStatus() {
+    isPremium = false;
+    premiumExpiresAt = null;
+
+    if (!currentProfile || currentProfile.role === "staff") {
+        renderPremiumBadge();
+        return;
+    }
+
+    try {
+        const { data, error } = await sb.rpc(
+            "docukeep_has_active_premium"
+        );
+
+        if (error) throw error;
+
+        isPremium = data === true;
+
+        if (isPremium) {
+            const { data: entitlement, error: entitlementError } = await sb
+                .from("docukeep_entitlements")
+                .select("expires_at")
+                .eq("user_id", currentProfile.id)
+                .eq("plan", "premium")
+                .eq("active", true)
+                .order("expires_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (!entitlementError && entitlement) {
+                premiumExpiresAt = entitlement.expires_at;
+            }
+        }
+    } catch (e) {
+        console.error("Premium status check failed:", e);
+        isPremium = false;
+    }
+
+    renderPremiumBadge();
+}
+
+/* =========================================================
+   AUTHENTICATION SCREEN
 ========================================================= */
 
 function selectType(type) {
@@ -1317,7 +1401,6 @@ function hideAllAuthForms() {
 
 function toggleForm(signup) {
     recoveryMode = false;
-
     hideAllAuthForms();
 
     $(signup ? "signupForm" : "loginForm").classList.remove("hidden");
@@ -1328,8 +1411,11 @@ function toggleForm(signup) {
     $("resendSwitch").classList.toggle("hidden", signup || accountType === "staff");
 
     $("formTitle").textContent =
-        (accountType === "student" ? "Student" :
-            accountType === "teacher" ? "Teacher" : "Staff") +
+        (accountType === "student"
+            ? "Student"
+            : accountType === "teacher"
+                ? "Teacher"
+                : "Staff") +
         (signup ? " registration" : " sign in");
 }
 
@@ -1356,7 +1442,7 @@ window.showForgot = showForgot;
 window.hideForgot = hideForgot;
 
 /* =========================================================
-   PROFILE AND LOGIN
+   LOAD USER PROFILE
 ========================================================= */
 
 async function loadProfile(user, expectedType = null) {
@@ -1422,11 +1508,11 @@ async function loadProfile(user, expectedType = null) {
     $("auth").classList.add("hidden");
     $("app").classList.remove("hidden");
 
-    $("who").textContent = (p.full_name || "User") + " · " + role.toUpperCase();
     $("greeting").textContent = "Welcome, " + (p.full_name || "User");
 
     $("adminNav").classList.toggle("hidden", role !== "staff");
 
+    await loadPremiumStatus();
     await loadDocuments();
     await updateOfflineStatus();
     await loadMySubscriptionRequests();
@@ -1438,10 +1524,16 @@ async function loadProfile(user, expectedType = null) {
     go("dashboard");
 }
 
+/* =========================================================
+   LOGIN
+========================================================= */
+
 $("loginForm").addEventListener("submit", async e => {
     e.preventDefault();
 
-    if (!accountType) return toast("Choose an account type first.");
+    if (!accountType) {
+        return toast("Choose an account type first.");
+    }
 
     const type = accountType;
     const email = $("email").value.trim().toLowerCase();
@@ -1458,6 +1550,7 @@ $("loginForm").addEventListener("submit", async e => {
     }
 
     const b = e.target.querySelector('button[type="submit"]');
+
     b.disabled = true;
     b.textContent = "Signing in…";
 
@@ -1474,9 +1567,11 @@ $("loginForm").addEventListener("submit", async e => {
     } catch (err) {
         console.error("Login error", err);
 
-        // Only sign out if an actual login session was created.
-        // Do not destroy an existing session because profile loading failed.
-        setAuthMessage("Login failed: " + friendlyAuthError(err), "warn");
+        setAuthMessage(
+            "Login failed: " + friendlyAuthError(err),
+            "warn"
+        );
+
         toast("Login failed: " + friendlyAuthError(err));
 
     } finally {
@@ -1522,6 +1617,7 @@ $("signupForm").addEventListener("submit", async e => {
     }
 
     const b = e.target.querySelector("button[type=submit]");
+
     b.disabled = true;
     b.textContent = "Creating account…";
 
@@ -1540,7 +1636,10 @@ $("signupForm").addEventListener("submit", async e => {
         });
 
         if (error) throw error;
-        if (!data.user) throw Error("Supabase did not return a user.");
+
+        if (!data.user) {
+            throw Error("Supabase did not return a user.");
+        }
 
         if (data.user.identities?.length === 0) {
             throw Error("This email may already be registered. Try signing in.");
@@ -1561,7 +1660,11 @@ $("signupForm").addEventListener("submit", async e => {
         toast("Registration request submitted.");
 
     } catch (err) {
-        setAuthMessage("Registration failed: " + friendlyAuthError(err), "warn");
+        setAuthMessage(
+            "Registration failed: " + friendlyAuthError(err),
+            "warn"
+        );
+
         toast("Signup failed: " + friendlyAuthError(err));
 
     } finally {
@@ -1571,7 +1674,7 @@ $("signupForm").addEventListener("submit", async e => {
 });
 
 /* =========================================================
-   PASSWORD RESET
+   FORGOT PASSWORD
 ========================================================= */
 
 $("forgotForm").addEventListener("submit", async e => {
@@ -1608,6 +1711,10 @@ $("forgotForm").addEventListener("submit", async e => {
     }
 });
 
+/* =========================================================
+   RESET PASSWORD
+========================================================= */
+
 $("resetForm").addEventListener("submit", async e => {
     e.preventDefault();
 
@@ -1625,7 +1732,9 @@ $("resetForm").addEventListener("submit", async e => {
     b.disabled = true;
 
     try {
-        const { error } = await sb.auth.updateUser({ password: p });
+        const { error } = await sb.auth.updateUser({
+            password: p
+        });
 
         if (error) throw error;
 
@@ -1655,6 +1764,10 @@ $("resetForm").addEventListener("submit", async e => {
         b.disabled = false;
     }
 });
+
+/* =========================================================
+   RESEND EMAIL CONFIRMATION
+========================================================= */
 
 async function resendConfirmation() {
     const email = $("email").value.trim().toLowerCase();
@@ -1716,6 +1829,8 @@ sb.auth.onAuthStateChange((event, session) => {
 
     } else if (event === "SIGNED_OUT" && !recoveryMode) {
         currentProfile = null;
+        isPremium = false;
+        premiumExpiresAt = null;
     }
 });
 
@@ -1728,7 +1843,11 @@ async function loadDocuments() {
 
     const { data, error } = await sb
         .from("documents")
-        .select("id,title,category,created_at,status,review_comment,owner_id,owner_name,storage_path,file_name,mime_type,size_bytes,due_date,school_year,department,folder_id,sha256")
+        .select(`
+            id,title,category,created_at,status,review_comment,
+            owner_id,owner_name,storage_path,file_name,mime_type,
+            size_bytes,due_date,school_year,department,folder_id,sha256
+        `)
         .order("created_at", { ascending: false });
 
     if (error) {
@@ -1750,7 +1869,10 @@ async function loadDocuments() {
 
 function reviewCommentHTML(d) {
     return d?.review_comment
-        ? `<div class="review-feedback"><b>Staff Feedback</b><p>${escapeHTML(d.review_comment)}</p></div>`
+        ? `<div class="review-feedback">
+                <b>Staff Feedback</b>
+                <p>${escapeHTML(d.review_comment)}</p>
+           </div>`
         : "";
 }
 
@@ -1819,7 +1941,7 @@ function renderDocuments() {
 }
 
 /* =========================================================
-   OFFLINE UPLOAD DATABASE
+   OFFLINE DATABASE
 ========================================================= */
 
 const DB_NAME = "docukeep-offline-v1";
@@ -1831,7 +1953,9 @@ function openOfflineDB() {
 
         r.onupgradeneeded = () => {
             if (!r.result.objectStoreNames.contains(STORE)) {
-                r.result.createObjectStore(STORE, { keyPath: "id" });
+                r.result.createObjectStore(STORE, {
+                    keyPath: "id"
+                });
             }
         };
 
@@ -1891,6 +2015,10 @@ function humanBytes(n) {
     return n.toFixed(i ? 1 : 0) + " " + u[i];
 }
 
+/* =========================================================
+   OFFLINE SYNC
+========================================================= */
+
 async function syncOfflineUploads() {
     if (!navigator.onLine || !currentProfile) return;
 
@@ -1903,7 +2031,7 @@ async function syncOfflineUploads() {
         return;
     }
 
-    // Only sync files belonging to the currently signed-in user.
+    /* Only sync files belonging to the currently signed-in user. */
     jobs = jobs.filter(j => j.ownerId === currentProfile.id);
 
     for (const j of jobs) {
@@ -1927,10 +2055,11 @@ async function syncOfflineUploads() {
 
 async function uploadJob(j) {
     if (!currentProfile || j.ownerId !== currentProfile.id) {
-        throw Error("This queued upload belongs to another account.");
+        throw Error("This queued upload does not belong to the current account.");
     }
 
-    const { error: upErr } = await sb.storage
+    const { error: upErr } = await sb
+        .storage
         .from(BUCKET)
         .upload(j.path, j.file, {
             upsert: false,
@@ -1999,7 +2128,7 @@ window.addEventListener("online", () => {
 window.addEventListener("offline", updateOfflineStatus);
 
 /* =========================================================
-   FILE HASHING AND UPLOAD
+   FILE HASH
 ========================================================= */
 
 async function sha256File(f) {
@@ -2017,6 +2146,10 @@ async function sha256File(f) {
         return null;
     }
 }
+
+/* =========================================================
+   UPLOAD DOCUMENTS
+========================================================= */
 
 $("uploadForm").addEventListener("submit", async e => {
     e.preventDefault();
@@ -2043,6 +2176,7 @@ $("uploadForm").addEventListener("submit", async e => {
 
     b.disabled = true;
     b.textContent = "Processing files…";
+
     prog.style.display = "block";
 
     let ok = 0;
@@ -2053,7 +2187,8 @@ $("uploadForm").addEventListener("submit", async e => {
         for (let i = 0; i < files.length; i++) {
             const f = files[i];
 
-            prog.textContent = `Processing ${i + 1} of ${files.length}: ${f.name}`;
+            prog.textContent =
+                `Processing ${i + 1} of ${files.length}: ${f.name}`;
 
             if (f.size > 25 * 1024 * 1024) {
                 failed++;
@@ -2063,6 +2198,7 @@ $("uploadForm").addEventListener("submit", async e => {
 
             const id = crypto.randomUUID();
             const safe = f.name.replace(/[^\w.\-]/g, "_");
+
             const hash = await sha256File(f);
 
             const dup = hash && documents.find(d =>
@@ -2082,7 +2218,9 @@ $("uploadForm").addEventListener("submit", async e => {
                 path: `${currentProfile.id}/${id}/${safe}`,
                 file: f,
                 sha256: hash,
-                title: files.length === 1 ? title : `${title} - ${f.name}`,
+                title: files.length === 1
+                    ? title
+                    : `${title} - ${f.name}`,
                 category,
                 schoolYear: $("year").value,
                 department: $("subject").value,
@@ -2148,7 +2286,7 @@ $("uploadForm").addEventListener("submit", async e => {
 });
 
 /* =========================================================
-   DOCUMENT PREVIEW AND DOWNLOAD
+   PREVIEW AND DOWNLOAD
 ========================================================= */
 
 async function signedUrl(d) {
@@ -2156,7 +2294,8 @@ async function signedUrl(d) {
         throw Error("Document storage path is missing.");
     }
 
-    const { data, error } = await sb.storage
+    const { data, error } = await sb
+        .storage
         .from(BUCKET)
         .createSignedUrl(d.storage_path, 300);
 
@@ -2222,7 +2361,8 @@ async function previewDoc(id) {
                 <div class="empty">
                     <h3>Preview not available</h3>
                     <p>Download this file to open it.</p>
-                </div>`;
+                </div>
+            `;
         }
 
         $("previewDownload").onclick = () => downloadDoc(id);
@@ -2281,13 +2421,19 @@ async function loadFolders() {
 
     $("folderList").innerHTML = (data || []).map(f => `
         <div class="feature">
-            <span class="folder-color" style="background:${escapeHTML(f.color || "#2862a5")}"></span>
+            <span class="folder-color"
+                style="background:${escapeHTML(f.color || "#2862a5")}">
+            </span>
+
             <b>${escapeHTML(f.name)}</b>
+
             <p class="muted">
                 ${documents.filter(d => d.folder_id === f.id).length}
                 documents · Created ${dateText(f.created_at)}
             </p>
-            <button class="btn secondary small" onclick="showFolderDocuments('${f.id}')">
+
+            <button class="btn secondary small"
+                onclick="showFolderDocuments('${f.id}')">
                 View documents
             </button>
         </div>
@@ -2295,9 +2441,9 @@ async function loadFolders() {
 
     $("uploadFolder").innerHTML =
         '<option value="">No folder</option>' +
-        (data || []).map(f =>
-            `<option value="${f.id}">${escapeHTML(f.name)}</option>`
-        ).join("");
+        (data || []).map(f => `
+            <option value="${f.id}">${escapeHTML(f.name)}</option>
+        `).join("");
 }
 
 function showFolderDocuments(id) {
@@ -2313,7 +2459,8 @@ function showFolderDocuments(id) {
             <td>${dateText(d.created_at)}</td>
             <td>${escapeHTML(d.status)}</td>
             <td>
-                <button class="btn secondary small" onclick="previewDoc('${d.id}')">
+                <button class="btn secondary small"
+                    onclick="previewDoc('${d.id}')">
                     Preview
                 </button>
             </td>
@@ -2335,7 +2482,9 @@ $("folderForm").addEventListener("submit", async e => {
     const name = $("folderName").value.trim();
     const color = $("folderColor").value;
 
-    if (!name) return toast("Enter a folder name.");
+    if (!name) {
+        return toast("Enter a folder name.");
+    }
 
     const { error } = await sb
         .from("docukeep_folders")
@@ -2380,17 +2529,23 @@ async function loadNotifications() {
     const rows = data || [];
     const unread = rows.filter(n => !n.is_read).length;
 
-    $("notificationCount").textContent = unread ? `(${unread})` : "";
+    $("notificationCount").textContent =
+        unread ? `(${unread})` : "";
 
     $("notificationList").innerHTML = rows.map(n => `
         <div style="padding:12px;border-bottom:1px solid var(--line);${n.is_read ? "opacity:.65" : ""}">
             <b>${escapeHTML(n.title)}</b>
+
             <p>${escapeHTML(n.message)}</p>
+
             <small class="muted">
-                ${dateText(n.created_at)} · ${n.is_read ? "Read" : "Unread"}
+                ${dateText(n.created_at)} ·
+                ${n.is_read ? "Read" : "Unread"}
             </small>
+
             ${n.is_read ? "" : `
-                <button class="btn secondary small" onclick="markNotificationRead('${n.id}')">
+                <button class="btn secondary small"
+                    onclick="markNotificationRead('${n.id}')">
                     Mark read
                 </button>
             `}
@@ -2407,7 +2562,7 @@ async function markNotificationRead(id) {
 
     if (error) return toast(error.message);
 
-    await loadNotifications();
+    loadNotifications();
 }
 
 async function markAllNotificationsRead() {
@@ -2430,7 +2585,115 @@ window.markNotificationRead = markNotificationRead;
 window.markAllNotificationsRead = markAllNotificationsRead;
 
 /* =========================================================
-   PREMIUM SUBSCRIPTION PLANS
+   STAFF ADMINISTRATION
+========================================================= */
+
+async function renderAdmin() {
+    if (currentProfile?.role !== "staff") {
+        $("requests").innerHTML =
+            '<div class="empty">Staff access required.</div>';
+        return;
+    }
+
+    await loadAdminSubscriptionRequests();
+
+    $("requests").innerHTML = '<div class="empty">Loading…</div>';
+
+    const { data: users, error } = await sb
+        .from("profiles")
+        .select("id,full_name,email,role,department,created_at")
+        .eq("status", "pending")
+        .order("created_at");
+
+    if (error) {
+        $("requests").innerHTML =
+            '<div class="empty">Could not load requests: ' +
+            escapeHTML(error.message) +
+            '</div>';
+        return;
+    }
+
+    $("requests").innerHTML = (users || []).map(u => `
+        <div style="padding:12px 0;border-bottom:1px solid #eee">
+            <b>${escapeHTML(u.full_name)}</b> ·
+            ${escapeHTML(u.role)}
+            <br>
+
+            <small>
+                ${escapeHTML(u.email)} ·
+                ${escapeHTML(u.department || "No department")} ·
+                ${dateText(u.created_at)}
+            </small>
+
+            <div class="actions" style="margin-top:8px">
+                <button class="btn green small"
+                    onclick="reviewUser('${u.id}','approved')">
+                    Approve
+                </button>
+
+                <button class="btn danger small"
+                    onclick="reviewUser('${u.id}','rejected')">
+                    Reject
+                </button>
+            </div>
+        </div>
+    `).join("") || '<div class="empty">No pending registrations.</div>';
+
+    const { data: all, error: allErr } = await sb
+        .from("profiles")
+        .select("id,full_name,email,role,department,status,created_at")
+        .order("created_at", { ascending: false });
+
+    if (allErr) {
+        $("managedUsers").innerHTML =
+            `<tr><td colspan="5">${escapeHTML(allErr.message)}</td></tr>`;
+    } else {
+        managedUsersCache = all || [];
+        filterManagedUsers();
+    }
+
+    $("allRows").innerHTML = documents.map(d => `
+        <tr>
+            <td>${escapeHTML(d.owner_name || "")}</td>
+
+            <td>
+                <b>${escapeHTML(d.title)}</b>
+                <br>
+                <small class="muted">${escapeHTML(d.file_name || "")}</small>
+                ${reviewCommentHTML(d)}
+            </td>
+
+            <td>${escapeHTML(d.category)}</td>
+            <td>${dateText(d.created_at)}</td>
+
+            <td>
+                <span class="pill ${statusClass(d.status)}">
+                    ${escapeHTML(d.status)}
+                </span>
+
+                <div class="actions" style="margin-top:6px">
+                    <button class="btn secondary small"
+                        onclick="previewDoc('${d.id}')">Preview</button>
+
+                    <button class="btn secondary small"
+                        onclick="downloadDoc('${d.id}')">Download</button>
+
+                    <button class="btn green small"
+                        onclick="reviewDoc('${d.id}','approved')">Approve</button>
+
+                    <button class="btn secondary small"
+                        onclick="reviewDoc('${d.id}','needs_revision')">Return</button>
+
+                    <button class="btn danger small"
+                        onclick="reviewDoc('${d.id}','rejected')">Reject</button>
+                </div>
+            </td>
+        </tr>
+    `).join("");
+}
+
+/* =========================================================
+   SUBSCRIPTION PLANS
 ========================================================= */
 
 const SUBSCRIPTION_PLANS = {
@@ -2439,11 +2702,13 @@ const SUBSCRIPTION_PLANS = {
         amount: 100,
         days: 365
     },
+
     monthly: {
         label: "1-Month Subscription",
         amount: 50,
         days: 30
     },
+
     weekly: {
         label: "1-Week Subscription",
         amount: 25,
@@ -2461,6 +2726,7 @@ function chooseSubscription(key) {
     selectedSubscriptionPlan = key;
 
     $("selectedPlanLabel").value = plan.label;
+
     $("selectedPlanAmount").value =
         "₱" + plan.amount.toLocaleString("en-PH");
 
@@ -2470,12 +2736,18 @@ function chooseSubscription(key) {
     });
 }
 
+/* =========================================================
+   SUBSCRIPTION STATUS LABELS
+   Database values:
+   pending / activated / rejected / cancelled
+========================================================= */
+
 function requestStatusLabel(status) {
     return ({
         pending: "Awaiting staff review",
         activated: "Payment accepted · Premium active",
         rejected: "Request rejected",
-        cancelled: "Request cancelled"
+        cancelled: "Cancelled"
     })[status] || status;
 }
 
@@ -2487,7 +2759,12 @@ function renderMySubscriptionRows(rows) {
     el.innerHTML = (rows || []).map(r => `
         <div class="request-card">
             <div class="actions" style="justify-content:space-between">
-                <b>${escapeHTML(SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key)}</b>
+                <b>
+                    ${escapeHTML(
+                        SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key
+                    )}
+                </b>
+
                 <span class="status-chip ${escapeHTML(r.status)}">
                     ${escapeHTML(requestStatusLabel(r.status))}
                 </span>
@@ -2496,7 +2773,9 @@ function renderMySubscriptionRows(rows) {
             <p>
                 <b>Amount:</b>
                 ₱${Number(r.amount_php).toLocaleString("en-PH")}
-                · <b>Submitted:</b> ${dateText(r.created_at)}
+                ·
+                <b>Submitted:</b>
+                ${dateText(r.created_at)}
             </p>
 
             <p>
@@ -2512,11 +2791,14 @@ function renderMySubscriptionRows(rows) {
             ` : ""}
 
             ${r.status === "activated" ? `
-                <p><b>Premium valid until:</b> ${dateText(r.expires_at)}</p>
+                <p>
+                    <b>Premium valid until:</b>
+                    ${dateText(r.expires_at)}
+                </p>
+                <p>👑 Your Premium subscription is activated.</p>
             ` : ""}
         </div>
-    `).join("") ||
-    '<div class="empty">You have not submitted a subscription request yet.</div>';
+    `).join("") || '<div class="empty">You have not submitted a subscription request yet.</div>';
 }
 
 async function loadMySubscriptionRequests() {
@@ -2528,16 +2810,20 @@ async function loadMySubscriptionRequests() {
 
     const { data, error } = await sb
         .from("docukeep_subscription_requests")
-        .select("id,plan_key,amount_php,payment_reference,status,admin_message,created_at,expires_at")
+        .select(`
+            id,plan_key,amount_php,payment_reference,
+            status,admin_message,created_at,expires_at
+        `)
         .eq("user_id", currentProfile.id)
         .order("created_at", { ascending: false });
 
     if (error) {
         el.innerHTML = `
             <div class="empty">
-                Payment requests unavailable.
+                Payment requests unavailable. Run the subscription SQL migration.
                 ${escapeHTML(error.message)}
-            </div>`;
+            </div>
+        `;
         return;
     }
 
@@ -2545,7 +2831,7 @@ async function loadMySubscriptionRequests() {
 }
 
 /* =========================================================
-   SUBSCRIPTION PAYMENT REQUEST
+   SUBMIT PAYMENT REQUEST
 ========================================================= */
 
 $("subscriptionForm")?.addEventListener("submit", async e => {
@@ -2583,8 +2869,6 @@ $("subscriptionForm")?.addEventListener("submit", async e => {
     btn.disabled = true;
     btn.textContent = "Submitting…";
 
-    let uploadedPath = null;
-
     try {
         const requestId = crypto.randomUUID();
 
@@ -2597,7 +2881,8 @@ $("subscriptionForm")?.addEventListener("submit", async e => {
 
         const path = `${currentProfile.id}/${requestId}.${ext}`;
 
-        const up = await sb.storage
+        const up = await sb
+            .storage
             .from("docukeep-payment-receipts")
             .upload(path, file, {
                 upsert: false,
@@ -2605,8 +2890,6 @@ $("subscriptionForm")?.addEventListener("submit", async e => {
             });
 
         if (up.error) throw up.error;
-
-        uploadedPath = path;
 
         const { error } = await sb
             .from("docukeep_subscription_requests")
@@ -2621,25 +2904,23 @@ $("subscriptionForm")?.addEventListener("submit", async e => {
                 status: "pending"
             });
 
-        if (error) throw error;
+        if (error) {
+            await sb
+                .storage
+                .from("docukeep-payment-receipts")
+                .remove([path]);
+
+            throw error;
+        }
 
         e.target.reset();
         selectedSubscriptionPlan = null;
-        uploadedPath = null;
 
         toast("Subscription request and receipt sent to staff.");
 
         await loadMySubscriptionRequests();
 
     } catch (err) {
-        console.error("Subscription submission error:", err);
-
-        if (uploadedPath) {
-            await sb.storage
-                .from("docukeep-payment-receipts")
-                .remove([uploadedPath]);
-        }
-
         toast("Could not submit payment request: " + err.message);
 
     } finally {
@@ -2649,7 +2930,7 @@ $("subscriptionForm")?.addEventListener("submit", async e => {
 });
 
 /* =========================================================
-   STAFF SUBSCRIPTION REQUESTS
+   STAFF: LOAD SUBSCRIPTION REQUESTS
 ========================================================= */
 
 async function loadAdminSubscriptionRequests() {
@@ -2661,7 +2942,11 @@ async function loadAdminSubscriptionRequests() {
 
     const { data: rows, error } = await sb
         .from("docukeep_subscription_requests")
-        .select("id,user_id,plan_key,amount_php,payment_reference,receipt_path,user_message,status,admin_message,created_at,starts_at,expires_at")
+        .select(`
+            id,user_id,plan_key,amount_php,payment_reference,
+            receipt_path,user_message,status,admin_message,
+            created_at,starts_at,expires_at
+        `)
         .order("created_at", { ascending: false });
 
     if (error) {
@@ -2669,7 +2954,8 @@ async function loadAdminSubscriptionRequests() {
             <div class="empty">
                 Could not load payment requests.
                 ${escapeHTML(error.message)}
-            </div>`;
+            </div>
+        `;
         return;
     }
 
@@ -2684,11 +2970,6 @@ async function loadAdminSubscriptionRequests() {
         .from("profiles")
         .select("id,full_name,email,role,department")
         .in("id", ids);
-
-    if (pr.error) {
-        el.innerHTML = `<div class="empty">${escapeHTML(pr.error.message)}</div>`;
-        return;
-    }
 
     const profiles = Object.fromEntries(
         (pr.data || []).map(p => [p.id, p])
@@ -2711,12 +2992,16 @@ async function loadAdminSubscriptionRequests() {
                 </div>
 
                 <p>
-                    ${escapeHTML(u.email || "")}
-                    · ${escapeHTML(u.department || "")}
+                    ${escapeHTML(u.email || "")} ·
+                    ${escapeHTML(u.department || "")}
                 </p>
 
                 <p>
-                    <b>${escapeHTML(SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key)}</b>
+                    <b>
+                        ${escapeHTML(
+                            SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key
+                        )}
+                    </b>
                     · ₱${Number(r.amount_php).toLocaleString("en-PH")}
                     · ${dateText(r.created_at)}
                 </p>
@@ -2753,6 +3038,10 @@ async function loadAdminSubscriptionRequests() {
                             Send message
                         </button>
                     ` : ""}
+
+                    ${r.status === "activated" ? `
+                        <span class="pill approved">👑 Premium activated</span>
+                    ` : ""}
                 </div>
 
                 ${r.admin_message ? `
@@ -2764,13 +3053,18 @@ async function loadAdminSubscriptionRequests() {
 
                 ${r.status === "activated" ? `
                     <small class="muted">
-                        Premium: ${dateText(r.starts_at)} – ${dateText(r.expires_at)}
+                        Premium: ${dateText(r.starts_at)}
+                        – ${dateText(r.expires_at)}
                     </small>
                 ` : ""}
             </div>
         `;
     }).join("");
 }
+
+/* =========================================================
+   STAFF: VIEW PAYMENT RECEIPT
+========================================================= */
 
 async function viewPaymentReceipt(id) {
     if (currentProfile?.role !== "staff") {
@@ -2785,7 +3079,8 @@ async function viewPaymentReceipt(id) {
 
     if (error) return toast(error.message);
 
-    const signed = await sb.storage
+    const signed = await sb
+        .storage
         .from("docukeep-payment-receipts")
         .createSignedUrl(r.receipt_path, 300);
 
@@ -2796,12 +3091,17 @@ async function viewPaymentReceipt(id) {
     window.open(signed.data.signedUrl, "_blank", "noopener");
 }
 
+/* =========================================================
+   STAFF: ACTIVATE OR REJECT SUBSCRIPTION
+   IMPORTANT:
+   The SQL RPC accepts "activated", NOT "approved".
+========================================================= */
+
 async function decideSubscription(id, status) {
     if (currentProfile?.role !== "staff") {
         return toast("Staff access required.");
     }
 
-    // IMPORTANT: The database accepts "activated", NOT "approved".
     if (!["activated", "rejected"].includes(status)) {
         return toast("Invalid subscription decision.");
     }
@@ -2873,112 +3173,6 @@ window.decideSubscription = decideSubscription;
 window.messageSubscription = messageSubscription;
 
 /* =========================================================
-   STAFF ADMINISTRATION
-========================================================= */
-
-async function renderAdmin() {
-    if (currentProfile?.role !== "staff") {
-        $("requests").innerHTML =
-            '<div class="empty">Staff access required.</div>';
-        return;
-    }
-
-    await loadAdminSubscriptionRequests();
-
-    $("requests").innerHTML = '<div class="empty">Loading…</div>';
-
-    const { data: users, error } = await sb
-        .from("profiles")
-        .select("id,full_name,email,role,department,created_at")
-        .eq("status", "pending")
-        .order("created_at");
-
-    if (error) {
-        $("requests").innerHTML =
-            '<div class="empty">Could not load requests: ' +
-            escapeHTML(error.message) +
-            '</div>';
-        return;
-    }
-
-    $("requests").innerHTML = (users || []).map(u => `
-        <div style="padding:12px 0;border-bottom:1px solid #eee">
-            <b>${escapeHTML(u.full_name)}</b> · ${escapeHTML(u.role)}
-            <br>
-            <small>
-                ${escapeHTML(u.email)}
-                · ${escapeHTML(u.department || "No department")}
-                · ${dateText(u.created_at)}
-            </small>
-
-            <div class="actions" style="margin-top:8px">
-                <button class="btn green small"
-                    onclick="reviewUser('${u.id}','approved')">
-                    Approve
-                </button>
-
-                <button class="btn danger small"
-                    onclick="reviewUser('${u.id}','rejected')">
-                    Reject
-                </button>
-            </div>
-        </div>
-    `).join("") || '<div class="empty">No pending registrations.</div>';
-
-    const { data: all, error: allErr } = await sb
-        .from("profiles")
-        .select("id,full_name,email,role,department,status,created_at")
-        .order("created_at", { ascending: false });
-
-    if (allErr) {
-        $("managedUsers").innerHTML =
-            `<tr><td colspan="5">${escapeHTML(allErr.message)}</td></tr>`;
-    } else {
-        managedUsersCache = all || [];
-        filterManagedUsers();
-    }
-
-    $("allRows").innerHTML = documents.map(d => `
-        <tr>
-            <td>${escapeHTML(d.owner_name || "")}</td>
-
-            <td>
-                <b>${escapeHTML(d.title)}</b>
-                <br>
-                <small class="muted">${escapeHTML(d.file_name || "")}</small>
-                ${reviewCommentHTML(d)}
-            </td>
-
-            <td>${escapeHTML(d.category)}</td>
-            <td>${dateText(d.created_at)}</td>
-
-            <td>
-                <span class="pill ${statusClass(d.status)}">
-                    ${escapeHTML(d.status)}
-                </span>
-
-                <div class="actions" style="margin-top:6px">
-                    <button class="btn secondary small"
-                        onclick="previewDoc('${d.id}')">Preview</button>
-
-                    <button class="btn secondary small"
-                        onclick="downloadDoc('${d.id}')">Download</button>
-
-                    <button class="btn green small"
-                        onclick="reviewDoc('${d.id}','approved')">Approve</button>
-
-                    <button class="btn secondary small"
-                        onclick="reviewDoc('${d.id}','needs_revision')">Return</button>
-
-                    <button class="btn danger small"
-                        onclick="reviewDoc('${d.id}','rejected')">Reject</button>
-                </div>
-            </td>
-        </tr>
-    `).join("");
-}
-
-/* =========================================================
    MANAGE USERS
 ========================================================= */
 
@@ -3043,8 +3237,7 @@ function filterManagedUsers() {
                 </td>
             </tr>
         `;
-    }).join("") ||
-    '<tr><td colspan="5" class="empty">No matching accounts.</td></tr>';
+    }).join("") || '<tr><td colspan="5" class="empty">No matching accounts.</td></tr>';
 }
 
 async function changeUserRole(id) {
@@ -3065,16 +3258,22 @@ async function changeUserRole(id) {
     const u = managedUsersCache.find(x => x.id === id);
 
     if (!u) return toast("User not found.");
-    if (role === u.role) return toast("Account already has that role.");
+
+    if (role === u.role) {
+        return toast("Account already has that role.");
+    }
 
     if (!confirm(`Change ${u.email} from ${u.role} to ${role}?`)) {
         return;
     }
 
-    const { error } = await sb.rpc("manage_docukeep_user_role", {
-        p_user_id: id,
-        p_new_role: role
-    });
+    const { error } = await sb.rpc(
+        "manage_docukeep_user_role",
+        {
+            p_user_id: id,
+            p_new_role: role
+        }
+    );
 
     if (error) {
         return toast("Role change failed: " + error.message);
@@ -3092,10 +3291,13 @@ async function reviewUser(id, status) {
 
     if (!["approved", "rejected"].includes(status)) return;
 
-    const { error } = await sb.rpc("approve_docukeep_profile", {
-        p_user_id: id,
-        p_status: status
-    });
+    const { error } = await sb.rpc(
+        "approve_docukeep_profile",
+        {
+            p_user_id: id,
+            p_status: status
+        }
+    );
 
     if (error) {
         return toast("Account update failed: " + error.message);
@@ -3234,6 +3436,8 @@ async function signOut() {
     documents = [];
     accountType = null;
     managedUsersCache = [];
+    isPremium = false;
+    premiumExpiresAt = null;
 
     $("app").classList.add("hidden");
     $("auth").classList.remove("hidden");
@@ -3249,7 +3453,7 @@ async function signOut() {
 window.signOut = signOut;
 
 /* =========================================================
-   SESSION RESTORE
+   RESTORE SESSION
 ========================================================= */
 
 async function restoreSession() {
@@ -3261,6 +3465,10 @@ async function restoreSession() {
         await loadProfile(data.session.user, null);
     }
 }
+
+/* =========================================================
+   STARTUP
+========================================================= */
 
 (async () => {
     try {
@@ -3298,7 +3506,11 @@ async function restoreSession() {
     } catch (e) {
         console.error("Startup/session restore", e);
 
-        // Do not sign out automatically on temporary network/profile errors.
+        /*
+         * Do not sign out automatically when the network is unavailable.
+         * A temporary database error should not destroy the saved session.
+         */
+
         currentProfile = null;
 
         $("app").classList.add("hidden");
@@ -3320,6 +3532,7 @@ if ("serviceWorker" in navigator) {
     });
 }
 </script>
+
 
 </body>
 
