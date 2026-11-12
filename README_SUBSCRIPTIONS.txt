@@ -1,26 +1,35 @@
 DOCUKEEP PREMIUM SUBSCRIPTION UPDATE
 
 FILES
-- index.html: updated complete DocuKeep page with Premium plan choices, user request submission, current subscription display, and staff activation controls.
-- add_subscription_migration.sql: run once in Supabase SQL Editor AFTER your existing DocuKeep setup and docukeep_migration.sql.
+1. index.html - replace the current website index.html with this file.
+2. add_subscription_migration.sql - run in Supabase SQL Editor.
 
-SETUP
-1. Back up your current index.html.
-2. In Supabase Dashboard > SQL Editor, run add_subscription_migration.sql.
-3. Replace the website's current index.html with this package's index.html and publish/deploy it.
-4. Sign in as an approved staff account. Open Staff Administration > Premium subscription requests.
-5. When a request arrives, contact the user using the email shown, collect payment directly, verify payment, select the correct duration, and click Confirm payment & activate.
-6. The user's existing Student/Teacher identity role is not changed. Premium is managed as a separate entitlement so the account's sign-in type and staff permissions remain safe.
+IMPORTANT SETUP
+Run this SQL only AFTER your existing DocuKeep base setup and docukeep_migration.sql have been applied. It expects the existing profiles, documents, folders, groups, group members, document access, and entitlement tables/functions.
 
-SUBSCRIPTION PERIODS
-- Week: 7 days
-- Month: 1 calendar month
-- Year: 1 calendar year
-The period begins when staff activates the plan. The UI checks the expiry timestamp. The SQL migration includes expire_docukeep_subscriptions(); schedule it daily with Supabase Cron if available so expired rows are also marked Free/inactive in the database.
+PREMIUM-ONLY FEATURES
+The updated page locks these features for Free accounts and unlocks them only while the Premium entitlement is active and not expired:
+- 128 GB account storage quota (subject to your Supabase project's actual storage capacity)
+- Bulk upload
+- Delete duplicate files (using matching SHA-256 fingerprints)
+- Digital Document Tracker page
+- Custom folder colors
+- Group file access (database policies require Premium for the sharing owner and recipient)
 
-IMPORTANT
-- Payment is manual and outside DocuKeep. No payment gateway is connected.
-- No prices or admin payment details were supplied, so the page says the administrator will provide them after the request.
-- The database quota is 128 GiB for an active Premium entitlement. The existing per-file upload limit remains 25 MB.
-- Confirm your Supabase project's actual storage capacity/billing supports the 128 GiB allowance; a database quota cannot increase the provider's physical storage allocation.
-- The premium page lists the requested feature set. This update adds the subscription request/activation/expiry workflow and the database storage-quota guard; it does not complete all premium feature implementations such as duplicate-file deletion or full group-sharing UI.
+FREE ACCOUNTS
+- Can still upload one file at a time.
+- Can still create folders using the default blue color.
+- Cannot use bulk upload, duplicate deletion, the Digital Document Tracker page, custom folder colors, or group file sharing.
+
+SUBSCRIPTION WORKFLOW
+Users request Weekly (7 days), Monthly (1 calendar month), or Yearly (1 calendar year). The administrator contacts the user and receives payment directly. Staff must verify payment and activate the request in Staff Administration. Expiry is enforced using expires_at even if the scheduled expiry cleanup has not yet run.
+
+ADMIN / PAYMENT
+DocuKeep does not collect payments. Do not activate a subscription until payment has been verified. The user's student/teacher account role is not changed; Premium is a separate entitlement.
+
+LIMITATIONS / DEPLOYMENT NOTES
+- Supabase Storage itself must have sufficient capacity for 128 GB. The app cannot create provider storage capacity by itself.
+- The existing per-file upload ceiling remains 25 MB unless separately changed in Supabase Storage.
+- Group access database rules are enforced, but a full group creation/member-management interface is not included in this update.
+- Digital Document Tracker is gated in the interface. Document status fields remain visible in My Documents because they are part of the existing document record view.
+- The SQL trigger guards bulk-upload batch markers, custom folder colors, and duplicate deletion. Keep RLS enabled and do not expose the service_role key in index.html.

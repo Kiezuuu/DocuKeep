@@ -169,3 +169,99 @@ FOR EACH ROW EXECUTE FUNCTION public.enforce_docukeep_storage_quota();
 
 -- Note: the Supabase project/bucket itself must have enough provider storage capacity
 -- for 128 GB. The per-file upload ceiling remains the existing 25 MB setting.
+
+-- PREMIUM-ONLY FEATURE ENFORCEMENT
+-- The six advertised Premium features are restricted to active, unexpired subscriptions.
+
+-- Bulk upload marker: single-file uploads remain available on Free; batches require Premium.
+ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS upload_batch_id uuid;
+CREATE OR REPLACE FUNCTION public.enforce_docukeep_premium_features()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'documents' AND TG_OP IN ('INSERT','UPDATE') THEN
+    IF NEW.upload_batch_id IS NOT NULL AND NOT public.docukeep_has_active_premium(NEW.owner_id) THEN
+      RAISE EXCEPTION 'Bulk upload is a Premium-only feature.';
+    END IF;
+    RETURN NEW;
+  ELSIF TG_TABLE_NAME = 'docukeep_folders' AND TG_OP IN ('INSERT','UPDATE') THEN
+    IF NEW.color IS DISTINCT FROM '#2862a5' AND NOT public.docukeep_has_active_premium(NEW.owner_id) THEN
+      RAISE EXCEPTION 'Custom folder colors are a Premium-only feature.';
+    END IF;
+    RETURN NEW;
+  ELSIF TG_TABLE_NAME = 'documents' AND TG_OP = 'DELETE' THEN
+    IF auth.uid() = OLD.owner_id AND OLD.sha256 IS NOT NULL
+       AND EXISTS (SELECT 1 FROM public.documents d WHERE d.owner_id = OLD.owner_id AND d.sha256 = OLD.sha256 AND d.id <> OLD.id)
+       AND NOT public.docukeep_has_active_premium(OLD.owner_id) THEN
+      RAISE EXCEPTION 'Deleting duplicate files is a Premium-only feature.';
+    END IF;
+    RETURN OLD;
+  END IF;
+  IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
+END;
+$$;
+DROP TRIGGER IF EXISTS docukeep_premium_bulk_upload_guard ON public.documents;
+CREATE TRIGGER docukeep_premium_bulk_upload_guard
+BEFORE INSERT OR UPDATE OF upload_batch_id ON public.documents
+FOR EACH ROW EXECUTE FUNCTION public.enforce_docukeep_premium_features();
+DROP TRIGGER IF EXISTS docukeep_premium_duplicate_delete_guard ON public.documents;
+CREATE TRIGGER docukeep_premium_duplicate_delete_guard
+BEFORE DELETE ON public.documents
+FOR EACH ROW EXECUTE FUNCTION public.enforce_docukeep_premium_features();
+DROP TRIGGER IF EXISTS docukeep_premium_folder_color_guard ON public.docukeep_folders;
+CREATE TRIGGER docukeep_premium_folder_color_guard
+BEFORE INSERT OR UPDATE OF color ON public.docukeep_folders
+FOR EACH ROW EXECUTE FUNCTION public.enforce_docukeep_premium_features();
+
+-- Group creation, membership, and document sharing require active Premium for both
+-- the person sharing and each individual receiving access.
+DROP POLICY IF EXISTS "group members read" ON public.docukeep_groups;
+DROP POLICY IF EXISTS "group owner create" ON public.docukeep_groups;
+DROP POLICY IF EXISTS "group owner update" ON public.docukeep_groups;
+CREATE POLICY "premium group members read" ON public.docukeep_groups FOR SELECT TO authenticated
+USING (public.is_docukeep_staff() OR (public.docukeep_has_active_premium(auth.uid()) AND (created_by=auth.uid() OR public.docukeep_is_group_member(id,auth.uid()))));
+CREATE POLICY "premium group owner create" ON public.docukeep_groups FOR INSERT TO authenticated
+WITH CHECK (created_by=auth.uid() AND public.docukeep_has_active_premium(auth.uid()));
+CREATE POLICY "premium group owner update" ON public.docukeep_groups FOR UPDATE TO authenticated
+USING (public.is_docukeep_staff() OR (created_by=auth.uid() AND public.docukeep_has_active_premium(auth.uid())))
+WITH CHECK (public.is_docukeep_staff() OR (created_by=auth.uid() AND public.docukeep_has_active_premium(auth.uid())));
+DROP POLICY IF EXISTS "group creator manages members" ON public.docukeep_group_members;
+CREATE POLICY "premium group creator manages members" ON public.docukeep_group_members FOR ALL TO authenticated
+USING (public.is_docukeep_staff() OR (public.docukeep_is_group_owner(group_id,auth.uid()) AND public.docukeep_has_active_premium(auth.uid())))
+WITH CHECK (public.is_docukeep_staff() OR (public.docukeep_is_group_owner(group_id,auth.uid()) AND public.docukeep_has_active_premium(auth.uid()) AND public.docukeep_has_active_premium(user_id)));
+DROP POLICY IF EXISTS "document access read" ON public.docukeep_document_access;
+CREATE POLICY "premium document access read" ON public.docukeep_document_access FOR SELECT TO authenticated
+USING (public.is_docukeep_staff() OR (public.docukeep_has_active_premium(auth.uid()) AND public.docukeep_can_read_document(document_id,auth.uid())));
+DROP POLICY IF EXISTS "document owner manages access" ON public.docukeep_document_access;
+CREATE POLICY "premium document owner manages access" ON public.docukeep_document_access FOR ALL TO authenticated
+USING (public.is_docukeep_staff() OR (EXISTS (SELECT 1 FROM public.documents d WHERE d.id=document_id AND d.owner_id=auth.uid()) AND public.docukeep_has_active_premium(auth.uid())))
+WITH CHECK (public.is_docukeep_staff() OR (
+  EXISTS (SELECT 1 FROM public.documents d WHERE d.id=document_id AND d.owner_id=auth.uid())
+  AND public.docukeep_has_active_premium(auth.uid())
+  AND (user_id IS NULL OR public.docukeep_has_active_premium(user_id))
+  AND (group_id IS NULL OR EXISTS (SELECT 1 FROM public.docukeep_groups g WHERE g.id=group_id AND g.created_by=auth.uid()))
+));
+DROP POLICY IF EXISTS "shared documents read" ON storage.objects;
+CREATE POLICY "premium shared documents read" ON storage.objects FOR SELECT TO authenticated USING (
+  bucket_id='docukeep-files' AND public.docukeep_has_active_premium(auth.uid()) AND EXISTS (
+    SELECT 1 FROM public.documents d JOIN public.docukeep_document_access a ON a.document_id=d.id
+    WHERE d.storage_path=name AND public.docukeep_has_active_premium(d.owner_id)
+      AND (a.user_id=auth.uid() OR (a.group_id IS NOT NULL AND public.docukeep_is_group_member(a.group_id,auth.uid())))
+  )
+);
+
+-- Staff can still administer groups and subscriptions through existing staff-only rules.
+
+-- Ensure shared document metadata is also unavailable to non-Premium recipients.
+CREATE OR REPLACE FUNCTION public.docukeep_can_read_document(p_document_id uuid,p_user_id uuid DEFAULT auth.uid())
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$
+  SELECT EXISTS (SELECT 1 FROM public.documents d WHERE d.id=p_document_id AND d.owner_id=p_user_id)
+  OR EXISTS (
+    SELECT 1 FROM public.documents d JOIN public.docukeep_document_access a ON a.document_id=d.id
+    WHERE d.id=p_document_id AND public.docukeep_has_active_premium(d.owner_id)
+      AND public.docukeep_has_active_premium(p_user_id)
+      AND (a.user_id=p_user_id OR (a.group_id IS NOT NULL AND public.docukeep_is_group_member(a.group_id,p_user_id)))
+  );
+$$;
+DROP POLICY IF EXISTS "members own read" ON public.docukeep_group_members;
+CREATE POLICY "premium members own read" ON public.docukeep_group_members FOR SELECT TO authenticated
+USING (public.is_docukeep_staff() OR (public.docukeep_has_active_premium(auth.uid()) AND (user_id=auth.uid() OR public.docukeep_is_group_owner(group_id,auth.uid()))));
