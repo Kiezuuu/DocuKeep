@@ -583,6 +583,34 @@
             box-shadow: 0 8px 25px #2862a51a
         }
 
+        .payment-methods {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px
+        }
+
+        .payment-method {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 14px;
+            background: #fbfdff
+        }
+
+        .qr-placeholder {
+            width: 150px;
+            height: 150px;
+            margin: 10px auto;
+            border: 2px dashed #9aabc0;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            color: #718096;
+            background: repeating-linear-gradient(45deg, #f7f9fc, #f7f9fc 8px, #eef2f7 8px, #eef2f7 16px);
+            font-weight: 800;
+            font-size: 12px
+        }
+
         .receipt-preview {
             max-width: 170px;
             max-height: 110px;
@@ -933,28 +961,31 @@
                             <p>Choose a plan and submit your payment receipt for staff verification.</p>
                         </div>
                     </div>
-                    <div class="notice">Premium benefits are activated only after an administrator verifies your
-                        payment. Use the placeholder payment details below for layout testing only. Replace them with
-                        the official GCash/Maya details before publishing or accepting payments.</div>
+                    <div class="notice">Premium access starts only after staff verifies your payment. The payment
+                        account name, numbers, and QR below are placeholders. Confirm the official details with DocuKeep
+                        staff before sending money.</div>
                     <div class="panel">
-                        <h2>Payment details · Placeholder only</h2>
-                        <div class="grid">
-                            <div class="feature"><b>GCash / Maya recipient</b>
-                                <p style="font-size:18px;color:var(--navy);font-weight:800;margin:8px 0">Aimerck Bruznyr
-                                    Remollo</p>
-                                <p><b>Mobile number:</b> 09XX-XXX-XXXX</p><small class="muted">Replace this placeholder
-                                    number with the official wallet number.</small>
+                        <h2>Payment methods</h2>
+                        <p class="muted">Send the exact plan amount using either method, then enter your payment
+                            Reference ID and upload the receipt below.</p>
+                        <div class="payment-methods">
+                            <div class="payment-method">
+                                <h3>GCash</h3>
+                                <p><b>Account name:</b> Aimerck Bruznyr Remollo</p>
+                                <p><b>Number:</b> 09XX XXX XXXX <small class="muted">(placeholder)</small></p>
+                                <div class="qr-placeholder">GCASH<br>QR PLACEHOLDER<br><small>Replace with real
+                                        QR</small></div>
                             </div>
-                            <div class="feature" style="display:grid;place-items:center;text-align:center">
-                                <div
-                                    style="width:150px;height:150px;border:2px dashed #9aabc0;border-radius:12px;display:grid;place-items:center;background:#f8fbff;color:#61748d;padding:12px">
-                                    <b>QR CODE PLACEHOLDER</b><small>Insert your official GCash or Maya QR image
-                                        here</small></div><small class="muted">This is not a scannable payment
-                                    QR.</small>
+                            <div class="payment-method">
+                                <h3>Maya</h3>
+                                <p><b>Account name:</b> Aimerck Bruznyr Remollo</p>
+                                <p><b>Number:</b> 09XX XXX XXXX <small class="muted">(placeholder)</small></p>
+                                <div class="qr-placeholder">MAYA<br>QR PLACEHOLDER<br><small>Replace with real
+                                        QR</small></div>
                             </div>
                         </div>
-                        <div class="notice warn">Confirm the recipient name and number before sending money. The name
-                            above is only a placeholder and does not identify a verified payment account.</div>
+                        <div class="notice warn">Do not scan these placeholder boxes. They are not working payment QR
+                            codes.</div>
                     </div>
                     <div class="plan-grid">
                         <div class="plan-card featured">
@@ -978,8 +1009,8 @@
                     </div>
                     <div class="panel" id="subscriptionCheckout">
                         <h2>Submit a subscription request</h2>
-                        <p class="muted">Select a plan above. Upload a screenshot or photo of your payment receipt.
-                            Accepted formats: JPG, PNG, or PDF (max 5 MB).</p>
+                        <p class="muted">Select a plan above. Enter the Reference ID from GCash or Maya and upload your
+                            payment receipt. Accepted formats: JPG, PNG, or PDF (max 5 MB).</p>
                         <form id="subscriptionForm" class="stack">
                             <div class="grid">
                                 <div class="field"><label>Selected plan</label><input id="selectedPlanLabel" readonly
@@ -987,16 +1018,9 @@
                                 <div class="field"><label>Amount</label><input id="selectedPlanAmount" readonly
                                         placeholder="—"></div>
                             </div>
-                            <div class="grid">
-                                <div class="field"><label for="paymentMethod">Payment method</label><select
-                                        id="paymentMethod" required>
-                                        <option value="GCash">GCash</option>
-                                        <option value="Maya">Maya</option>
-                                    </select></div>
-                                <div class="field"><label for="paymentReference">Payment Reference ID *</label><input
-                                        id="paymentReference" maxlength="120" required
-                                        placeholder="Enter GCash / Maya reference ID"></div>
-                            </div>
+                            <div class="field"><label for="paymentReference">Payment Reference ID *</label><input
+                                    id="paymentReference" maxlength="120" required
+                                    placeholder="Enter the GCash/Maya reference ID"></div>
                             <div class="field"><label for="paymentReceipt">Payment receipt *</label><input
                                     id="paymentReceipt" type="file" accept="image/jpeg,image/png,application/pdf"
                                     required></div>
@@ -1075,8 +1099,8 @@
                     </div>
                     <div class="panel">
                         <h2>Premium subscription and payment requests</h2>
-                        <p class="muted" style="font-size:12px">Review receipts, accept verified payments, or send a
-                            message about a transaction.</p>
+                        <p class="muted" style="font-size:12px">Review the user, plan, Reference ID, and receipt. Accept
+                            or deny the request and send a decision message to the user.</p>
                         <div id="adminSubscriptionRequests">
                             <div class="empty">Loading payment requests…</div>
                         </div>
@@ -1175,10 +1199,10 @@
         let selectedSubscriptionPlan = null;
         function chooseSubscription(key) { const plan = SUBSCRIPTION_PLANS[key]; if (!plan) return; selectedSubscriptionPlan = key; $("selectedPlanLabel").value = plan.label; $("selectedPlanAmount").value = "₱" + plan.amount.toLocaleString("en-PH"); $("subscriptionCheckout").scrollIntoView({ behavior: "smooth", block: "start" }) }
         function requestStatusLabel(status) { return ({ pending: "Awaiting staff review", needs_info: "Message from administrator", approved: "Payment accepted · Premium active", rejected: "Request rejected" })[status] || status }
-        function renderMySubscriptionRows(rows) { const el = $("mySubscriptionRequests"); if (!el) return; el.innerHTML = (rows || []).map(r => `<div class="request-card"><div class="actions" style="justify-content:space-between"><b>${escapeHTML(SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key)}</b><span class="status-chip ${escapeHTML(r.status)}">${escapeHTML(requestStatusLabel(r.status))}</span></div><p><b>Amount:</b> ₱${Number(r.amount_php).toLocaleString("en-PH")} · <b>Submitted:</b> ${dateText(r.created_at)}</p><p><b>Payment method:</b> ${escapeHTML(r.payment_method || "—")} · <b>Reference ID:</b> ${escapeHTML(r.payment_reference || "Not provided")}</p>${r.admin_message ? `<div class="review-feedback"><b>Administrator message</b><p>${escapeHTML(r.admin_message)}</p></div>` : ""}${r.status === "approved" ? `<p><b>Premium valid until:</b> ${dateText(r.expires_at)}</p>` : ""}</div>`).join("") || '<div class="empty">You have not submitted a subscription request yet.</div>' }
-        async function loadMySubscriptionRequests() { if (!currentProfile || currentProfile.role === "staff") return; const el = $("mySubscriptionRequests"); if (!el) return; const { data, error } = await sb.from("docukeep_subscription_requests").select("id,plan_key,amount_php,payment_reference,payment_method,status,admin_message,created_at,expires_at").eq("user_id", currentProfile.id).order("created_at", { ascending: false }); if (error) { el.innerHTML = `<div class="empty">Payment requests unavailable. Run the subscription SQL migration. ${escapeHTML(error.message)}</div>`; return } renderMySubscriptionRows(data || []) }
-        $("subscriptionForm")?.addEventListener("submit", async e => { e.preventDefault(); if (!currentProfile || currentProfile.role === "staff") return toast("Sign in as a student or teacher to request Premium."); if (!selectedSubscriptionPlan) return toast("Choose a subscription plan first."); const file = $("paymentReceipt").files[0], reference = $("paymentReference").value.trim(); if (!reference) return toast("Enter your payment Reference ID."); if (!file) return toast("Upload your payment receipt."); if (!["image/jpeg", "image/png", "application/pdf"].includes(file.type)) return toast("Receipt must be JPG, PNG, or PDF."); if (file.size > 5 * 1024 * 1024) return toast("Receipt must be 5 MB or smaller."); const plan = SUBSCRIPTION_PLANS[selectedSubscriptionPlan], btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Submitting…"; try { const requestId = crypto.randomUUID(), ext = file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : "jpg", path = `${currentProfile.id}/${requestId}.${ext}`; const up = await sb.storage.from("docukeep-payment-receipts").upload(path, file, { upsert: false, contentType: file.type }); if (up.error) throw up.error; const { error } = await sb.from("docukeep_subscription_requests").insert({ id: requestId, user_id: currentProfile.id, plan_key: selectedSubscriptionPlan, amount_php: plan.amount, payment_reference: reference, payment_method: $("paymentMethod").value, receipt_path: path, user_message: $("paymentNote").value.trim() || null, status: "pending" }); if (error) { await sb.storage.from("docukeep-payment-receipts").remove([path]); throw error } e.target.reset(); selectedSubscriptionPlan = null; toast("Subscription request and receipt sent to staff."); await loadMySubscriptionRequests() } catch (err) { toast("Could not submit payment request: " + err.message) } finally { btn.disabled = false; btn.textContent = "Send request and receipt" } });
-        async function loadAdminSubscriptionRequests() { const el = $("adminSubscriptionRequests"); if (!el || currentProfile?.role !== "staff") return; el.innerHTML = '<div class="empty">Loading payment requests…</div>'; const { data: rows, error } = await sb.from("docukeep_subscription_requests").select("id,user_id,plan_key,amount_php,payment_reference,payment_method,receipt_path,user_message,status,admin_message,created_at,starts_at,expires_at").order("created_at", { ascending: false }); if (error) { el.innerHTML = `<div class="empty">Could not load payment requests. ${escapeHTML(error.message)}</div>`; return } if (!rows?.length) { el.innerHTML = '<div class="empty">No subscription requests yet.</div>'; return } const ids = [...new Set(rows.map(r => r.user_id))], pr = await sb.from("profiles").select("id,full_name,email,role,department").in("id", ids), profiles = Object.fromEntries((pr.data || []).map(p => [p.id, p])); el.innerHTML = rows.map(r => { const u = profiles[r.user_id] || {}; return `<div class="request-card"><div class="actions" style="justify-content:space-between"><b>${escapeHTML(u.full_name || u.email || r.user_id)} · ${escapeHTML(u.role || "user")}</b><span class="status-chip ${escapeHTML(r.status)}">${escapeHTML(requestStatusLabel(r.status))}</span></div><p>${escapeHTML(u.email || "")} · ${escapeHTML(u.department || "")}</p><p><b>${escapeHTML(SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key)}</b> · ₱${Number(r.amount_php).toLocaleString("en-PH")} · ${dateText(r.created_at)}</p><p><b>Payment method:</b> ${escapeHTML(r.payment_method || "—")} · <b>Reference ID:</b> ${escapeHTML(r.payment_reference || "Not provided")}</p><p><b>User message:</b> ${escapeHTML(r.user_message || "—")}</p><div class="actions"><button class="btn secondary small" onclick="viewPaymentReceipt('${r.id}')">View receipt</button>${r.status !== "approved" ? `<button class="btn green small" onclick="decideSubscription('${r.id}','approved')">Accept & activate</button>` : ""}<button class="btn secondary small" onclick="messageSubscription('${r.id}')">Send message</button>${r.status !== "rejected" ? `<button class="btn danger small" onclick="decideSubscription('${r.id}','rejected')">Reject</button>` : ""}</div>${r.admin_message ? `<div class="review-feedback"><b>Last admin message</b><p>${escapeHTML(r.admin_message)}</p></div>` : ""}${r.status === "approved" ? `<small class="muted">Premium: ${dateText(r.starts_at)} – ${dateText(r.expires_at)}</small>` : ""}</div>` }).join("") }
+        function renderMySubscriptionRows(rows) { const el = $("mySubscriptionRequests"); if (!el) return; el.innerHTML = (rows || []).map(r => `<div class="request-card"><div class="actions" style="justify-content:space-between"><b>${escapeHTML(SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key)}</b><span class="status-chip ${escapeHTML(r.status)}">${escapeHTML(requestStatusLabel(r.status))}</span></div><p><b>Amount:</b> ₱${Number(r.amount_php).toLocaleString("en-PH")} · <b>Submitted:</b> ${dateText(r.created_at)}</p><p><b>Reference:</b> ${escapeHTML(r.payment_reference || "Not provided")}</p>${r.admin_message ? `<div class="review-feedback"><b>Administrator message</b><p>${escapeHTML(r.admin_message)}</p></div>` : ""}${r.status === "approved" ? `<p><b>Premium valid until:</b> ${dateText(r.expires_at)}</p>` : ""}</div>`).join("") || '<div class="empty">You have not submitted a subscription request yet.</div>' }
+        async function loadMySubscriptionRequests() { if (!currentProfile || currentProfile.role === "staff") return; const el = $("mySubscriptionRequests"); if (!el) return; const { data, error } = await sb.from("docukeep_subscription_requests").select("id,plan_key,amount_php,payment_reference,status,admin_message,created_at,expires_at").eq("user_id", currentProfile.id).order("created_at", { ascending: false }); if (error) { el.innerHTML = `<div class="empty">Payment requests unavailable. Run the subscription SQL migration. ${escapeHTML(error.message)}</div>`; return } renderMySubscriptionRows(data || []) }
+        $("subscriptionForm")?.addEventListener("submit", async e => { e.preventDefault(); if (!currentProfile || currentProfile.role === "staff") return toast("Sign in as a student or teacher to request Premium."); if (!selectedSubscriptionPlan) return toast("Choose a subscription plan first."); if (!$("paymentReference").value.trim()) return toast("Enter your payment Reference ID."); const file = $("paymentReceipt").files[0]; if (!file) return toast("Upload your payment receipt."); if (!["image/jpeg", "image/png", "application/pdf"].includes(file.type)) return toast("Receipt must be JPG, PNG, or PDF."); if (file.size > 5 * 1024 * 1024) return toast("Receipt must be 5 MB or smaller."); const plan = SUBSCRIPTION_PLANS[selectedSubscriptionPlan], btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Submitting…"; try { const requestId = crypto.randomUUID(), ext = file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : "jpg", path = `${currentProfile.id}/${requestId}.${ext}`; const up = await sb.storage.from("docukeep-payment-receipts").upload(path, file, { upsert: false, contentType: file.type }); if (up.error) throw up.error; const { error } = await sb.from("docukeep_subscription_requests").insert({ id: requestId, user_id: currentProfile.id, plan_key: selectedSubscriptionPlan, amount_php: plan.amount, payment_reference: $("paymentReference").value.trim(), receipt_path: path, user_message: $("paymentNote").value.trim() || null, status: "pending" }); if (error) { await sb.storage.from("docukeep-payment-receipts").remove([path]); throw error } e.target.reset(); selectedSubscriptionPlan = null; toast("Subscription request and receipt sent to staff."); await loadMySubscriptionRequests() } catch (err) { toast("Could not submit payment request: " + err.message) } finally { btn.disabled = false; btn.textContent = "Send request and receipt" } });
+        async function loadAdminSubscriptionRequests() { const el = $("adminSubscriptionRequests"); if (!el || currentProfile?.role !== "staff") return; el.innerHTML = '<div class="empty">Loading payment requests…</div>'; const { data: rows, error } = await sb.from("docukeep_subscription_requests").select("id,user_id,plan_key,amount_php,payment_reference,receipt_path,user_message,status,admin_message,created_at,starts_at,expires_at").order("created_at", { ascending: false }); if (error) { el.innerHTML = `<div class="empty">Could not load payment requests. ${escapeHTML(error.message)}</div>`; return } if (!rows?.length) { el.innerHTML = '<div class="empty">No subscription requests yet.</div>'; return } const ids = [...new Set(rows.map(r => r.user_id))], pr = await sb.from("profiles").select("id,full_name,email,role,department").in("id", ids), profiles = Object.fromEntries((pr.data || []).map(p => [p.id, p])); el.innerHTML = rows.map(r => { const u = profiles[r.user_id] || {}; return `<div class="request-card"><div class="actions" style="justify-content:space-between"><b>${escapeHTML(u.full_name || u.email || r.user_id)} · ${escapeHTML(u.role || "user")}</b><span class="status-chip ${escapeHTML(r.status)}">${escapeHTML(requestStatusLabel(r.status))}</span></div><p>${escapeHTML(u.email || "")} · ${escapeHTML(u.department || "")}</p><p><b>${escapeHTML(SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key)}</b> · ₱${Number(r.amount_php).toLocaleString("en-PH")} · ${dateText(r.created_at)}</p><p><b>Reference:</b> ${escapeHTML(r.payment_reference || "Not provided")}</p><p><b>User message:</b> ${escapeHTML(r.user_message || "—")}</p><div class="actions"><button class="btn secondary small" onclick="viewPaymentReceipt('${r.id}')">View receipt</button>${r.status !== "approved" ? `<button class="btn green small" onclick="decideSubscription('${r.id}','approved')">Accept & activate</button>` : ""}<button class="btn secondary small" onclick="messageSubscription('${r.id}')">Send message</button>${r.status !== "rejected" ? `<button class="btn danger small" onclick="decideSubscription('${r.id}','rejected')">Reject</button>` : ""}</div>${r.admin_message ? `<div class="review-feedback"><b>Last admin message</b><p>${escapeHTML(r.admin_message)}</p></div>` : ""}${r.status === "approved" ? `<small class="muted">Premium: ${dateText(r.starts_at)} – ${dateText(r.expires_at)}</small>` : ""}</div>` }).join("") }
         async function viewPaymentReceipt(id) { if (currentProfile?.role !== "staff") return toast("Staff access required."); const { data: r, error } = await sb.from("docukeep_subscription_requests").select("receipt_path").eq("id", id).single(); if (error) return toast(error.message); const signed = await sb.storage.from("docukeep-payment-receipts").createSignedUrl(r.receipt_path, 300); if (signed.error) return toast("Cannot open receipt: " + signed.error.message); window.open(signed.data.signedUrl, "_blank", "noopener") }
         async function decideSubscription(id, status) { if (currentProfile?.role !== "staff") return toast("Staff access required."); if (!["approved", "rejected"].includes(status)) return; let msg = prompt(status === "approved" ? "Optional message to the user:" : "Reason for rejecting this payment:", ""); if (msg === null) return; if (status === "rejected" && !msg.trim()) return toast("Please enter a rejection reason."); const { error } = await sb.rpc("review_docukeep_subscription_request", { p_request_id: id, p_status: status, p_admin_message: msg.trim() || null }); if (error) return toast("Could not update request: " + error.message); toast(status === "approved" ? "Payment accepted. Premium has been activated." : "Payment request rejected."); await loadAdminSubscriptionRequests() }
         async function messageSubscription(id) { if (currentProfile?.role !== "staff") return toast("Staff access required."); const msg = prompt("Write a message about this transaction:"); if (msg === null || !msg.trim()) return; const { error } = await sb.rpc("message_docukeep_subscription_request", { p_request_id: id, p_admin_message: msg.trim() }); if (error) return toast("Message could not be sent: " + error.message); toast("Message sent to user."); await loadAdminSubscriptionRequests() }
