@@ -1834,7 +1834,12 @@ try {
 
 function toast(message) {
     const el = $("toast");
-    if (!el) return;
+
+    // Prevent errors if the toast element is missing
+    if (!el) {
+        console.warn("DocuKeep notification:", message);
+        return;
+    }
 
     el.textContent = message;
     el.classList.add("show");
@@ -1843,7 +1848,7 @@ function toast(message) {
 
     toastTimer = setTimeout(() => {
         el.classList.remove("show");
-    }, 5000);
+    }, 4000);
 }
 
 function escapeHTML(v = "") {
@@ -4685,20 +4690,15 @@ async function restoreSession() {
         }
 
     } catch (e) {
-        console.error("Startup/session restore", e);
+    console.error("Startup/session restore:", e);
 
-        /*
-         * Do not sign out automatically when the network is unavailable.
-         * A temporary database error should not destroy the saved session.
-         */
+    currentProfile = null;
 
-        currentProfile = null;
+    $("app")?.classList.add("hidden");
+    $("auth")?.classList.remove("hidden");
 
-        $("app").classList.add("hidden");
-        $("auth").classList.remove("hidden");
-
-        toast("Session could not be restored: " + e.message);
-    }
+    // Log the error without displaying a popup.
+}
 })();
 
 /* =========================================================
