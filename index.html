@@ -1136,101 +1136,2191 @@
         </div>
     </div>
     <div class="toast" id="toast"></div>
-    <script>
-        /* DocuKeep client. Never place the Supabase service_role key in this file. */
-        const SUPABASE_URL = "https://ihvvmmaudbkddwevialb.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_yfLj3YnmOh9PiwVV-HDpgA__Hc5ymr4";
-        const TEACHER_EMAIL_DOMAIN = "deped.gov.ph", BUCKET = "docukeep-files", SITE_URL = "https://kiezuuu.github.io/DocuKeep/";
-        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } });
-        let accountType = null, currentProfile = null, documents = [], managedUsersCache = [], toastTimer = null, recoveryMode = false;
-        const $ = id => document.getElementById(id);
-        function toast(message) { const el = $("toast"); el.textContent = message; el.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 5000) }
-        function escapeHTML(v = "") { return String(v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])) }
-        function dateText(v) { return v ? new Date(v).toLocaleDateString() : "—" }
-        function validEmail(email, type) { const p = String(email || "").trim().toLowerCase().split("@"); if (p.length !== 2 || !p[0]) return false; if (type === "student") return p[1] === "gmail.com"; if (type === "teacher") return p[1] === TEACHER_EMAIL_DOMAIN; if (type === "staff") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); return false }
-        function statusClass(s) { return String(s || "").toLowerCase().replace(/[^a-z]/g, "") }
-        function studentDocumentStatus(d) { if (d.due_date && new Date(d.due_date + "T23:59:59") < new Date() && !["approved", "rejected"].includes(d.status)) return "overdue"; return d.status === "pending" ? "submitted" : d.status }
-        function setAuthMessage(m, k = "") { const el = $("authMsg"); el.textContent = m; el.className = "notice" + (k ? " " + k : "") }
-        function friendlyAuthError(e) { const m = e?.message || "Unknown error", c = e?.code || ""; if (c === "email_not_confirmed" || m.toLowerCase().includes("email not confirmed")) return "Your email is not confirmed. Check your inbox or confirm the account in this same Supabase project."; if (m.toLowerCase().includes("invalid login credentials")) return "Incorrect email or password. If you are unsure of the password, use Forgot password."; if (m.toLowerCase().includes("too many requests")) return "Too many attempts. Wait a few minutes and try again."; return m }
-        function selectType(type) { if (!["student", "teacher", "staff"].includes(type)) return toast("Invalid account type."); accountType = type; $("choose").classList.add("hidden"); $("authform").classList.remove("hidden");["studentType", "teacherType", "staffType"].forEach(id => $(id).classList.toggle("selected", id === type + "Type")); $("formDescription").textContent = type === "student" ? "Use your personal Gmail account." : type === "teacher" ? "Use your official DepEd email (@deped.gov.ph)." : "Use the staff account provided by your administrator."; $("signupSwitch").classList.toggle("hidden", type === "staff"); $("resendSwitch").classList.toggle("hidden", type === "staff"); setAuthMessage(type === "staff" ? "Staff accounts cannot be registered here." : "New registrations remain pending until approved by staff."); toggleForm(false) }
-        function backChoice() { accountType = null; $("authform").classList.add("hidden"); $("choose").classList.remove("hidden");["studentType", "teacherType", "staffType"].forEach(id => $(id).classList.remove("selected")) }
-        function hideAllAuthForms() { ["loginForm", "signupForm", "forgotForm", "resetForm"].forEach(id => $(id).classList.add("hidden")) }
-        function toggleForm(signup) { recoveryMode = false; hideAllAuthForms(); $(signup ? "signupForm" : "loginForm").classList.remove("hidden"); $("forgotSwitch").classList.toggle("hidden", signup || accountType === "staff"); $("signupSwitch").classList.toggle("hidden", signup || accountType === "staff"); $("loginSwitch").classList.toggle("hidden", !signup); $("resendSwitch").classList.toggle("hidden", signup || accountType === "staff"); $("formTitle").textContent = (accountType === "student" ? "Student" : accountType === "teacher" ? "Teacher" : "Staff") + (signup ? " registration" : " sign in") }
-        function showForgot() { hideAllAuthForms(); $("forgotForm").classList.remove("hidden"); $("forgotSwitch").classList.add("hidden"); $("signupSwitch").classList.add("hidden"); $("resendSwitch").classList.add("hidden"); $("loginSwitch").classList.remove("hidden"); $("formTitle").textContent = "Reset your password" }
-        function hideForgot() { toggleForm(false) }
-        window.selectType = selectType; window.backChoice = backChoice; window.toggleForm = toggleForm; window.showForgot = showForgot; window.hideForgot = hideForgot;
-        async function loadProfile(user, expectedType = null) { if (!user?.id) throw Error("Invalid login session. Please sign in again."); const { data: p, error } = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle(); console.log("DocuKeep profile check", { authId: user.id, email: user.email, profileId: p?.id, role: p?.role, status: p?.status, error }); if (error) throw Error("Could not load your profile: " + error.message); if (!p) throw Error("Your Auth account has no matching profiles row. Ask staff to repair the profile in this Supabase project."); const role = String(p.role || "").toLowerCase(), status = String(p.status || "").toLowerCase(); if (!["student", "teacher", "staff"].includes(role)) throw Error("Invalid account role."); if (status !== "approved") throw Error(status === "pending" ? "Your account is awaiting staff approval." : "Your account is not approved. Contact the administrator."); if (expectedType && role !== expectedType) throw Error(`Wrong sign-in category. This account's database role is ${role}. Select ${role} to sign in.`); if (role === "student" && !validEmail(user.email, "student")) throw Error("Student accounts must use a personal Gmail address."); if (role === "teacher" && !validEmail(user.email, "teacher")) throw Error("Teacher accounts must use an official DepEd email."); currentProfile = { ...p, role }; accountType = role; $("auth").classList.add("hidden"); $("app").classList.remove("hidden"); $("who").textContent = (p.full_name || "User") + " · " + role.toUpperCase(); $("greeting").textContent = "Welcome, " + (p.full_name || "User"); $("adminNav").classList.toggle("hidden", role !== "staff"); await loadDocuments(); await updateOfflineStatus(); await loadMySubscriptionRequests(); if (navigator.onLine) syncOfflineUploads(); go("dashboard") }
-        $("loginForm").addEventListener("submit", async e => { e.preventDefault(); if (!accountType) return toast("Choose an account type first."); const type = accountType, email = $("email").value.trim().toLowerCase(), password = $("password").value; if (!validEmail(email, type)) return toast(type === "student" ? "Use a personal @gmail.com address." : type === "teacher" ? "Use an official @deped.gov.ph address." : "Enter a valid staff email."); const b = e.target.querySelector('button[type="submit"]'); b.disabled = true; b.textContent = "Signing in…"; try { const { data, error } = await sb.auth.signInWithPassword({ email, password }); if (error) throw error; await loadProfile(data.user, type) } catch (err) { console.error("Login error", err); await sb.auth.signOut(); setAuthMessage("Login failed: " + friendlyAuthError(err), "warn"); toast("Login failed: " + friendlyAuthError(err)) } finally { b.disabled = false; b.textContent = "Sign in" } });
-        $("signupForm").addEventListener("submit", async e => { e.preventDefault(); if (!["student", "teacher"].includes(accountType)) return toast("Only students and teachers can register here."); const full_name = $("fullName").value.trim(), email = $("signupEmail").value.trim().toLowerCase(), department = $("department").value.trim(), password = $("signupPassword").value; if (!full_name || !department) return toast("Complete all required fields."); if (!validEmail(email, accountType)) return toast(accountType === "student" ? "Use a personal Gmail address." : "Use an official @deped.gov.ph address."); if (password.length < 8) return toast("Password must contain at least 8 characters."); if (password !== $("confirmPassword").value) return toast("Passwords do not match."); const b = e.target.querySelector("button[type=submit]"); b.disabled = true; b.textContent = "Creating account…"; try { const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: SITE_URL, data: { full_name, requested_role: accountType, department } } }); if (error) throw error; if (!data.user) throw Error("Supabase did not return a user."); if (data.user.identities?.length === 0) throw Error("This email may already be registered. Try signing in."); if (data.session) await sb.auth.signOut(); e.target.reset(); toggleForm(false); setAuthMessage("Registration submitted. Confirm your email if required, then wait for staff approval.", "ok"); toast("Registration request submitted.") } catch (err) { setAuthMessage("Registration failed: " + friendlyAuthError(err), "warn"); toast("Signup failed: " + friendlyAuthError(err)) } finally { b.disabled = false; b.textContent = "Create account" } });
-        $("forgotForm").addEventListener("submit", async e => { e.preventDefault(); const email = $("forgotEmail").value.trim().toLowerCase(); if (!validEmail(email, accountType)) return toast("Enter an email valid for the selected account type."); const b = e.target.querySelector("button[type=submit]"); b.disabled = true; try { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SITE_URL }); if (error) throw error; setAuthMessage("If the account exists, a password-reset link has been sent. Check your inbox and spam folder.", "ok"); toast("Password reset request processed.") } catch (err) { toast("Could not send reset email: " + err.message) } finally { b.disabled = false } });
-        $("resetForm").addEventListener("submit", async e => { e.preventDefault(); const p = $("newPassword").value; if (p.length < 8) return toast("Password must be at least 8 characters."); if (p !== $("newPasswordConfirm").value) return toast("Passwords do not match."); const b = e.target.querySelector("button[type=submit]"); b.disabled = true; try { const { error } = await sb.auth.updateUser({ password: p }); if (error) throw error; await sb.auth.signOut(); recoveryMode = false; e.target.reset(); $("auth").classList.remove("hidden"); $("app").classList.add("hidden"); if (!accountType) selectType("student"); toggleForm(false); setAuthMessage("Password updated successfully. Sign in using your new password.", "ok"); toast("Password updated.") } catch (err) { toast("Could not update password: " + err.message) } finally { b.disabled = false } });
-        async function resendConfirmation() { const email = $("email").value.trim().toLowerCase(); if (!email) return toast("Enter your email in the sign-in field first."); if (!validEmail(email, accountType)) return toast("Enter an email valid for the selected account type."); try { const { error } = await sb.auth.resend({ type: "signup", email }); if (error) throw error; setAuthMessage("If confirmation is required, a new email has been requested. Check inbox and spam.", "ok") } catch (e) { toast("Could not resend confirmation: " + e.message) } } window.resendConfirmation = resendConfirmation;
-        sb.auth.onAuthStateChange((event, session) => { if (event === "PASSWORD_RECOVERY") { recoveryMode = true; $("auth").classList.remove("hidden"); $("app").classList.add("hidden"); if (!accountType) accountType = "student"; $("choose").classList.add("hidden"); $("authform").classList.remove("hidden"); hideAllAuthForms(); $("resetForm").classList.remove("hidden"); $("formTitle").textContent = "Set a new password"; $("forgotSwitch").classList.add("hidden"); $("signupSwitch").classList.add("hidden"); $("resendSwitch").classList.add("hidden"); setAuthMessage("Enter and confirm your new password.") } else if (event === "SIGNED_OUT" && !recoveryMode) { currentProfile = null } });
-        async function loadDocuments() { if (!currentProfile) return; const { data, error } = await sb.from("documents").select("id,title,category,created_at,status,review_comment,owner_id,owner_name,storage_path,file_name,mime_type,size_bytes,due_date,school_year,department,folder_id,sha256").order("created_at", { ascending: false }); if (error) { console.error(error); toast("Could not load documents: " + error.message); return } documents = data || []; renderDocuments(); updateStorageStats(); await Promise.all([loadFolders(), loadNotifications()]) }
-        function reviewCommentHTML(d) { return d?.review_comment ? `<div class="review-feedback"><b>Staff Feedback</b><p>${escapeHTML(d.review_comment)}</p></div>` : "" }
-        function renderDocuments() { if (!currentProfile) return; const own = documents.filter(d => currentProfile.role === "staff" || d.owner_id === currentProfile.id); $("total").textContent = own.length; $("pending").textContent = own.filter(d => d.status === "pending").length; $("approved").textContent = own.filter(d => d.status === "approved").length; $("recent").innerHTML = own.slice(0, 5).map(d => `<p><b>${escapeHTML(d.title)}</b> · ${escapeHTML(d.category)} · <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span></p>`).join("") || '<div class="empty">No documents yet.</div>'; $("docRows").innerHTML = own.map(d => `<tr><td>${escapeHTML(d.title)}</td><td>${escapeHTML(d.category)}</td><td>${dateText(d.created_at)}</td><td><span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span>${reviewCommentHTML(d)}</td><td><div class="actions"><button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button><button class="btn secondary small" onclick="downloadDoc('${d.id}')">Download</button></div></td></tr>`).join(""); $("docEmpty").classList.toggle("hidden", own.length > 0); $("tracking").innerHTML = own.map(d => `<p><b>${escapeHTML(d.title)}</b> · ${dateText(d.created_at)} · <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span>${reviewCommentHTML(d)}</p>`).join("") || '<div class="empty">No submissions yet.</div>'; if (currentProfile.role === "staff") renderAdmin() }
-        const DB_NAME = "docukeep-offline-v1", STORE = "pendingUploads";
-        function openOfflineDB() { return new Promise((res, rej) => { const r = indexedDB.open(DB_NAME, 1); r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE, { keyPath: "id" }) }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error) }) }
-        async function queueOfflineUpload(job) { const db = await openOfflineDB(); return new Promise((res, rej) => { const tx = db.transaction(STORE, "readwrite"); tx.objectStore(STORE).put(job); tx.oncomplete = res; tx.onerror = () => rej(tx.error) }) }
-        async function getQueuedUploads() { const db = await openOfflineDB(); return new Promise((res, rej) => { const r = db.transaction(STORE).objectStore(STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error) }) }
-        async function removeQueuedUpload(id) { const db = await openOfflineDB(); return new Promise((res, rej) => { const tx = db.transaction(STORE, "readwrite"); tx.objectStore(STORE).delete(id); tx.oncomplete = res; tx.onerror = () => rej(tx.error) }) }
-        function humanBytes(n) { if (!n) return "0 B"; const u = ["B", "KB", "MB", "GB", "TB"]; let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++ } return n.toFixed(i ? 1 : 0) + " " + u[i] }
-        async function syncOfflineUploads() { if (!navigator.onLine || !currentProfile) return; let jobs = []; try { jobs = await getQueuedUploads() } catch (e) { console.warn(e); return } for (const j of jobs) { try { await uploadJob(j); await removeQueuedUpload(j.id) } catch (e) { console.error("Offline sync stopped", e); j.lastError = e.message; await queueOfflineUpload(j); break } } await updateOfflineStatus(); await loadDocuments() }
-        async function uploadJob(j) { const { error: upErr } = await sb.storage.from(BUCKET).upload(j.path, j.file, { upsert: false, contentType: j.mimeType || "application/octet-stream" }); if (upErr) throw upErr; const row = { id: j.id, title: j.title, category: j.category, school_year: j.schoolYear, department: j.department, due_date: j.dueDate || null, submission_type: j.submissionType, description: j.description, folder_id: j.folderId || null, sha256: j.sha256 || null, owner_id: j.ownerId, owner_name: j.ownerName, storage_path: j.path, file_name: j.fileName, mime_type: j.mimeType || "application/octet-stream", size_bytes: j.sizeBytes, status: "pending" }; const { error: dbErr } = await sb.from("documents").insert(row); if (dbErr) { await sb.storage.from(BUCKET).remove([j.path]); throw dbErr } }
-        async function updateOfflineStatus() { let n = 0; try { n = (await getQueuedUploads()).length } catch (e) { } $("syncbar").classList.toggle("show", !navigator.onLine || n > 0); $("queueCount").textContent = n }
-        window.addEventListener("online", () => { updateOfflineStatus(); syncOfflineUploads() }); window.addEventListener("offline", updateOfflineStatus);
-        async function sha256File(f) { try { const d = await crypto.subtle.digest("SHA-256", await f.arrayBuffer()); return Array.from(new Uint8Array(d)).map(b => b.toString(16).padStart(2, "0")).join("") } catch (e) { return null } }
-        $("uploadForm").addEventListener("submit", async e => { e.preventDefault(); if (!currentProfile) return toast("Please sign in first."); const files = Array.from($("file").files || []); if (!files.length) return toast("Choose at least one file."); const title = $("title").value.trim(), category = $("category").value; if (!title || !category) return toast("Enter a title and category."); const b = e.target.querySelector("button[type=submit]"), prog = $("uploadProgress"); b.disabled = true; b.textContent = "Processing files…"; prog.style.display = "block"; let ok = 0, queued = 0, failed = 0; try { for (let i = 0; i < files.length; i++) { const f = files[i]; prog.textContent = `Processing ${i + 1} of ${files.length}: ${f.name}`; if (f.size > 25 * 1024 * 1024) { failed++; toast(f.name + " exceeds 25 MB."); continue } const id = crypto.randomUUID(), safe = f.name.replace(/[^\w.\-]/g, "_"), hash = await sha256File(f), dup = hash && documents.find(d => d.owner_id === currentProfile.id && d.sha256 === hash); if (dup && !confirm(`This file may duplicate "${dup.file_name || dup.title}". Upload anyway?`)) continue; const j = { id, path: `${currentProfile.id}/${id}/${safe}`, file: f, sha256: hash, title: files.length === 1 ? title : `${title} - ${f.name}`, category, schoolYear: $("year").value, department: $("subject").value, dueDate: $("due").value, submissionType: $("type").value, description: $("description").value, folderId: $("uploadFolder").value || null, ownerId: currentProfile.id, ownerName: currentProfile.full_name, fileName: f.name, mimeType: f.type, sizeBytes: f.size }; if (!navigator.onLine) { await queueOfflineUpload(j); queued++; continue } try { await uploadJob(j); ok++ } catch (err) { if (!navigator.onLine) { await queueOfflineUpload(j); queued++ } else { failed++; console.error(err); toast(f.name + ": " + err.message) } } } if (ok || queued) { if (files.length === 1 && ok) { e.target.reset(); $("year").value = "2026–2027" } await loadDocuments(); toast(`${ok} uploaded, ${queued} queued, ${failed} failed.`) } else if (failed) toast(`${failed} file(s) failed.`); await updateOfflineStatus() } catch (err) { console.error(err); toast("Upload error: " + err.message) } finally { b.disabled = false; b.textContent = "Upload and submit"; prog.style.display = "none" } });
-        async function signedUrl(d) { if (!d?.storage_path) throw Error("Document storage path is missing."); const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(d.storage_path, 300); if (error) throw error; return data.signedUrl }
-        async function downloadDoc(id) { const d = documents.find(x => x.id === id); if (!d) return; try { const url = await signedUrl(d), a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; a.download = d.file_name || d.title; a.click() } catch (e) { toast("Download failed: " + e.message) } }
-        async function previewDoc(id) { const d = documents.find(x => x.id === id); if (!d) return; try { const url = await signedUrl(d); $("previewTitle").textContent = d.file_name || d.title; $("previewBody").innerHTML = ""; const mime = (d.mime_type || "").toLowerCase(), name = (d.file_name || "").toLowerCase(); if (mime === "application/pdf" || name.endsWith(".pdf")) { const f = document.createElement("iframe"); f.src = url; f.title = "PDF preview"; $("previewBody").appendChild(f) } else if (mime.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(name)) { const im = document.createElement("img"); im.src = url; im.alt = d.file_name || "Document image"; $("previewBody").appendChild(im) } else $("previewBody").innerHTML = '<div class="empty"><h3>Preview not available</h3><p>Download this file to open it.</p></div>'; $("previewDownload").onclick = () => downloadDoc(id); $("previewModal").classList.add("open") } catch (e) { toast("Preview failed: " + e.message) } }
-        function closePreview() { $("previewModal").classList.remove("open"); $("previewBody").innerHTML = "" } window.previewDoc = previewDoc; window.downloadDoc = downloadDoc; window.closePreview = closePreview; $("previewModal").addEventListener("click", e => { if (e.target.id === "previewModal") closePreview() });
-        function updateStorageStats() { const n = documents.filter(d => d.owner_id === currentProfile?.id).reduce((s, d) => s + Number(d.size_bytes || 0), 0); $("storageUsed").textContent = humanBytes(n) }
-        async function loadFolders() { if (!currentProfile) return; const { data, error } = await sb.from("docukeep_folders").select("id,name,color,created_at").eq("owner_id", currentProfile.id).order("created_at"); if (error) { $("folderList").innerHTML = '<div class="empty">Folders unavailable. Check the folder table and RLS policies.</div>'; return } $("folderList").innerHTML = (data || []).map(f => `<div class="feature"><span class="folder-color" style="background:${escapeHTML(f.color || "#2862a5")}"></span><b>${escapeHTML(f.name)}</b><p class="muted">${documents.filter(d => d.folder_id === f.id).length} documents · Created ${dateText(f.created_at)}</p><button class="btn secondary small" onclick="showFolderDocuments('${f.id}')">View documents</button></div>`).join("") || '<div class="empty">No folders yet.</div>'; $("uploadFolder").innerHTML = '<option value="">No folder</option>' + (data || []).map(f => `<option value="${f.id}">${escapeHTML(f.name)}</option>`).join("") }
-        function showFolderDocuments(id) { const items = documents.filter(d => d.folder_id === id && d.owner_id === currentProfile.id); $("docRows").innerHTML = items.map(d => `<tr><td>${escapeHTML(d.title)}</td><td>${escapeHTML(d.category)}</td><td>${dateText(d.created_at)}</td><td>${escapeHTML(d.status)}</td><td><button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button></td></tr>`).join(""); $("docEmpty").classList.toggle("hidden", items.length > 0); go("documents") } window.showFolderDocuments = showFolderDocuments;
-        $("folderForm").addEventListener("submit", async e => { e.preventDefault(); if (!currentProfile) return; const name = $("folderName").value.trim(), color = $("folderColor").value; if (!name) return toast("Enter a folder name."); const { error } = await sb.from("docukeep_folders").insert({ owner_id: currentProfile.id, name, color }); if (error) return toast("Could not create folder: " + error.message); e.target.reset(); $("folderColor").value = "#2862a5"; await loadFolders(); toast("Folder created.") });
-        async function loadNotifications() { if (!currentProfile) return; const { data, error } = await sb.from("docukeep_notifications").select("id,title,message,created_at,is_read").eq("user_id", currentProfile.id).order("created_at", { ascending: false }).limit(100); if (error) { $("notificationList").innerHTML = '<div class="empty">Notifications unavailable. Check table and RLS policies.</div>'; return } const rows = data || [], unread = rows.filter(n => !n.is_read).length; $("notificationCount").textContent = unread ? `(${unread})` : ""; $("notificationList").innerHTML = rows.map(n => `<div style="padding:12px;border-bottom:1px solid var(--line);${n.is_read ? "opacity:.65" : ""}"><b>${escapeHTML(n.title)}</b><p>${escapeHTML(n.message)}</p><small class="muted">${dateText(n.created_at)} · ${n.is_read ? "Read" : "Unread"}</small>${n.is_read ? "" : ` <button class="btn secondary small" onclick="markNotificationRead('${n.id}')">Mark read</button>`}</div>`).join("") || '<div class="empty">You have no notifications.</div>' }
-        async function markNotificationRead(id) { const { error } = await sb.from("docukeep_notifications").update({ is_read: true }).eq("id", id).eq("user_id", currentProfile.id); if (error) return toast(error.message); loadNotifications() }
-        async function markAllNotificationsRead() { if (!currentProfile) return; const { error } = await sb.from("docukeep_notifications").update({ is_read: true }).eq("user_id", currentProfile.id).eq("is_read", false); if (error) return toast(error.message); await loadNotifications(); toast("Notifications marked as read") } window.markNotificationRead = markNotificationRead; window.markAllNotificationsRead = markAllNotificationsRead;
-        async function renderAdmin() { if (currentProfile?.role !== "staff") { $("requests").innerHTML = '<div class="empty">Staff access required.</div>'; return } await loadAdminSubscriptionRequests(); $("requests").innerHTML = '<div class="empty">Loading…</div>'; const { data: users, error } = await sb.from("profiles").select("id,full_name,email,role,department,created_at").eq("status", "pending").order("created_at"); if (error) { $("requests").innerHTML = '<div class="empty">Could not load requests: ' + escapeHTML(error.message) + '</div>'; return } $("requests").innerHTML = (users || []).map(u => `<div style="padding:12px 0;border-bottom:1px solid #eee"><b>${escapeHTML(u.full_name)}</b> · ${escapeHTML(u.role)}<br><small>${escapeHTML(u.email)} · ${escapeHTML(u.department || "No department")} · ${dateText(u.created_at)}</small><div class="actions" style="margin-top:8px"><button class="btn green small" onclick="reviewUser('${u.id}','approved')">Approve</button><button class="btn danger small" onclick="reviewUser('${u.id}','rejected')">Reject</button></div></div>`).join("") || '<div class="empty">No pending registrations.</div>'; const { data: all, error: allErr } = await sb.from("profiles").select("id,full_name,email,role,department,status,created_at").order("created_at", { ascending: false }); if (allErr) $("managedUsers").innerHTML = `<tr><td colspan="5">${escapeHTML(allErr.message)}</td></tr>`; else { managedUsersCache = all || []; filterManagedUsers() } $("allRows").innerHTML = documents.map(d => `<tr><td>${escapeHTML(d.owner_name || "")}</td><td><b>${escapeHTML(d.title)}</b><br><small class="muted">${escapeHTML(d.file_name || "")}</small>${reviewCommentHTML(d)}</td><td>${escapeHTML(d.category)}</td><td>${dateText(d.created_at)}</td><td><span class="pill ${statusClass(d.status)}">${escapeHTML(d.status)}</span><div class="actions" style="margin-top:6px"><button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button><button class="btn secondary small" onclick="downloadDoc('${d.id}')">Download</button><button class="btn green small" onclick="reviewDoc('${d.id}','approved')">Approve</button><button class="btn secondary small" onclick="reviewDoc('${d.id}','needs_revision')">Return</button><button class="btn danger small" onclick="reviewDoc('${d.id}','rejected')">Reject</button></div></td></tr>`).join("") }
+   
+<script>
+/* =========================================================
+   DOCUKEEP CLIENT
+   Never put the Supabase service_role key in this file.
+========================================================= */
 
+const SUPABASE_URL = "https://ihvvmmaudbkddwevialb.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_yfLj3YnmOh9PiwVV-HDpgA__Hc5ymr4";
+const TEACHER_EMAIL_DOMAIN = "deped.gov.ph";
+const BUCKET = "docukeep-files";
+const SITE_URL = "https://kiezuuu.github.io/DocuKeep/";
 
-        const SUBSCRIPTION_PLANS = { yearly: { label: "1-Year Subscription", amount: 100, days: 365 }, monthly: { label: "1-Month Subscription", amount: 50, days: 30 }, weekly: { label: "1-Week Subscription", amount: 25, days: 7 } };
-        let selectedSubscriptionPlan = null;
-        function chooseSubscription(key) { const plan = SUBSCRIPTION_PLANS[key]; if (!plan) return; selectedSubscriptionPlan = key; $("selectedPlanLabel").value = plan.label; $("selectedPlanAmount").value = "₱" + plan.amount.toLocaleString("en-PH"); $("subscriptionCheckout").scrollIntoView({ behavior: "smooth", block: "start" }) }
-        function requestStatusLabel(status) { return ({ pending: "Awaiting staff review", needs_info: "Message from administrator", approved: "Payment accepted · Premium active", rejected: "Request rejected" })[status] || status }
-        function renderMySubscriptionRows(rows) { const el = $("mySubscriptionRequests"); if (!el) return; el.innerHTML = (rows || []).map(r => `<div class="request-card"><div class="actions" style="justify-content:space-between"><b>${escapeHTML(SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key)}</b><span class="status-chip ${escapeHTML(r.status)}">${escapeHTML(requestStatusLabel(r.status))}</span></div><p><b>Amount:</b> ₱${Number(r.amount_php).toLocaleString("en-PH")} · <b>Submitted:</b> ${dateText(r.created_at)}</p><p><b>Reference:</b> ${escapeHTML(r.payment_reference || "Not provided")}</p>${r.admin_message ? `<div class="review-feedback"><b>Administrator message</b><p>${escapeHTML(r.admin_message)}</p></div>` : ""}${r.status === "approved" ? `<p><b>Premium valid until:</b> ${dateText(r.expires_at)}</p>` : ""}</div>`).join("") || '<div class="empty">You have not submitted a subscription request yet.</div>' }
-        async function loadMySubscriptionRequests() { if (!currentProfile || currentProfile.role === "staff") return; const el = $("mySubscriptionRequests"); if (!el) return; const { data, error } = await sb.from("docukeep_subscription_requests").select("id,plan_key,amount_php,payment_reference,status,admin_message,created_at,expires_at").eq("user_id", currentProfile.id).order("created_at", { ascending: false }); if (error) { el.innerHTML = `<div class="empty">Payment requests unavailable. Run the subscription SQL migration. ${escapeHTML(error.message)}</div>`; return } renderMySubscriptionRows(data || []) }
-        $("subscriptionForm")?.addEventListener("submit", async e => { e.preventDefault(); if (!currentProfile || currentProfile.role === "staff") return toast("Sign in as a student or teacher to request Premium."); if (!selectedSubscriptionPlan) return toast("Choose a subscription plan first."); if (!$("paymentReference").value.trim()) return toast("Enter your payment Reference ID."); const file = $("paymentReceipt").files[0]; if (!file) return toast("Upload your payment receipt."); if (!["image/jpeg", "image/png", "application/pdf"].includes(file.type)) return toast("Receipt must be JPG, PNG, or PDF."); if (file.size > 5 * 1024 * 1024) return toast("Receipt must be 5 MB or smaller."); const plan = SUBSCRIPTION_PLANS[selectedSubscriptionPlan], btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Submitting…"; try { const requestId = crypto.randomUUID(), ext = file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : "jpg", path = `${currentProfile.id}/${requestId}.${ext}`; const up = await sb.storage.from("docukeep-payment-receipts").upload(path, file, { upsert: false, contentType: file.type }); if (up.error) throw up.error; const { error } = await sb.from("docukeep_subscription_requests").insert({ id: requestId, user_id: currentProfile.id, plan_key: selectedSubscriptionPlan, amount_php: plan.amount, payment_reference: $("paymentReference").value.trim(), receipt_path: path, user_message: $("paymentNote").value.trim() || null, status: "pending" }); if (error) { await sb.storage.from("docukeep-payment-receipts").remove([path]); throw error } e.target.reset(); selectedSubscriptionPlan = null; toast("Subscription request and receipt sent to staff."); await loadMySubscriptionRequests() } catch (err) { toast("Could not submit payment request: " + err.message) } finally { btn.disabled = false; btn.textContent = "Send request and receipt" } });
-        async function loadAdminSubscriptionRequests() { const el = $("adminSubscriptionRequests"); if (!el || currentProfile?.role !== "staff") return; el.innerHTML = '<div class="empty">Loading payment requests…</div>'; const { data: rows, error } = await sb.from("docukeep_subscription_requests").select("id,user_id,plan_key,amount_php,payment_reference,receipt_path,user_message,status,admin_message,created_at,starts_at,expires_at").order("created_at", { ascending: false }); if (error) { el.innerHTML = `<div class="empty">Could not load payment requests. ${escapeHTML(error.message)}</div>`; return } if (!rows?.length) { el.innerHTML = '<div class="empty">No subscription requests yet.</div>'; return } const ids = [...new Set(rows.map(r => r.user_id))], pr = await sb.from("profiles").select("id,full_name,email,role,department").in("id", ids), profiles = Object.fromEntries((pr.data || []).map(p => [p.id, p])); el.innerHTML = rows.map(r => { const u = profiles[r.user_id] || {}; return `<div class="request-card"><div class="actions" style="justify-content:space-between"><b>${escapeHTML(u.full_name || u.email || r.user_id)} · ${escapeHTML(u.role || "user")}</b><span class="status-chip ${escapeHTML(r.status)}">${escapeHTML(requestStatusLabel(r.status))}</span></div><p>${escapeHTML(u.email || "")} · ${escapeHTML(u.department || "")}</p><p><b>${escapeHTML(SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key)}</b> · ₱${Number(r.amount_php).toLocaleString("en-PH")} · ${dateText(r.created_at)}</p><p><b>Reference:</b> ${escapeHTML(r.payment_reference || "Not provided")}</p><p><b>User message:</b> ${escapeHTML(r.user_message || "—")}</p><div class="actions"><button class="btn secondary small" onclick="viewPaymentReceipt('${r.id}')">View receipt</button>${r.status !== "approved" ? `<button class="btn green small" onclick="decideSubscription('${r.id}','approved')">Accept & activate</button>` : ""}<button class="btn secondary small" onclick="messageSubscription('${r.id}')">Send message</button>${r.status !== "rejected" ? `<button class="btn danger small" onclick="decideSubscription('${r.id}','rejected')">Reject</button>` : ""}</div>${r.admin_message ? `<div class="review-feedback"><b>Last admin message</b><p>${escapeHTML(r.admin_message)}</p></div>` : ""}${r.status === "approved" ? `<small class="muted">Premium: ${dateText(r.starts_at)} – ${dateText(r.expires_at)}</small>` : ""}</div>` }).join("") }
-        async function viewPaymentReceipt(id) { if (currentProfile?.role !== "staff") return toast("Staff access required."); const { data: r, error } = await sb.from("docukeep_subscription_requests").select("receipt_path").eq("id", id).single(); if (error) return toast(error.message); const signed = await sb.storage.from("docukeep-payment-receipts").createSignedUrl(r.receipt_path, 300); if (signed.error) return toast("Cannot open receipt: " + signed.error.message); window.open(signed.data.signedUrl, "_blank", "noopener") }
-        async function decideSubscription(id, status) { if (currentProfile?.role !== "staff") return toast("Staff access required."); if (!["approved", "rejected"].includes(status)) return; let msg = prompt(status === "approved" ? "Optional message to the user:" : "Reason for rejecting this payment:", ""); if (msg === null) return; if (status === "rejected" && !msg.trim()) return toast("Please enter a rejection reason."); const { error } = await sb.rpc("review_docukeep_subscription_request", { p_request_id: id, p_status: status, p_admin_message: msg.trim() || null }); if (error) return toast("Could not update request: " + error.message); toast(status === "approved" ? "Payment accepted. Premium has been activated." : "Payment request rejected."); await loadAdminSubscriptionRequests() }
-        async function messageSubscription(id) { if (currentProfile?.role !== "staff") return toast("Staff access required."); const msg = prompt("Write a message about this transaction:"); if (msg === null || !msg.trim()) return; const { error } = await sb.rpc("message_docukeep_subscription_request", { p_request_id: id, p_admin_message: msg.trim() }); if (error) return toast("Message could not be sent: " + error.message); toast("Message sent to user."); await loadAdminSubscriptionRequests() }
-        window.chooseSubscription = chooseSubscription; window.viewPaymentReceipt = viewPaymentReceipt; window.decideSubscription = decideSubscription; window.messageSubscription = messageSubscription;
-
-        function filterManagedUsers() { const q = ($("userSearch")?.value || "").trim().toLowerCase(), rf = $("userRoleFilter")?.value || "all", arr = managedUsersCache.filter(u => (!q || `${u.full_name || ""} ${u.email || ""}`.toLowerCase().includes(q)) && (rf === "all" || u.role === rf)); $("managedUsers").innerHTML = arr.map(u => { const self = u.id === currentProfile?.id; return `<tr><td><b>${escapeHTML(u.full_name || "Unnamed user")}</b><br><small>${escapeHTML(u.email || "")}</small></td><td>${escapeHTML(u.department || "—")}</td><td><span class="pill ${u.role === "staff" ? "approved" : "pending"}">${escapeHTML(u.role)}</span></td><td><div class="actions"><select id="role-${u.id}" ${self ? "disabled" : ""} style="padding:6px;border:1px solid var(--line);border-radius:7px"><option value="student" ${u.role === "student" ? "selected" : ""}>Student</option><option value="teacher" ${u.role === "teacher" ? "selected" : ""}>Teacher</option><option value="staff" ${u.role === "staff" ? "selected" : ""}>Staff / Admin</option></select><button class="btn small" onclick="changeUserRole('${u.id}')" ${self ? "disabled" : ""}>Save</button></div></td><td>${escapeHTML(u.status || "unknown")}${self ? " · You" : ""}</td></tr>` }).join("") || '<tr><td colspan="5" class="empty">No matching accounts.</td></tr>' }
-        async function changeUserRole(id) { if (currentProfile?.role !== "staff") return toast("Staff access required."); if (id === currentProfile.id) return toast("You cannot change your own role."); const role = $("role-" + id)?.value; if (!["student", "teacher", "staff"].includes(role)) return toast("Choose a valid role."); const u = managedUsersCache.find(x => x.id === id); if (!u) return toast("User not found."); if (role === u.role) return toast("Account already has that role."); if (!confirm(`Change ${u.email} from ${u.role} to ${role}?`)) return; const { error } = await sb.rpc("manage_docukeep_user_role", { p_user_id: id, p_new_role: role }); if (error) return toast("Role change failed: " + error.message); toast("Role updated."); await renderAdmin() }
-        async function reviewUser(id, status) { if (currentProfile?.role !== "staff") return toast("Staff access required."); if (!["approved", "rejected"].includes(status)) return; const { error } = await sb.rpc("approve_docukeep_profile", { p_user_id: id, p_status: status }); if (error) return toast("Account update failed: " + error.message); toast("Account " + status + "."); await renderAdmin() }
-        async function reviewDoc(id, status) {
-            if (currentProfile?.role !== "staff") return toast("Staff access required.");
-            if (!["approved", "needs_revision", "rejected"].includes(status)) return;
-            const prompts = { approved: "Enter an optional comment for this approval:", needs_revision: "Explain what needs to be corrected:", rejected: "Explain why this document is rejected:" };
-            const entered = prompt(prompts[status]);
-            if (entered === null) return;
-            const reviewComment = entered.trim();
-            if (["needs_revision", "rejected"].includes(status) && !reviewComment) return toast("Please provide a review comment.");
-            const { error } = await sb.from("documents").update({ status, review_comment: reviewComment || null, reviewed_at: new Date().toISOString(), reviewed_by: currentProfile.id }).eq("id", id);
-            if (error) return toast("Document update failed: " + error.message);
-            toast("Document reviewed successfully.");
-            await loadDocuments();
+const sb = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
+    {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            flowType: "pkce"
         }
-        window.filterManagedUsers = filterManagedUsers; window.changeUserRole = changeUserRole; window.reviewUser = reviewUser; window.reviewDoc = reviewDoc;
-        function go(page) { const allowed = ["dashboard", "documents", "upload", "tracking", "folders", "notifications", "premium", "admin"]; if (!allowed.includes(page)) return; if (!currentProfile) return toast("Please sign in first."); if (page === "admin" && currentProfile.role !== "staff") return toast("Staff access required."); document.querySelectorAll(".page").forEach(x => x.classList.remove("active")); $("page-" + page).classList.add("active"); document.querySelectorAll("[data-page]").forEach(x => x.classList.toggle("active", x.dataset.page === page)); $("crumb").textContent = ({ dashboard: "Dashboard", documents: "My Documents", upload: "Upload Document", tracking: "Submission Tracking", folders: "My Folders", notifications: "Notifications", premium: "Premium Plan", admin: "Staff Administration" })[page]; if (page === "admin") renderAdmin(); if (page === "premium") loadMySubscriptionRequests(); if (page === "folders") loadFolders(); if (page === "notifications") loadNotifications(); window.scrollTo(0, 0) } window.go = go; document.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => go(b.dataset.page)));
-        async function signOut() { const { error } = await sb.auth.signOut(); if (error) return toast("Sign out failed: " + error.message); currentProfile = null; documents = []; accountType = null; managedUsersCache = []; $("app").classList.add("hidden"); $("auth").classList.remove("hidden"); $("loginForm").reset(); $("signupForm").reset(); backChoice(); toast("Successfully signed out") } window.signOut = signOut;
-        async function restoreSession() { const { data, error } = await sb.auth.getSession(); if (error) throw error; if (data.session) await loadProfile(data.session.user, null) }
-        (async () => { try { await updateOfflineStatus(); const params = new URLSearchParams(location.hash.replace(/^#/, "")); const isRecovery = params.get("type") === "recovery"; if (isRecovery) { recoveryMode = true; $("choose").classList.add("hidden"); $("authform").classList.remove("hidden"); accountType = "student"; hideAllAuthForms(); $("resetForm").classList.remove("hidden"); $("formTitle").textContent = "Set a new password"; $("forgotSwitch").classList.add("hidden"); $("signupSwitch").classList.add("hidden"); $("resendSwitch").classList.add("hidden"); setAuthMessage("Enter and confirm your new password.") } else await restoreSession() } catch (e) { console.error("Startup/session restore", e); await sb.auth.signOut(); currentProfile = null; $("app").classList.add("hidden"); $("auth").classList.remove("hidden"); toast("Session could not be restored: " + e.message) } })();
-        if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(e => console.warn("Service worker unavailable", e)));
-    </script>
+    }
+);
+
+let accountType = null;
+let currentProfile = null;
+let documents = [];
+let managedUsersCache = [];
+let toastTimer = null;
+let recoveryMode = false;
+
+const $ = id => document.getElementById(id);
+
+/* =========================================================
+   GENERAL HELPERS
+========================================================= */
+
+function toast(message) {
+    const el = $("toast");
+    if (!el) {
+        console.log(message);
+        return;
+    }
+
+    el.textContent = message;
+    el.classList.add("show");
+
+    clearTimeout(toastTimer);
+
+    toastTimer = setTimeout(() => {
+        el.classList.remove("show");
+    }, 5000);
+}
+
+function escapeHTML(v = "") {
+    return String(v).replace(/[&<>"']/g, c => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    }[c]));
+}
+
+function dateText(v) {
+    return v ? new Date(v).toLocaleDateString() : "—";
+}
+
+function validEmail(email, type) {
+    const p = String(email || "").trim().toLowerCase().split("@");
+
+    if (p.length !== 2 || !p[0]) return false;
+
+    if (type === "student") return p[1] === "gmail.com";
+    if (type === "teacher") return p[1] === TEACHER_EMAIL_DOMAIN;
+    if (type === "staff") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    return false;
+}
+
+function statusClass(s) {
+    return String(s || "").toLowerCase().replace(/[^a-z]/g, "");
+}
+
+function studentDocumentStatus(d) {
+    if (
+        d.due_date &&
+        new Date(d.due_date + "T23:59:59") < new Date() &&
+        !["approved", "rejected"].includes(d.status)
+    ) {
+        return "overdue";
+    }
+
+    return d.status === "pending" ? "submitted" : d.status;
+}
+
+function setAuthMessage(message, type = "") {
+    const el = $("authMsg");
+    if (!el) return;
+
+    el.textContent = message;
+    el.className = "notice" + (type ? " " + type : "");
+}
+
+function friendlyAuthError(e) {
+    const m = e?.message || "Unknown error";
+    const c = e?.code || "";
+
+    if (c === "email_not_confirmed" || m.toLowerCase().includes("email not confirmed")) {
+        return "Your email is not confirmed. Check your inbox or confirm the account in this same Supabase project.";
+    }
+
+    if (m.toLowerCase().includes("invalid login credentials")) {
+        return "Incorrect email or password. If you are unsure of the password, use Forgot password.";
+    }
+
+    if (m.toLowerCase().includes("too many requests")) {
+        return "Too many attempts. Wait a few minutes and try again.";
+    }
+
+    return m;
+}
+
+/* =========================================================
+   AUTHENTICATION UI
+========================================================= */
+
+function selectType(type) {
+    if (!["student", "teacher", "staff"].includes(type)) {
+        return toast("Invalid account type.");
+    }
+
+    accountType = type;
+
+    $("choose").classList.add("hidden");
+    $("authform").classList.remove("hidden");
+
+    ["studentType", "teacherType", "staffType"].forEach(id => {
+        $(id).classList.toggle("selected", id === type + "Type");
+    });
+
+    $("formDescription").textContent =
+        type === "student"
+            ? "Use your personal Gmail account."
+            : type === "teacher"
+                ? "Use your official DepEd email (@deped.gov.ph)."
+                : "Use the staff account provided by your administrator.";
+
+    $("signupSwitch").classList.toggle("hidden", type === "staff");
+    $("resendSwitch").classList.toggle("hidden", type === "staff");
+
+    setAuthMessage(
+        type === "staff"
+            ? "Staff accounts cannot be registered here."
+            : "New registrations remain pending until approved by staff."
+    );
+
+    toggleForm(false);
+}
+
+function backChoice() {
+    accountType = null;
+
+    $("authform").classList.add("hidden");
+    $("choose").classList.remove("hidden");
+
+    ["studentType", "teacherType", "staffType"].forEach(id => {
+        $(id).classList.remove("selected");
+    });
+}
+
+function hideAllAuthForms() {
+    ["loginForm", "signupForm", "forgotForm", "resetForm"].forEach(id => {
+        $(id).classList.add("hidden");
+    });
+}
+
+function toggleForm(signup) {
+    recoveryMode = false;
+
+    hideAllAuthForms();
+
+    $(signup ? "signupForm" : "loginForm").classList.remove("hidden");
+
+    $("forgotSwitch").classList.toggle("hidden", signup || accountType === "staff");
+    $("signupSwitch").classList.toggle("hidden", signup || accountType === "staff");
+    $("loginSwitch").classList.toggle("hidden", !signup);
+    $("resendSwitch").classList.toggle("hidden", signup || accountType === "staff");
+
+    $("formTitle").textContent =
+        (accountType === "student" ? "Student" :
+            accountType === "teacher" ? "Teacher" : "Staff") +
+        (signup ? " registration" : " sign in");
+}
+
+function showForgot() {
+    hideAllAuthForms();
+
+    $("forgotForm").classList.remove("hidden");
+    $("forgotSwitch").classList.add("hidden");
+    $("signupSwitch").classList.add("hidden");
+    $("resendSwitch").classList.add("hidden");
+    $("loginSwitch").classList.remove("hidden");
+
+    $("formTitle").textContent = "Reset your password";
+}
+
+function hideForgot() {
+    toggleForm(false);
+}
+
+window.selectType = selectType;
+window.backChoice = backChoice;
+window.toggleForm = toggleForm;
+window.showForgot = showForgot;
+window.hideForgot = hideForgot;
+
+/* =========================================================
+   PROFILE AND LOGIN
+========================================================= */
+
+async function loadProfile(user, expectedType = null) {
+    if (!user?.id) {
+        throw Error("Invalid login session. Please sign in again.");
+    }
+
+    const { data: p, error } = await sb
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    console.log("DocuKeep profile check", {
+        authId: user.id,
+        email: user.email,
+        profileId: p?.id,
+        role: p?.role,
+        status: p?.status,
+        error
+    });
+
+    if (error) {
+        throw Error("Could not load your profile: " + error.message);
+    }
+
+    if (!p) {
+        throw Error("Your Auth account has no matching profiles row. Ask staff to repair the profile in this Supabase project.");
+    }
+
+    const role = String(p.role || "").toLowerCase();
+    const status = String(p.status || "").toLowerCase();
+
+    if (!["student", "teacher", "staff"].includes(role)) {
+        throw Error("Invalid account role.");
+    }
+
+    if (status !== "approved") {
+        throw Error(
+            status === "pending"
+                ? "Your account is awaiting staff approval."
+                : "Your account is not approved. Contact the administrator."
+        );
+    }
+
+    if (expectedType && role !== expectedType) {
+        throw Error(
+            `Wrong sign-in category. This account's database role is ${role}. Select ${role} to sign in.`
+        );
+    }
+
+    if (role === "student" && !validEmail(user.email, "student")) {
+        throw Error("Student accounts must use a personal Gmail address.");
+    }
+
+    if (role === "teacher" && !validEmail(user.email, "teacher")) {
+        throw Error("Teacher accounts must use an official DepEd email.");
+    }
+
+    currentProfile = { ...p, role };
+    accountType = role;
+
+    $("auth").classList.add("hidden");
+    $("app").classList.remove("hidden");
+
+    $("who").textContent = (p.full_name || "User") + " · " + role.toUpperCase();
+    $("greeting").textContent = "Welcome, " + (p.full_name || "User");
+
+    $("adminNav").classList.toggle("hidden", role !== "staff");
+
+    await loadDocuments();
+    await updateOfflineStatus();
+    await loadMySubscriptionRequests();
+
+    if (navigator.onLine) {
+        syncOfflineUploads();
+    }
+
+    go("dashboard");
+}
+
+$("loginForm").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    if (!accountType) return toast("Choose an account type first.");
+
+    const type = accountType;
+    const email = $("email").value.trim().toLowerCase();
+    const password = $("password").value;
+
+    if (!validEmail(email, type)) {
+        return toast(
+            type === "student"
+                ? "Use a personal @gmail.com address."
+                : type === "teacher"
+                    ? "Use an official @deped.gov.ph address."
+                    : "Enter a valid staff email."
+        );
+    }
+
+    const b = e.target.querySelector('button[type="submit"]');
+    b.disabled = true;
+    b.textContent = "Signing in…";
+
+    try {
+        const { data, error } = await sb.auth.signInWithPassword({
+            email,
+            password
+        });
+
+        if (error) throw error;
+
+        await loadProfile(data.user, type);
+
+    } catch (err) {
+        console.error("Login error", err);
+
+        // Only sign out if an actual login session was created.
+        // Do not destroy an existing session because profile loading failed.
+        setAuthMessage("Login failed: " + friendlyAuthError(err), "warn");
+        toast("Login failed: " + friendlyAuthError(err));
+
+    } finally {
+        b.disabled = false;
+        b.textContent = "Sign in";
+    }
+});
+
+/* =========================================================
+   REGISTRATION
+========================================================= */
+
+$("signupForm").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    if (!["student", "teacher"].includes(accountType)) {
+        return toast("Only students and teachers can register here.");
+    }
+
+    const full_name = $("fullName").value.trim();
+    const email = $("signupEmail").value.trim().toLowerCase();
+    const department = $("department").value.trim();
+    const password = $("signupPassword").value;
+
+    if (!full_name || !department) {
+        return toast("Complete all required fields.");
+    }
+
+    if (!validEmail(email, accountType)) {
+        return toast(
+            accountType === "student"
+                ? "Use a personal Gmail address."
+                : "Use an official @deped.gov.ph address."
+        );
+    }
+
+    if (password.length < 8) {
+        return toast("Password must contain at least 8 characters.");
+    }
+
+    if (password !== $("confirmPassword").value) {
+        return toast("Passwords do not match.");
+    }
+
+    const b = e.target.querySelector("button[type=submit]");
+    b.disabled = true;
+    b.textContent = "Creating account…";
+
+    try {
+        const { data, error } = await sb.auth.signUp({
+            email,
+            password,
+            options: {
+                emailRedirectTo: SITE_URL,
+                data: {
+                    full_name,
+                    requested_role: accountType,
+                    department
+                }
+            }
+        });
+
+        if (error) throw error;
+        if (!data.user) throw Error("Supabase did not return a user.");
+
+        if (data.user.identities?.length === 0) {
+            throw Error("This email may already be registered. Try signing in.");
+        }
+
+        if (data.session) {
+            await sb.auth.signOut();
+        }
+
+        e.target.reset();
+        toggleForm(false);
+
+        setAuthMessage(
+            "Registration submitted. Confirm your email if required, then wait for staff approval.",
+            "ok"
+        );
+
+        toast("Registration request submitted.");
+
+    } catch (err) {
+        setAuthMessage("Registration failed: " + friendlyAuthError(err), "warn");
+        toast("Signup failed: " + friendlyAuthError(err));
+
+    } finally {
+        b.disabled = false;
+        b.textContent = "Create account";
+    }
+});
+
+/* =========================================================
+   PASSWORD RESET
+========================================================= */
+
+$("forgotForm").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const email = $("forgotEmail").value.trim().toLowerCase();
+
+    if (!validEmail(email, accountType)) {
+        return toast("Enter an email valid for the selected account type.");
+    }
+
+    const b = e.target.querySelector("button[type=submit]");
+    b.disabled = true;
+
+    try {
+        const { error } = await sb.auth.resetPasswordForEmail(email, {
+            redirectTo: SITE_URL
+        });
+
+        if (error) throw error;
+
+        setAuthMessage(
+            "If the account exists, a password-reset link has been sent. Check your inbox and spam folder.",
+            "ok"
+        );
+
+        toast("Password reset request processed.");
+
+    } catch (err) {
+        toast("Could not send reset email: " + err.message);
+
+    } finally {
+        b.disabled = false;
+    }
+});
+
+$("resetForm").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const p = $("newPassword").value;
+
+    if (p.length < 8) {
+        return toast("Password must be at least 8 characters.");
+    }
+
+    if (p !== $("newPasswordConfirm").value) {
+        return toast("Passwords do not match.");
+    }
+
+    const b = e.target.querySelector("button[type=submit]");
+    b.disabled = true;
+
+    try {
+        const { error } = await sb.auth.updateUser({ password: p });
+
+        if (error) throw error;
+
+        await sb.auth.signOut();
+
+        recoveryMode = false;
+        e.target.reset();
+
+        $("auth").classList.remove("hidden");
+        $("app").classList.add("hidden");
+
+        if (!accountType) selectType("student");
+
+        toggleForm(false);
+
+        setAuthMessage(
+            "Password updated successfully. Sign in using your new password.",
+            "ok"
+        );
+
+        toast("Password updated.");
+
+    } catch (err) {
+        toast("Could not update password: " + err.message);
+
+    } finally {
+        b.disabled = false;
+    }
+});
+
+async function resendConfirmation() {
+    const email = $("email").value.trim().toLowerCase();
+
+    if (!email) {
+        return toast("Enter your email in the sign-in field first.");
+    }
+
+    if (!validEmail(email, accountType)) {
+        return toast("Enter an email valid for the selected account type.");
+    }
+
+    try {
+        const { error } = await sb.auth.resend({
+            type: "signup",
+            email
+        });
+
+        if (error) throw error;
+
+        setAuthMessage(
+            "If confirmation is required, a new email has been requested. Check inbox and spam.",
+            "ok"
+        );
+
+    } catch (e) {
+        toast("Could not resend confirmation: " + e.message);
+    }
+}
+
+window.resendConfirmation = resendConfirmation;
+
+/* =========================================================
+   AUTH STATE CHANGES
+========================================================= */
+
+sb.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY") {
+        recoveryMode = true;
+
+        $("auth").classList.remove("hidden");
+        $("app").classList.add("hidden");
+
+        if (!accountType) accountType = "student";
+
+        $("choose").classList.add("hidden");
+        $("authform").classList.remove("hidden");
+
+        hideAllAuthForms();
+
+        $("resetForm").classList.remove("hidden");
+        $("formTitle").textContent = "Set a new password";
+
+        $("forgotSwitch").classList.add("hidden");
+        $("signupSwitch").classList.add("hidden");
+        $("resendSwitch").classList.add("hidden");
+
+        setAuthMessage("Enter and confirm your new password.");
+
+    } else if (event === "SIGNED_OUT" && !recoveryMode) {
+        currentProfile = null;
+    }
+});
+
+/* =========================================================
+   DOCUMENTS
+========================================================= */
+
+async function loadDocuments() {
+    if (!currentProfile) return;
+
+    const { data, error } = await sb
+        .from("documents")
+        .select("id,title,category,created_at,status,review_comment,owner_id,owner_name,storage_path,file_name,mime_type,size_bytes,due_date,school_year,department,folder_id,sha256")
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        console.error(error);
+        toast("Could not load documents: " + error.message);
+        return;
+    }
+
+    documents = data || [];
+
+    renderDocuments();
+    updateStorageStats();
+
+    await Promise.all([
+        loadFolders(),
+        loadNotifications()
+    ]);
+}
+
+function reviewCommentHTML(d) {
+    return d?.review_comment
+        ? `<div class="review-feedback"><b>Staff Feedback</b><p>${escapeHTML(d.review_comment)}</p></div>`
+        : "";
+}
+
+function renderDocuments() {
+    if (!currentProfile) return;
+
+    const own = documents.filter(d =>
+        currentProfile.role === "staff" ||
+        d.owner_id === currentProfile.id
+    );
+
+    $("total").textContent = own.length;
+
+    $("pending").textContent =
+        own.filter(d => d.status === "pending").length;
+
+    $("approved").textContent =
+        own.filter(d => d.status === "approved").length;
+
+    $("recent").innerHTML = own.slice(0, 5).map(d => `
+        <p>
+            <b>${escapeHTML(d.title)}</b> ·
+            ${escapeHTML(d.category)} ·
+            <span class="pill ${statusClass(studentDocumentStatus(d))}">
+                ${escapeHTML(studentDocumentStatus(d))}
+            </span>
+        </p>
+    `).join("") || '<div class="empty">No documents yet.</div>';
+
+    $("docRows").innerHTML = own.map(d => `
+        <tr>
+            <td>${escapeHTML(d.title)}</td>
+            <td>${escapeHTML(d.category)}</td>
+            <td>${dateText(d.created_at)}</td>
+            <td>
+                <span class="pill ${statusClass(studentDocumentStatus(d))}">
+                    ${escapeHTML(studentDocumentStatus(d))}
+                </span>
+                ${reviewCommentHTML(d)}
+            </td>
+            <td>
+                <div class="actions">
+                    <button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button>
+                    <button class="btn secondary small" onclick="downloadDoc('${d.id}')">Download</button>
+                </div>
+            </td>
+        </tr>
+    `).join("");
+
+    $("docEmpty").classList.toggle("hidden", own.length > 0);
+
+    $("tracking").innerHTML = own.map(d => `
+        <p>
+            <b>${escapeHTML(d.title)}</b> ·
+            ${dateText(d.created_at)} ·
+            <span class="pill ${statusClass(studentDocumentStatus(d))}">
+                ${escapeHTML(studentDocumentStatus(d))}
+            </span>
+            ${reviewCommentHTML(d)}
+        </p>
+    `).join("") || '<div class="empty">No submissions yet.</div>';
+
+    if (currentProfile.role === "staff") {
+        renderAdmin();
+    }
+}
+
+/* =========================================================
+   OFFLINE UPLOAD DATABASE
+========================================================= */
+
+const DB_NAME = "docukeep-offline-v1";
+const STORE = "pendingUploads";
+
+function openOfflineDB() {
+    return new Promise((res, rej) => {
+        const r = indexedDB.open(DB_NAME, 1);
+
+        r.onupgradeneeded = () => {
+            if (!r.result.objectStoreNames.contains(STORE)) {
+                r.result.createObjectStore(STORE, { keyPath: "id" });
+            }
+        };
+
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+    });
+}
+
+async function queueOfflineUpload(job) {
+    const db = await openOfflineDB();
+
+    return new Promise((res, rej) => {
+        const tx = db.transaction(STORE, "readwrite");
+
+        tx.objectStore(STORE).put(job);
+
+        tx.oncomplete = res;
+        tx.onerror = () => rej(tx.error);
+    });
+}
+
+async function getQueuedUploads() {
+    const db = await openOfflineDB();
+
+    return new Promise((res, rej) => {
+        const r = db.transaction(STORE).objectStore(STORE).getAll();
+
+        r.onsuccess = () => res(r.result || []);
+        r.onerror = () => rej(r.error);
+    });
+}
+
+async function removeQueuedUpload(id) {
+    const db = await openOfflineDB();
+
+    return new Promise((res, rej) => {
+        const tx = db.transaction(STORE, "readwrite");
+
+        tx.objectStore(STORE).delete(id);
+
+        tx.oncomplete = res;
+        tx.onerror = () => rej(tx.error);
+    });
+}
+
+function humanBytes(n) {
+    if (!n) return "0 B";
+
+    const u = ["B", "KB", "MB", "GB", "TB"];
+    let i = 0;
+
+    while (n >= 1024 && i < u.length - 1) {
+        n /= 1024;
+        i++;
+    }
+
+    return n.toFixed(i ? 1 : 0) + " " + u[i];
+}
+
+async function syncOfflineUploads() {
+    if (!navigator.onLine || !currentProfile) return;
+
+    let jobs = [];
+
+    try {
+        jobs = await getQueuedUploads();
+    } catch (e) {
+        console.warn(e);
+        return;
+    }
+
+    // Only sync files belonging to the currently signed-in user.
+    jobs = jobs.filter(j => j.ownerId === currentProfile.id);
+
+    for (const j of jobs) {
+        try {
+            await uploadJob(j);
+            await removeQueuedUpload(j.id);
+
+        } catch (e) {
+            console.error("Offline sync stopped", e);
+
+            j.lastError = e.message;
+            await queueOfflineUpload(j);
+
+            break;
+        }
+    }
+
+    await updateOfflineStatus();
+    await loadDocuments();
+}
+
+async function uploadJob(j) {
+    if (!currentProfile || j.ownerId !== currentProfile.id) {
+        throw Error("This queued upload belongs to another account.");
+    }
+
+    const { error: upErr } = await sb.storage
+        .from(BUCKET)
+        .upload(j.path, j.file, {
+            upsert: false,
+            contentType: j.mimeType || "application/octet-stream"
+        });
+
+    if (upErr) throw upErr;
+
+    const row = {
+        id: j.id,
+        title: j.title,
+        category: j.category,
+        school_year: j.schoolYear,
+        department: j.department,
+        due_date: j.dueDate || null,
+        submission_type: j.submissionType,
+        description: j.description,
+        folder_id: j.folderId || null,
+        sha256: j.sha256 || null,
+        owner_id: j.ownerId,
+        owner_name: j.ownerName,
+        storage_path: j.path,
+        file_name: j.fileName,
+        mime_type: j.mimeType || "application/octet-stream",
+        size_bytes: j.sizeBytes,
+        status: "pending"
+    };
+
+    const { error: dbErr } = await sb
+        .from("documents")
+        .insert(row);
+
+    if (dbErr) {
+        await sb.storage.from(BUCKET).remove([j.path]);
+        throw dbErr;
+    }
+}
+
+async function updateOfflineStatus() {
+    let n = 0;
+
+    try {
+        const jobs = await getQueuedUploads();
+
+        n = currentProfile
+            ? jobs.filter(j => j.ownerId === currentProfile.id).length
+            : jobs.length;
+
+    } catch (e) {
+        console.warn(e);
+    }
+
+    $("syncbar").classList.toggle(
+        "show",
+        !navigator.onLine || n > 0
+    );
+
+    $("queueCount").textContent = n;
+}
+
+window.addEventListener("online", () => {
+    updateOfflineStatus();
+    syncOfflineUploads();
+});
+
+window.addEventListener("offline", updateOfflineStatus);
+
+/* =========================================================
+   FILE HASHING AND UPLOAD
+========================================================= */
+
+async function sha256File(f) {
+    try {
+        const d = await crypto.subtle.digest(
+            "SHA-256",
+            await f.arrayBuffer()
+        );
+
+        return Array.from(new Uint8Array(d))
+            .map(b => b.toString(16).padStart(2, "0"))
+            .join("");
+
+    } catch (e) {
+        return null;
+    }
+}
+
+$("uploadForm").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    if (!currentProfile) {
+        return toast("Please sign in first.");
+    }
+
+    const files = Array.from($("file").files || []);
+
+    if (!files.length) {
+        return toast("Choose at least one file.");
+    }
+
+    const title = $("title").value.trim();
+    const category = $("category").value;
+
+    if (!title || !category) {
+        return toast("Enter a title and category.");
+    }
+
+    const b = e.target.querySelector("button[type=submit]");
+    const prog = $("uploadProgress");
+
+    b.disabled = true;
+    b.textContent = "Processing files…";
+    prog.style.display = "block";
+
+    let ok = 0;
+    let queued = 0;
+    let failed = 0;
+
+    try {
+        for (let i = 0; i < files.length; i++) {
+            const f = files[i];
+
+            prog.textContent = `Processing ${i + 1} of ${files.length}: ${f.name}`;
+
+            if (f.size > 25 * 1024 * 1024) {
+                failed++;
+                toast(f.name + " exceeds 25 MB.");
+                continue;
+            }
+
+            const id = crypto.randomUUID();
+            const safe = f.name.replace(/[^\w.\-]/g, "_");
+            const hash = await sha256File(f);
+
+            const dup = hash && documents.find(d =>
+                d.owner_id === currentProfile.id &&
+                d.sha256 === hash
+            );
+
+            if (
+                dup &&
+                !confirm(`This file may duplicate "${dup.file_name || dup.title}". Upload anyway?`)
+            ) {
+                continue;
+            }
+
+            const j = {
+                id,
+                path: `${currentProfile.id}/${id}/${safe}`,
+                file: f,
+                sha256: hash,
+                title: files.length === 1 ? title : `${title} - ${f.name}`,
+                category,
+                schoolYear: $("year").value,
+                department: $("subject").value,
+                dueDate: $("due").value,
+                submissionType: $("type").value,
+                description: $("description").value,
+                folderId: $("uploadFolder").value || null,
+                ownerId: currentProfile.id,
+                ownerName: currentProfile.full_name,
+                fileName: f.name,
+                mimeType: f.type,
+                sizeBytes: f.size
+            };
+
+            if (!navigator.onLine) {
+                await queueOfflineUpload(j);
+                queued++;
+                continue;
+            }
+
+            try {
+                await uploadJob(j);
+                ok++;
+
+            } catch (err) {
+                if (!navigator.onLine) {
+                    await queueOfflineUpload(j);
+                    queued++;
+
+                } else {
+                    failed++;
+                    console.error(err);
+                    toast(f.name + ": " + err.message);
+                }
+            }
+        }
+
+        if (ok || queued) {
+            if (files.length === 1 && ok) {
+                e.target.reset();
+                $("year").value = "2026–2027";
+            }
+
+            await loadDocuments();
+
+            toast(`${ok} uploaded, ${queued} queued, ${failed} failed.`);
+
+        } else if (failed) {
+            toast(`${failed} file(s) failed.`);
+        }
+
+        await updateOfflineStatus();
+
+    } catch (err) {
+        console.error(err);
+        toast("Upload error: " + err.message);
+
+    } finally {
+        b.disabled = false;
+        b.textContent = "Upload and submit";
+        prog.style.display = "none";
+    }
+});
+
+/* =========================================================
+   DOCUMENT PREVIEW AND DOWNLOAD
+========================================================= */
+
+async function signedUrl(d) {
+    if (!d?.storage_path) {
+        throw Error("Document storage path is missing.");
+    }
+
+    const { data, error } = await sb.storage
+        .from(BUCKET)
+        .createSignedUrl(d.storage_path, 300);
+
+    if (error) throw error;
+
+    return data.signedUrl;
+}
+
+async function downloadDoc(id) {
+    const d = documents.find(x => x.id === id);
+    if (!d) return;
+
+    try {
+        const url = await signedUrl(d);
+        const a = document.createElement("a");
+
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.download = d.file_name || d.title;
+
+        a.click();
+
+    } catch (e) {
+        toast("Download failed: " + e.message);
+    }
+}
+
+async function previewDoc(id) {
+    const d = documents.find(x => x.id === id);
+    if (!d) return;
+
+    try {
+        const url = await signedUrl(d);
+
+        $("previewTitle").textContent = d.file_name || d.title;
+        $("previewBody").innerHTML = "";
+
+        const mime = (d.mime_type || "").toLowerCase();
+        const name = (d.file_name || "").toLowerCase();
+
+        if (mime === "application/pdf" || name.endsWith(".pdf")) {
+            const f = document.createElement("iframe");
+
+            f.src = url;
+            f.title = "PDF preview";
+
+            $("previewBody").appendChild(f);
+
+        } else if (
+            mime.startsWith("image/") ||
+            /\.(png|jpe?g|webp)$/i.test(name)
+        ) {
+            const im = document.createElement("img");
+
+            im.src = url;
+            im.alt = d.file_name || "Document image";
+
+            $("previewBody").appendChild(im);
+
+        } else {
+            $("previewBody").innerHTML = `
+                <div class="empty">
+                    <h3>Preview not available</h3>
+                    <p>Download this file to open it.</p>
+                </div>`;
+        }
+
+        $("previewDownload").onclick = () => downloadDoc(id);
+        $("previewModal").classList.add("open");
+
+    } catch (e) {
+        toast("Preview failed: " + e.message);
+    }
+}
+
+function closePreview() {
+    $("previewModal").classList.remove("open");
+    $("previewBody").innerHTML = "";
+}
+
+window.previewDoc = previewDoc;
+window.downloadDoc = downloadDoc;
+window.closePreview = closePreview;
+
+$("previewModal").addEventListener("click", e => {
+    if (e.target.id === "previewModal") {
+        closePreview();
+    }
+});
+
+/* =========================================================
+   STORAGE STATISTICS
+========================================================= */
+
+function updateStorageStats() {
+    const n = documents
+        .filter(d => d.owner_id === currentProfile?.id)
+        .reduce((s, d) => s + Number(d.size_bytes || 0), 0);
+
+    $("storageUsed").textContent = humanBytes(n);
+}
+
+/* =========================================================
+   FOLDERS
+========================================================= */
+
+async function loadFolders() {
+    if (!currentProfile) return;
+
+    const { data, error } = await sb
+        .from("docukeep_folders")
+        .select("id,name,color,created_at")
+        .eq("owner_id", currentProfile.id)
+        .order("created_at");
+
+    if (error) {
+        $("folderList").innerHTML =
+            '<div class="empty">Folders unavailable. Check the folder table and RLS policies.</div>';
+        return;
+    }
+
+    $("folderList").innerHTML = (data || []).map(f => `
+        <div class="feature">
+            <span class="folder-color" style="background:${escapeHTML(f.color || "#2862a5")}"></span>
+            <b>${escapeHTML(f.name)}</b>
+            <p class="muted">
+                ${documents.filter(d => d.folder_id === f.id).length}
+                documents · Created ${dateText(f.created_at)}
+            </p>
+            <button class="btn secondary small" onclick="showFolderDocuments('${f.id}')">
+                View documents
+            </button>
+        </div>
+    `).join("") || '<div class="empty">No folders yet.</div>';
+
+    $("uploadFolder").innerHTML =
+        '<option value="">No folder</option>' +
+        (data || []).map(f =>
+            `<option value="${f.id}">${escapeHTML(f.name)}</option>`
+        ).join("");
+}
+
+function showFolderDocuments(id) {
+    const items = documents.filter(d =>
+        d.folder_id === id &&
+        d.owner_id === currentProfile.id
+    );
+
+    $("docRows").innerHTML = items.map(d => `
+        <tr>
+            <td>${escapeHTML(d.title)}</td>
+            <td>${escapeHTML(d.category)}</td>
+            <td>${dateText(d.created_at)}</td>
+            <td>${escapeHTML(d.status)}</td>
+            <td>
+                <button class="btn secondary small" onclick="previewDoc('${d.id}')">
+                    Preview
+                </button>
+            </td>
+        </tr>
+    `).join("");
+
+    $("docEmpty").classList.toggle("hidden", items.length > 0);
+
+    go("documents");
+}
+
+window.showFolderDocuments = showFolderDocuments;
+
+$("folderForm").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    if (!currentProfile) return;
+
+    const name = $("folderName").value.trim();
+    const color = $("folderColor").value;
+
+    if (!name) return toast("Enter a folder name.");
+
+    const { error } = await sb
+        .from("docukeep_folders")
+        .insert({
+            owner_id: currentProfile.id,
+            name,
+            color
+        });
+
+    if (error) {
+        return toast("Could not create folder: " + error.message);
+    }
+
+    e.target.reset();
+    $("folderColor").value = "#2862a5";
+
+    await loadFolders();
+
+    toast("Folder created.");
+});
+
+/* =========================================================
+   NOTIFICATIONS
+========================================================= */
+
+async function loadNotifications() {
+    if (!currentProfile) return;
+
+    const { data, error } = await sb
+        .from("docukeep_notifications")
+        .select("id,title,message,created_at,is_read")
+        .eq("user_id", currentProfile.id)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+    if (error) {
+        $("notificationList").innerHTML =
+            '<div class="empty">Notifications unavailable. Check table and RLS policies.</div>';
+        return;
+    }
+
+    const rows = data || [];
+    const unread = rows.filter(n => !n.is_read).length;
+
+    $("notificationCount").textContent = unread ? `(${unread})` : "";
+
+    $("notificationList").innerHTML = rows.map(n => `
+        <div style="padding:12px;border-bottom:1px solid var(--line);${n.is_read ? "opacity:.65" : ""}">
+            <b>${escapeHTML(n.title)}</b>
+            <p>${escapeHTML(n.message)}</p>
+            <small class="muted">
+                ${dateText(n.created_at)} · ${n.is_read ? "Read" : "Unread"}
+            </small>
+            ${n.is_read ? "" : `
+                <button class="btn secondary small" onclick="markNotificationRead('${n.id}')">
+                    Mark read
+                </button>
+            `}
+        </div>
+    `).join("") || '<div class="empty">You have no notifications.</div>';
+}
+
+async function markNotificationRead(id) {
+    const { error } = await sb
+        .from("docukeep_notifications")
+        .update({ is_read: true })
+        .eq("id", id)
+        .eq("user_id", currentProfile.id);
+
+    if (error) return toast(error.message);
+
+    await loadNotifications();
+}
+
+async function markAllNotificationsRead() {
+    if (!currentProfile) return;
+
+    const { error } = await sb
+        .from("docukeep_notifications")
+        .update({ is_read: true })
+        .eq("user_id", currentProfile.id)
+        .eq("is_read", false);
+
+    if (error) return toast(error.message);
+
+    await loadNotifications();
+
+    toast("Notifications marked as read");
+}
+
+window.markNotificationRead = markNotificationRead;
+window.markAllNotificationsRead = markAllNotificationsRead;
+
+/* =========================================================
+   PREMIUM SUBSCRIPTION PLANS
+========================================================= */
+
+const SUBSCRIPTION_PLANS = {
+    yearly: {
+        label: "1-Year Subscription",
+        amount: 100,
+        days: 365
+    },
+    monthly: {
+        label: "1-Month Subscription",
+        amount: 50,
+        days: 30
+    },
+    weekly: {
+        label: "1-Week Subscription",
+        amount: 25,
+        days: 7
+    }
+};
+
+let selectedSubscriptionPlan = null;
+
+function chooseSubscription(key) {
+    const plan = SUBSCRIPTION_PLANS[key];
+
+    if (!plan) return;
+
+    selectedSubscriptionPlan = key;
+
+    $("selectedPlanLabel").value = plan.label;
+    $("selectedPlanAmount").value =
+        "₱" + plan.amount.toLocaleString("en-PH");
+
+    $("subscriptionCheckout").scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+}
+
+function requestStatusLabel(status) {
+    return ({
+        pending: "Awaiting staff review",
+        activated: "Payment accepted · Premium active",
+        rejected: "Request rejected",
+        cancelled: "Request cancelled"
+    })[status] || status;
+}
+
+function renderMySubscriptionRows(rows) {
+    const el = $("mySubscriptionRequests");
+
+    if (!el) return;
+
+    el.innerHTML = (rows || []).map(r => `
+        <div class="request-card">
+            <div class="actions" style="justify-content:space-between">
+                <b>${escapeHTML(SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key)}</b>
+                <span class="status-chip ${escapeHTML(r.status)}">
+                    ${escapeHTML(requestStatusLabel(r.status))}
+                </span>
+            </div>
+
+            <p>
+                <b>Amount:</b>
+                ₱${Number(r.amount_php).toLocaleString("en-PH")}
+                · <b>Submitted:</b> ${dateText(r.created_at)}
+            </p>
+
+            <p>
+                <b>Reference:</b>
+                ${escapeHTML(r.payment_reference || "Not provided")}
+            </p>
+
+            ${r.admin_message ? `
+                <div class="review-feedback">
+                    <b>Administrator message</b>
+                    <p>${escapeHTML(r.admin_message)}</p>
+                </div>
+            ` : ""}
+
+            ${r.status === "activated" ? `
+                <p><b>Premium valid until:</b> ${dateText(r.expires_at)}</p>
+            ` : ""}
+        </div>
+    `).join("") ||
+    '<div class="empty">You have not submitted a subscription request yet.</div>';
+}
+
+async function loadMySubscriptionRequests() {
+    if (!currentProfile || currentProfile.role === "staff") return;
+
+    const el = $("mySubscriptionRequests");
+
+    if (!el) return;
+
+    const { data, error } = await sb
+        .from("docukeep_subscription_requests")
+        .select("id,plan_key,amount_php,payment_reference,status,admin_message,created_at,expires_at")
+        .eq("user_id", currentProfile.id)
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        el.innerHTML = `
+            <div class="empty">
+                Payment requests unavailable.
+                ${escapeHTML(error.message)}
+            </div>`;
+        return;
+    }
+
+    renderMySubscriptionRows(data || []);
+}
+
+/* =========================================================
+   SUBSCRIPTION PAYMENT REQUEST
+========================================================= */
+
+$("subscriptionForm")?.addEventListener("submit", async e => {
+    e.preventDefault();
+
+    if (!currentProfile || currentProfile.role === "staff") {
+        return toast("Sign in as a student or teacher to request Premium.");
+    }
+
+    if (!selectedSubscriptionPlan) {
+        return toast("Choose a subscription plan first.");
+    }
+
+    if (!$("paymentReference").value.trim()) {
+        return toast("Enter your payment Reference ID.");
+    }
+
+    const file = $("paymentReceipt").files[0];
+
+    if (!file) {
+        return toast("Upload your payment receipt.");
+    }
+
+    if (!["image/jpeg", "image/png", "application/pdf"].includes(file.type)) {
+        return toast("Receipt must be JPG, PNG, or PDF.");
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+        return toast("Receipt must be 5 MB or smaller.");
+    }
+
+    const plan = SUBSCRIPTION_PLANS[selectedSubscriptionPlan];
+    const btn = e.target.querySelector('button[type="submit"]');
+
+    btn.disabled = true;
+    btn.textContent = "Submitting…";
+
+    let uploadedPath = null;
+
+    try {
+        const requestId = crypto.randomUUID();
+
+        const ext =
+            file.type === "application/pdf"
+                ? "pdf"
+                : file.type === "image/png"
+                    ? "png"
+                    : "jpg";
+
+        const path = `${currentProfile.id}/${requestId}.${ext}`;
+
+        const up = await sb.storage
+            .from("docukeep-payment-receipts")
+            .upload(path, file, {
+                upsert: false,
+                contentType: file.type
+            });
+
+        if (up.error) throw up.error;
+
+        uploadedPath = path;
+
+        const { error } = await sb
+            .from("docukeep_subscription_requests")
+            .insert({
+                id: requestId,
+                user_id: currentProfile.id,
+                plan_key: selectedSubscriptionPlan,
+                amount_php: plan.amount,
+                payment_reference: $("paymentReference").value.trim(),
+                receipt_path: path,
+                user_message: $("paymentNote").value.trim() || null,
+                status: "pending"
+            });
+
+        if (error) throw error;
+
+        e.target.reset();
+        selectedSubscriptionPlan = null;
+        uploadedPath = null;
+
+        toast("Subscription request and receipt sent to staff.");
+
+        await loadMySubscriptionRequests();
+
+    } catch (err) {
+        console.error("Subscription submission error:", err);
+
+        if (uploadedPath) {
+            await sb.storage
+                .from("docukeep-payment-receipts")
+                .remove([uploadedPath]);
+        }
+
+        toast("Could not submit payment request: " + err.message);
+
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Send request and receipt";
+    }
+});
+
+/* =========================================================
+   STAFF SUBSCRIPTION REQUESTS
+========================================================= */
+
+async function loadAdminSubscriptionRequests() {
+    const el = $("adminSubscriptionRequests");
+
+    if (!el || currentProfile?.role !== "staff") return;
+
+    el.innerHTML = '<div class="empty">Loading payment requests…</div>';
+
+    const { data: rows, error } = await sb
+        .from("docukeep_subscription_requests")
+        .select("id,user_id,plan_key,amount_php,payment_reference,receipt_path,user_message,status,admin_message,created_at,starts_at,expires_at")
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        el.innerHTML = `
+            <div class="empty">
+                Could not load payment requests.
+                ${escapeHTML(error.message)}
+            </div>`;
+        return;
+    }
+
+    if (!rows?.length) {
+        el.innerHTML = '<div class="empty">No subscription requests yet.</div>';
+        return;
+    }
+
+    const ids = [...new Set(rows.map(r => r.user_id))];
+
+    const pr = await sb
+        .from("profiles")
+        .select("id,full_name,email,role,department")
+        .in("id", ids);
+
+    if (pr.error) {
+        el.innerHTML = `<div class="empty">${escapeHTML(pr.error.message)}</div>`;
+        return;
+    }
+
+    const profiles = Object.fromEntries(
+        (pr.data || []).map(p => [p.id, p])
+    );
+
+    el.innerHTML = rows.map(r => {
+        const u = profiles[r.user_id] || {};
+
+        return `
+            <div class="request-card">
+                <div class="actions" style="justify-content:space-between">
+                    <b>
+                        ${escapeHTML(u.full_name || u.email || r.user_id)}
+                        · ${escapeHTML(u.role || "user")}
+                    </b>
+
+                    <span class="status-chip ${escapeHTML(r.status)}">
+                        ${escapeHTML(requestStatusLabel(r.status))}
+                    </span>
+                </div>
+
+                <p>
+                    ${escapeHTML(u.email || "")}
+                    · ${escapeHTML(u.department || "")}
+                </p>
+
+                <p>
+                    <b>${escapeHTML(SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key)}</b>
+                    · ₱${Number(r.amount_php).toLocaleString("en-PH")}
+                    · ${dateText(r.created_at)}
+                </p>
+
+                <p>
+                    <b>Reference:</b>
+                    ${escapeHTML(r.payment_reference || "Not provided")}
+                </p>
+
+                <p>
+                    <b>User message:</b>
+                    ${escapeHTML(r.user_message || "—")}
+                </p>
+
+                <div class="actions">
+                    <button class="btn secondary small"
+                        onclick="viewPaymentReceipt('${r.id}')">
+                        View receipt
+                    </button>
+
+                    ${r.status === "pending" ? `
+                        <button class="btn green small"
+                            onclick="decideSubscription('${r.id}','activated')">
+                            Accept & activate
+                        </button>
+
+                        <button class="btn danger small"
+                            onclick="decideSubscription('${r.id}','rejected')">
+                            Reject
+                        </button>
+
+                        <button class="btn secondary small"
+                            onclick="messageSubscription('${r.id}')">
+                            Send message
+                        </button>
+                    ` : ""}
+                </div>
+
+                ${r.admin_message ? `
+                    <div class="review-feedback">
+                        <b>Last admin message</b>
+                        <p>${escapeHTML(r.admin_message)}</p>
+                    </div>
+                ` : ""}
+
+                ${r.status === "activated" ? `
+                    <small class="muted">
+                        Premium: ${dateText(r.starts_at)} – ${dateText(r.expires_at)}
+                    </small>
+                ` : ""}
+            </div>
+        `;
+    }).join("");
+}
+
+async function viewPaymentReceipt(id) {
+    if (currentProfile?.role !== "staff") {
+        return toast("Staff access required.");
+    }
+
+    const { data: r, error } = await sb
+        .from("docukeep_subscription_requests")
+        .select("receipt_path")
+        .eq("id", id)
+        .single();
+
+    if (error) return toast(error.message);
+
+    const signed = await sb.storage
+        .from("docukeep-payment-receipts")
+        .createSignedUrl(r.receipt_path, 300);
+
+    if (signed.error) {
+        return toast("Cannot open receipt: " + signed.error.message);
+    }
+
+    window.open(signed.data.signedUrl, "_blank", "noopener");
+}
+
+async function decideSubscription(id, status) {
+    if (currentProfile?.role !== "staff") {
+        return toast("Staff access required.");
+    }
+
+    // IMPORTANT: The database accepts "activated", NOT "approved".
+    if (!["activated", "rejected"].includes(status)) {
+        return toast("Invalid subscription decision.");
+    }
+
+    let msg = prompt(
+        status === "activated"
+            ? "Optional message to the user:"
+            : "Reason for rejecting this payment:",
+        ""
+    );
+
+    if (msg === null) return;
+
+    if (status === "rejected" && !msg.trim()) {
+        return toast("Please enter a rejection reason.");
+    }
+
+    const { error } = await sb.rpc(
+        "review_docukeep_subscription_request",
+        {
+            p_request_id: id,
+            p_status: status,
+            p_admin_message: msg.trim() || null
+        }
+    );
+
+    if (error) {
+        return toast("Could not update request: " + error.message);
+    }
+
+    toast(
+        status === "activated"
+            ? "Payment accepted. Premium has been activated."
+            : "Payment request rejected."
+    );
+
+    await loadAdminSubscriptionRequests();
+}
+
+async function messageSubscription(id) {
+    if (currentProfile?.role !== "staff") {
+        return toast("Staff access required.");
+    }
+
+    const msg = prompt("Write a message about this transaction:");
+
+    if (msg === null || !msg.trim()) return;
+
+    const { error } = await sb.rpc(
+        "message_docukeep_subscription_request",
+        {
+            p_request_id: id,
+            p_admin_message: msg.trim()
+        }
+    );
+
+    if (error) {
+        return toast("Message could not be sent: " + error.message);
+    }
+
+    toast("Message sent to user.");
+
+    await loadAdminSubscriptionRequests();
+}
+
+window.chooseSubscription = chooseSubscription;
+window.viewPaymentReceipt = viewPaymentReceipt;
+window.decideSubscription = decideSubscription;
+window.messageSubscription = messageSubscription;
+
+/* =========================================================
+   STAFF ADMINISTRATION
+========================================================= */
+
+async function renderAdmin() {
+    if (currentProfile?.role !== "staff") {
+        $("requests").innerHTML =
+            '<div class="empty">Staff access required.</div>';
+        return;
+    }
+
+    await loadAdminSubscriptionRequests();
+
+    $("requests").innerHTML = '<div class="empty">Loading…</div>';
+
+    const { data: users, error } = await sb
+        .from("profiles")
+        .select("id,full_name,email,role,department,created_at")
+        .eq("status", "pending")
+        .order("created_at");
+
+    if (error) {
+        $("requests").innerHTML =
+            '<div class="empty">Could not load requests: ' +
+            escapeHTML(error.message) +
+            '</div>';
+        return;
+    }
+
+    $("requests").innerHTML = (users || []).map(u => `
+        <div style="padding:12px 0;border-bottom:1px solid #eee">
+            <b>${escapeHTML(u.full_name)}</b> · ${escapeHTML(u.role)}
+            <br>
+            <small>
+                ${escapeHTML(u.email)}
+                · ${escapeHTML(u.department || "No department")}
+                · ${dateText(u.created_at)}
+            </small>
+
+            <div class="actions" style="margin-top:8px">
+                <button class="btn green small"
+                    onclick="reviewUser('${u.id}','approved')">
+                    Approve
+                </button>
+
+                <button class="btn danger small"
+                    onclick="reviewUser('${u.id}','rejected')">
+                    Reject
+                </button>
+            </div>
+        </div>
+    `).join("") || '<div class="empty">No pending registrations.</div>';
+
+    const { data: all, error: allErr } = await sb
+        .from("profiles")
+        .select("id,full_name,email,role,department,status,created_at")
+        .order("created_at", { ascending: false });
+
+    if (allErr) {
+        $("managedUsers").innerHTML =
+            `<tr><td colspan="5">${escapeHTML(allErr.message)}</td></tr>`;
+    } else {
+        managedUsersCache = all || [];
+        filterManagedUsers();
+    }
+
+    $("allRows").innerHTML = documents.map(d => `
+        <tr>
+            <td>${escapeHTML(d.owner_name || "")}</td>
+
+            <td>
+                <b>${escapeHTML(d.title)}</b>
+                <br>
+                <small class="muted">${escapeHTML(d.file_name || "")}</small>
+                ${reviewCommentHTML(d)}
+            </td>
+
+            <td>${escapeHTML(d.category)}</td>
+            <td>${dateText(d.created_at)}</td>
+
+            <td>
+                <span class="pill ${statusClass(d.status)}">
+                    ${escapeHTML(d.status)}
+                </span>
+
+                <div class="actions" style="margin-top:6px">
+                    <button class="btn secondary small"
+                        onclick="previewDoc('${d.id}')">Preview</button>
+
+                    <button class="btn secondary small"
+                        onclick="downloadDoc('${d.id}')">Download</button>
+
+                    <button class="btn green small"
+                        onclick="reviewDoc('${d.id}','approved')">Approve</button>
+
+                    <button class="btn secondary small"
+                        onclick="reviewDoc('${d.id}','needs_revision')">Return</button>
+
+                    <button class="btn danger small"
+                        onclick="reviewDoc('${d.id}','rejected')">Reject</button>
+                </div>
+            </td>
+        </tr>
+    `).join("");
+}
+
+/* =========================================================
+   MANAGE USERS
+========================================================= */
+
+function filterManagedUsers() {
+    const q = ($("userSearch")?.value || "").trim().toLowerCase();
+    const rf = $("userRoleFilter")?.value || "all";
+
+    const arr = managedUsersCache.filter(u =>
+        (!q || `${u.full_name || ""} ${u.email || ""}`.toLowerCase().includes(q)) &&
+        (rf === "all" || u.role === rf)
+    );
+
+    $("managedUsers").innerHTML = arr.map(u => {
+        const self = u.id === currentProfile?.id;
+
+        return `
+            <tr>
+                <td>
+                    <b>${escapeHTML(u.full_name || "Unnamed user")}</b>
+                    <br>
+                    <small>${escapeHTML(u.email || "")}</small>
+                </td>
+
+                <td>${escapeHTML(u.department || "—")}</td>
+
+                <td>
+                    <span class="pill ${u.role === "staff" ? "approved" : "pending"}">
+                        ${escapeHTML(u.role)}
+                    </span>
+                </td>
+
+                <td>
+                    <div class="actions">
+                        <select id="role-${u.id}"
+                            ${self ? "disabled" : ""}
+                            style="padding:6px;border:1px solid var(--line);border-radius:7px">
+
+                            <option value="student" ${u.role === "student" ? "selected" : ""}>
+                                Student
+                            </option>
+
+                            <option value="teacher" ${u.role === "teacher" ? "selected" : ""}>
+                                Teacher
+                            </option>
+
+                            <option value="staff" ${u.role === "staff" ? "selected" : ""}>
+                                Staff / Admin
+                            </option>
+                        </select>
+
+                        <button class="btn small"
+                            onclick="changeUserRole('${u.id}')"
+                            ${self ? "disabled" : ""}>
+                            Save
+                        </button>
+                    </div>
+                </td>
+
+                <td>
+                    ${escapeHTML(u.status || "unknown")}
+                    ${self ? " · You" : ""}
+                </td>
+            </tr>
+        `;
+    }).join("") ||
+    '<tr><td colspan="5" class="empty">No matching accounts.</td></tr>';
+}
+
+async function changeUserRole(id) {
+    if (currentProfile?.role !== "staff") {
+        return toast("Staff access required.");
+    }
+
+    if (id === currentProfile.id) {
+        return toast("You cannot change your own role.");
+    }
+
+    const role = $("role-" + id)?.value;
+
+    if (!["student", "teacher", "staff"].includes(role)) {
+        return toast("Choose a valid role.");
+    }
+
+    const u = managedUsersCache.find(x => x.id === id);
+
+    if (!u) return toast("User not found.");
+    if (role === u.role) return toast("Account already has that role.");
+
+    if (!confirm(`Change ${u.email} from ${u.role} to ${role}?`)) {
+        return;
+    }
+
+    const { error } = await sb.rpc("manage_docukeep_user_role", {
+        p_user_id: id,
+        p_new_role: role
+    });
+
+    if (error) {
+        return toast("Role change failed: " + error.message);
+    }
+
+    toast("Role updated.");
+
+    await renderAdmin();
+}
+
+async function reviewUser(id, status) {
+    if (currentProfile?.role !== "staff") {
+        return toast("Staff access required.");
+    }
+
+    if (!["approved", "rejected"].includes(status)) return;
+
+    const { error } = await sb.rpc("approve_docukeep_profile", {
+        p_user_id: id,
+        p_status: status
+    });
+
+    if (error) {
+        return toast("Account update failed: " + error.message);
+    }
+
+    toast("Account " + status + ".");
+
+    await renderAdmin();
+}
+
+async function reviewDoc(id, status) {
+    if (currentProfile?.role !== "staff") {
+        return toast("Staff access required.");
+    }
+
+    if (!["approved", "needs_revision", "rejected"].includes(status)) {
+        return;
+    }
+
+    const prompts = {
+        approved: "Enter an optional comment for this approval:",
+        needs_revision: "Explain what needs to be corrected:",
+        rejected: "Explain why this document is rejected:"
+    };
+
+    const entered = prompt(prompts[status]);
+
+    if (entered === null) return;
+
+    const reviewComment = entered.trim();
+
+    if (
+        ["needs_revision", "rejected"].includes(status) &&
+        !reviewComment
+    ) {
+        return toast("Please provide a review comment.");
+    }
+
+    const { error } = await sb
+        .from("documents")
+        .update({
+            status,
+            review_comment: reviewComment || null,
+            reviewed_at: new Date().toISOString(),
+            reviewed_by: currentProfile.id
+        })
+        .eq("id", id);
+
+    if (error) {
+        return toast("Document update failed: " + error.message);
+    }
+
+    toast("Document reviewed successfully.");
+
+    await loadDocuments();
+}
+
+window.filterManagedUsers = filterManagedUsers;
+window.changeUserRole = changeUserRole;
+window.reviewUser = reviewUser;
+window.reviewDoc = reviewDoc;
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+function go(page) {
+    const allowed = [
+        "dashboard",
+        "documents",
+        "upload",
+        "tracking",
+        "folders",
+        "notifications",
+        "premium",
+        "admin"
+    ];
+
+    if (!allowed.includes(page)) return;
+
+    if (!currentProfile) {
+        return toast("Please sign in first.");
+    }
+
+    if (page === "admin" && currentProfile.role !== "staff") {
+        return toast("Staff access required.");
+    }
+
+    document.querySelectorAll(".page").forEach(x => {
+        x.classList.remove("active");
+    });
+
+    $("page-" + page).classList.add("active");
+
+    document.querySelectorAll("[data-page]").forEach(x => {
+        x.classList.toggle("active", x.dataset.page === page);
+    });
+
+    $("crumb").textContent = ({
+        dashboard: "Dashboard",
+        documents: "My Documents",
+        upload: "Upload Document",
+        tracking: "Submission Tracking",
+        folders: "My Folders",
+        notifications: "Notifications",
+        premium: "Premium Plan",
+        admin: "Staff Administration"
+    })[page];
+
+    if (page === "admin") renderAdmin();
+    if (page === "premium") loadMySubscriptionRequests();
+    if (page === "folders") loadFolders();
+    if (page === "notifications") loadNotifications();
+
+    window.scrollTo(0, 0);
+}
+
+window.go = go;
+
+document.querySelectorAll("[data-page]").forEach(b => {
+    b.addEventListener("click", () => go(b.dataset.page));
+});
+
+/* =========================================================
+   SIGN OUT
+========================================================= */
+
+async function signOut() {
+    const { error } = await sb.auth.signOut();
+
+    if (error) {
+        return toast("Sign out failed: " + error.message);
+    }
+
+    currentProfile = null;
+    documents = [];
+    accountType = null;
+    managedUsersCache = [];
+
+    $("app").classList.add("hidden");
+    $("auth").classList.remove("hidden");
+
+    $("loginForm").reset();
+    $("signupForm").reset();
+
+    backChoice();
+
+    toast("Successfully signed out");
+}
+
+window.signOut = signOut;
+
+/* =========================================================
+   SESSION RESTORE
+========================================================= */
+
+async function restoreSession() {
+    const { data, error } = await sb.auth.getSession();
+
+    if (error) throw error;
+
+    if (data.session) {
+        await loadProfile(data.session.user, null);
+    }
+}
+
+(async () => {
+    try {
+        await updateOfflineStatus();
+
+        const params = new URLSearchParams(
+            location.hash.replace(/^#/, "")
+        );
+
+        const isRecovery = params.get("type") === "recovery";
+
+        if (isRecovery) {
+            recoveryMode = true;
+
+            $("choose").classList.add("hidden");
+            $("authform").classList.remove("hidden");
+
+            accountType = "student";
+
+            hideAllAuthForms();
+
+            $("resetForm").classList.remove("hidden");
+            $("formTitle").textContent = "Set a new password";
+
+            $("forgotSwitch").classList.add("hidden");
+            $("signupSwitch").classList.add("hidden");
+            $("resendSwitch").classList.add("hidden");
+
+            setAuthMessage("Enter and confirm your new password.");
+
+        } else {
+            await restoreSession();
+        }
+
+    } catch (e) {
+        console.error("Startup/session restore", e);
+
+        // Do not sign out automatically on temporary network/profile errors.
+        currentProfile = null;
+
+        $("app").classList.add("hidden");
+        $("auth").classList.remove("hidden");
+
+        toast("Session could not be restored: " + e.message);
+    }
+})();
+
+/* =========================================================
+   SERVICE WORKER
+========================================================= */
+
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker
+            .register("./sw.js")
+            .catch(e => console.warn("Service worker unavailable", e));
+    });
+}
+</script>
+
 </body>
 
 </html>
