@@ -1192,6 +1192,33 @@
     @media(max-width:760px){.documents-toolbar{align-items:flex-start;flex-direction:column}.documents-toolbar-actions{width:100%}.doc-search-wrap{flex:1;width:auto}.documents-workspace{grid-template-columns:1fr}.document-preview-panel{position:static}.document-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.preview-file-stage{min-height:160px}.feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:420px){.document-grid,.feature-grid{grid-template-columns:1fr}.documents-library{padding:10px}}
 
+
+    .document-card-actions { flex-wrap:wrap; }
+    .document-owner-meta { color:#718096; font-size:10px; margin-top:4px; }
+    .document-card-actions .btn { flex:1 1 auto; }
+    .file-xls { color:#239b70; background:#f0fbf5; }
+    .file-ppt { color:#d8793c; background:#fff6ef; }
+    .file-vid { color:#7b68c7; background:#f6f3ff; }
+    .file-aud { color:#c05c91; background:#fff3f8; }
+    .file-txt { color:#71839a; background:#f4f7fa; }
+    .file-zip { color:#b58a35; background:#fff9ec; }
+    .preview-delete-button { width:100%; margin-top:8px; }
+    .folder-management-actions { flex-wrap:wrap; justify-content:flex-start; }
+    .folder-management-actions .btn { padding:6px 8px; }
+    .folder-breadcrumb { overflow:hidden; margin-top:4px; color:#8c9bad; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
+    .folder-card { margin-left:calc(var(--folder-depth,0) * 10px); }
+    .selected-upload-files, .queued-upload-manager { display:grid; gap:7px; margin-top:9px; }
+    .selected-upload-item, .queued-upload-item { display:flex; align-items:center; gap:9px; min-width:0; padding:8px; border:1px solid #e6edf5; border-radius:9px; background:#fbfdff; }
+    .selected-upload-item .file-type-icon, .queued-upload-item .file-type-icon { width:29px; height:34px; flex:0 0 29px; font-size:7px; }
+    .selected-upload-name { display:flex; flex:1; min-width:0; flex-direction:column; overflow:hidden; color:#4a607a; font-size:10px; font-weight:700; text-overflow:ellipsis; }
+    .selected-upload-name small { margin-top:2px; color:#9aa7b7; font-size:9px; font-weight:500; }
+    .queued-upload-heading { margin:8px 0 2px; color:#8a6b32; font-size:10px; font-weight:800; }
+    .selected-upload-item .btn, .queued-upload-item .btn { flex:0 0 auto; }
+    @media(max-width:760px) {
+        .folder-card { margin-left:0; }
+        .folder-management-actions .btn { flex:1 1 auto; }
+    }
+
 </style>
 </head>
 
@@ -1351,7 +1378,7 @@
                         <form id="uploadForm">
                             <div class="grid">
                                 <div class="field"><label>Document file(s) *</label><input id="file" type="file"
-                                        multiple required></div>
+                                        multiple required><div id="selectedUploadFiles" class="selected-upload-files"></div></div>
                                 <div class="field"><label>Document title *</label><input id="title" required
                                         placeholder="e.g. Quarterly report"></div>
                                 <div class="field"><label>Category *</label><select id="category" required>
@@ -1379,8 +1406,8 @@
                                 <div class="field"><label>Description</label><input id="description"
                                         placeholder="Optional notes"></div>
                             </div><button class="btn" type="submit">Upload and submit</button>
-                            <div id="uploadProgress" class="notice" style="display:none;margin-top:12px">Preparing
-                                upload…</div>
+                            <div id="uploadProgress" class="notice" style="display:none;margin-top:12px">Preparing upload…</div>
+                            <div id="queuedUploadManager" class="queued-upload-manager"></div>
                         </form>
                     </div>
                 </section>
@@ -1407,6 +1434,7 @@
                         <form id="folderForm" class="grid">
                             <div class="field"><label for="folderName">Folder name</label><input id="folderName"
                                     required maxlength="80" placeholder="e.g. School Year 2026-2027"></div>
+                            <div class="field"><label for="folderParent">Inside folder</label><select id="folderParent"><option value="">No parent (top-level folder)</option></select></div>
                             <div class="field folder-color-field">
                                 <label for="folderColor">Folder color
                                     <span class="premium-inline-label hidden" id="folderColorPremiumLabel">✦ PREMIUM</span>
@@ -1660,6 +1688,9 @@ let isPremium = false;
 let premiumExpiresAt = null;
 let selectedDocumentId = null;
 let documentSearchTerm = "";
+let selectedUploadFiles = [];
+let cancelUploadRequested = false;
+let folderCache = [];
 
 const $ = id => document.getElementById(id);
 
@@ -2332,7 +2363,8 @@ async function loadDocuments() {
 
     await Promise.all([
         loadFolders(),
-        loadNotifications()
+        loadNotifications(),
+        renderQueuedUploadManager()
     ]);
 }
 
@@ -2346,12 +2378,18 @@ function reviewCommentHTML(d) {
 }
 
 function documentFileKind(d) {
-    const name = (d.file_name || d.title || "").toLowerCase();
-    const mime = (d.mime_type || "").toLowerCase();
+    const name = (d.file_name || d.fileName || d.title || "").toLowerCase();
+    const mime = (d.mime_type || d.mimeType || "").toLowerCase();
     if (mime.includes("pdf") || name.endsWith(".pdf")) return "PDF";
-    if (mime.includes("spreadsheet") || /\.(csv|xls|xlsx)$/i.test(name)) return "CSV";
     if (mime.includes("word") || /\.(doc|docx)$/i.test(name)) return "DOC";
-    if (mime.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(name)) return "IMG";
+    if (mime.includes("spreadsheet") || /\.(xls|xlsx)$/i.test(name)) return "XLS";
+    if (mime.includes("csv") || name.endsWith(".csv")) return "CSV";
+    if (mime.includes("presentation") || /\.(ppt|pptx)$/i.test(name)) return "PPT";
+    if (mime.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(name)) return "IMG";
+    if (mime.startsWith("video/") || /\.(mp4|mov|avi|mkv|webm)$/i.test(name)) return "VID";
+    if (mime.startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg)$/i.test(name)) return "AUD";
+    if (/\.(txt|md|rtf)$/i.test(name) || mime.startsWith("text/")) return "TXT";
+    if (/\.(zip|rar|7z|tar|gz)$/i.test(name)) return "ZIP";
     return "FILE";
 }
 
@@ -2371,6 +2409,7 @@ function renderDocumentCards(items) {
                 </div>
                 <div class="document-card-name" title="${escapeHTML(d.title)}">${escapeHTML(d.title)}</div>
                 <div class="document-card-meta">${escapeHTML(d.category || "Uncategorized")}</div>
+                <div class="document-card-meta document-owner-meta">Uploaded by ${escapeHTML(d.owner_name || (d.owner_id === currentProfile?.id ? "You" : "DocuKeep user"))}</div>
                 <div class="document-card-footer">
                     <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span>
                     <span>${dateText(d.created_at)}</span>
@@ -2378,6 +2417,7 @@ function renderDocumentCards(items) {
                 <div class="document-card-actions">
                     <button class="btn secondary small" onclick="event.stopPropagation();previewDoc('${d.id}')">Preview</button>
                     <button class="btn secondary small" onclick="event.stopPropagation();downloadDoc('${d.id}')">Download</button>
+                    ${(d.owner_id === currentProfile?.id || currentProfile?.role === "staff") ? `<button class="btn danger small" title="${currentProfile?.role === "staff" && d.owner_id !== currentProfile?.id ? "Admin: delete this user's document" : "Delete your document"}" onclick="event.stopPropagation();deleteDocument('${d.id}')">Delete</button>` : ""}
                 </div>
             </article>`;
     }).join("");
@@ -2411,6 +2451,7 @@ function documentPreviewPanelHTML(d) {
         </div></div>
         <div class="preview-panel-file-title" title="${escapeHTML(fileName)}">${escapeHTML(fileName)}</div>
         <div class="preview-detail-list">
+            <div><span>Uploaded by</span><b>${escapeHTML(d.owner_name || (d.owner_id === currentProfile?.id ? "You" : "DocuKeep user"))}</b></div>
             <div><span>Category</span><b>${escapeHTML(d.category || "—")}</b></div>
             <div><span>Date submitted</span><b>${dateText(d.created_at)}</b></div>
             <div><span>Status</span><b><span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span></b></div>
@@ -2420,34 +2461,34 @@ function documentPreviewPanelHTML(d) {
         <div class="preview-panel-actions">
             <button class="btn" onclick="previewDoc('${d.id}')">Open preview</button>
             <button class="btn secondary" onclick="downloadDoc('${d.id}')">Download</button>
-        </div>`;
+        </div>
+        ${(d.owner_id === currentProfile?.id || currentProfile?.role === "staff") ? `<button class="btn danger small preview-delete-button" onclick="deleteDocument('${d.id}')">${currentProfile?.role === "staff" && d.owner_id !== currentProfile?.id ? "Admin: delete document" : "Delete document"}</button>` : ""}`;
 }
 
 function selectDocumentPreview(id) {
     selectedDocumentId = id;
-    const own = documents.filter(d => currentProfile?.role === "staff" || d.owner_id === currentProfile?.id);
-    renderDocumentCards(own);
+    renderDocumentCards(documents);
 }
 function filterDocumentCards(value) {
     documentSearchTerm = value || "";
-    const own = documents.filter(d => currentProfile?.role === "staff" || d.owner_id === currentProfile?.id);
-    renderDocumentCards(own);
+    renderDocumentCards(documents);
 }
 window.selectDocumentPreview = selectDocumentPreview;
 window.filterDocumentCards = filterDocumentCards;
 
 function renderDocuments() {
     if (!currentProfile) return;
-    const own = documents.filter(d => currentProfile.role === "staff" || d.owner_id === currentProfile.id);
-    $("total").textContent = own.length;
-    $("pending").textContent = own.filter(d => d.status === "pending").length;
-    $("approved").textContent = own.filter(d => d.status === "approved").length;
-    $("recent").innerHTML = own.slice(0, 5).map(d => `
+    // Shared school library: every signed-in user sees all uploaded documents.
+    const visibleDocuments = documents;
+    $("total").textContent = visibleDocuments.length;
+    $("pending").textContent = visibleDocuments.filter(d => d.status === "pending").length;
+    $("approved").textContent = visibleDocuments.filter(d => d.status === "approved").length;
+    $("recent").innerHTML = visibleDocuments.slice(0, 5).map(d => `
         <p><b>${escapeHTML(d.title)}</b> · ${escapeHTML(d.category)} ·
         <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span></p>
     `).join("") || '<div class="empty">No documents yet.</div>';
-    renderDocumentCards(own);
-    $("tracking").innerHTML = own.map(d => `
+    renderDocumentCards(visibleDocuments);
+    $("tracking").innerHTML = visibleDocuments.map(d => `
         <p><b>${escapeHTML(d.title)}</b> · ${dateText(d.created_at)} ·
         <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span>
         ${reviewCommentHTML(d)}</p>
@@ -2662,9 +2703,63 @@ async function sha256File(f) {
     }
 }
 
+function renderSelectedUploadFiles() {
+    const wrap = $("selectedUploadFiles");
+    if (!wrap) return;
+    wrap.innerHTML = selectedUploadFiles.map((f, i) => `
+        <div class="selected-upload-item">
+            <span class="file-type-icon file-${documentFileKind({file_name:f.name,mime_type:f.type}).toLowerCase()}">${documentFileKind({file_name:f.name,mime_type:f.type})}</span>
+            <span class="selected-upload-name" title="${escapeHTML(f.name)}">${escapeHTML(f.name)} <small>${humanBytes(f.size)}</small></span>
+            <button type="button" class="btn danger small" onclick="removeSelectedUploadFile(${i})">Remove</button>
+        </div>`).join("");
+}
+function removeSelectedUploadFile(index) {
+    selectedUploadFiles.splice(index, 1);
+    renderSelectedUploadFiles();
+    if (!selectedUploadFiles.length) $("file").value = "";
+}
+window.removeSelectedUploadFile = removeSelectedUploadFile;
+
+$("file").addEventListener("change", e => {
+    selectedUploadFiles = Array.from(e.target.files || []);
+    renderSelectedUploadFiles();
+});
+
+async function renderQueuedUploadManager() {
+    const host = $("queuedUploadManager");
+    if (!host || !currentProfile) return;
+    try {
+        const jobs = (await getQueuedUploads()).filter(j => j.ownerId === currentProfile.id);
+        host.innerHTML = jobs.length ? `
+            <div class="queued-upload-heading">Waiting for internet · ${jobs.length}</div>
+            ${jobs.map(j => `
+                <div class="queued-upload-item">
+                    <span class="file-type-icon file-${documentFileKind({file_name:j.fileName,mime_type:j.mimeType}).toLowerCase()}">${documentFileKind({file_name:j.fileName,mime_type:j.mimeType})}</span>
+                    <span class="selected-upload-name">${escapeHTML(j.fileName)} <small>${humanBytes(j.sizeBytes)}</small></span>
+                    <button type="button" class="btn danger small" onclick="cancelQueuedUpload('${j.id}')">Cancel upload</button>
+                </div>`).join("")}` : "";
+    } catch (err) {
+        console.warn("Could not load offline queue", err);
+    }
+}
+async function cancelQueuedUpload(id) {
+    const jobs = await getQueuedUploads();
+    const job = jobs.find(j => j.id === id && j.ownerId === currentProfile?.id);
+    if (!job) return;
+    if (!confirm(`Cancel the queued upload "${job.fileName}"?`)) return;
+    await removeQueuedUpload(id);
+    await updateOfflineStatus();
+    await renderQueuedUploadManager();
+    toast("Queued upload cancelled.");
+}
+window.cancelQueuedUpload = cancelQueuedUpload;
+
 /* =========================================================
    UPLOAD DOCUMENTS
 ========================================================= */
+
+function cancelCurrentUpload() { cancelUploadRequested = true; toast("Will stop after the current file finishes."); }
+window.cancelCurrentUpload = cancelCurrentUpload;
 
 $("uploadForm").addEventListener("submit", async e => {
     e.preventDefault();
@@ -2673,7 +2768,7 @@ $("uploadForm").addEventListener("submit", async e => {
         return toast("Please sign in first.");
     }
 
-    const files = Array.from($("file").files || []);
+    const files = [...selectedUploadFiles];
 
     if (!files.length) {
         return toast("Choose at least one file.");
@@ -2697,13 +2792,15 @@ $("uploadForm").addEventListener("submit", async e => {
     let ok = 0;
     let queued = 0;
     let failed = 0;
+    cancelUploadRequested = false;
+    prog.innerHTML = `Preparing upload… <button type="button" class="btn danger small" onclick="cancelCurrentUpload()">Cancel remaining</button>`;
 
     try {
         for (let i = 0; i < files.length; i++) {
+            if (cancelUploadRequested) break;
             const f = files[i];
 
-            prog.textContent =
-                `Processing ${i + 1} of ${files.length}: ${f.name}`;
+            prog.innerHTML = `Processing ${i + 1} of ${files.length}: ${escapeHTML(f.name)} <button type="button" class="btn danger small" onclick="cancelCurrentUpload()">Cancel remaining</button>`;
 
             if (f.size > 25 * 1024 * 1024) {
                 failed++;
@@ -2750,6 +2847,7 @@ $("uploadForm").addEventListener("submit", async e => {
                 sizeBytes: f.size
             };
 
+            if (cancelUploadRequested) break;
             if (!navigator.onLine) {
                 await queueOfflineUpload(j);
                 queued++;
@@ -2773,11 +2871,13 @@ $("uploadForm").addEventListener("submit", async e => {
             }
         }
 
+        if (cancelUploadRequested) toast("Upload cancelled. Any completed uploads remain saved.");
+
         if (ok || queued) {
-            if (files.length === 1 && ok) {
-                e.target.reset();
-                $("year").value = "2026–2027";
-            }
+            selectedUploadFiles = [];
+            e.target.reset();
+            renderSelectedUploadFiles();
+            $("year").value = "2026–2027";
 
             await loadDocuments();
 
@@ -2788,6 +2888,7 @@ $("uploadForm").addEventListener("submit", async e => {
         }
 
         await updateOfflineStatus();
+        await renderQueuedUploadManager();
 
     } catch (err) {
         console.error(err);
@@ -2799,6 +2900,47 @@ $("uploadForm").addEventListener("submit", async e => {
         prog.style.display = "none";
     }
 });
+
+async function deleteDocument(id) {
+    const d = documents.find(x => x.id === id);
+    if (!d || !currentProfile) return;
+
+    // Staff is the administrator role in this app. Regular users may delete only their own files.
+    const isAdmin = currentProfile.role === "staff";
+    const isOwner = d.owner_id === currentProfile.id;
+    if (!isAdmin && !isOwner) {
+        return toast("You can only delete documents uploaded by your account.");
+    }
+
+    const label = d.file_name || d.title || "this document";
+    const ownerLabel = d.owner_name || "another user";
+    const confirmMessage = isAdmin && !isOwner
+        ? `Administrator action: permanently delete "${label}" uploaded by ${ownerLabel}?`
+        : `Permanently delete your document "${label}"?`;
+    if (!confirm(confirmMessage)) return;
+
+    try {
+        // Storage policies must also permit staff/admin to remove any user's object.
+        if (d.storage_path) {
+            const { error: storageError } = await sb.storage.from(BUCKET).remove([d.storage_path]);
+            if (storageError) throw storageError;
+        }
+        let query = sb.from("documents").delete().eq("id", id);
+        if (!isAdmin) query = query.eq("owner_id", currentProfile.id);
+        const { error } = await query;
+        if (error) throw error;
+
+        documents = documents.filter(x => x.id !== id);
+        selectedDocumentId = null;
+        renderDocuments();
+        updateStorageStats();
+        toast("Document deleted.");
+    } catch (err) {
+        console.error(err);
+        toast("Could not delete document. Check the Supabase table and storage permissions: " + err.message);
+    }
+}
+window.deleteDocument = deleteDocument;
 
 /* =========================================================
    PREVIEW AND DOWNLOAD
@@ -2924,18 +3066,44 @@ async function loadFolders() {
 
     const { data, error } = await sb
         .from("docukeep_folders")
-        .select("id,name,color,created_at")
+        .select("id,name,color,parent_id,created_at")
         .eq("owner_id", currentProfile.id)
         .order("created_at");
 
     if (error) {
         $("folderList").innerHTML =
-            '<div class="empty">Folders unavailable. Check the folder table and RLS policies.</div>';
+            '<div class="empty">Folders unavailable. Apply the folder parent_id database update and check your folder table policies.</div>';
         return;
     }
 
-    $("folderList").innerHTML = (data || []).map(f => `
-        <div class="folder-card" style="--folder-accent:${escapeHTML(f.color || "#2862a5")}">
+    folderCache = data || [];
+    const byId = new Map(folderCache.map(f => [f.id, f]));
+    const depthOf = f => {
+        let depth = 0, parent = f.parent_id, guard = 0;
+        while (parent && byId.has(parent) && guard++ < 20) {
+            depth++; parent = byId.get(parent).parent_id;
+        }
+        return depth;
+    };
+    const breadcrumb = f => {
+        const names = [];
+        let parent = f.parent_id, guard = 0;
+        while (parent && byId.has(parent) && guard++ < 20) {
+            names.unshift(byId.get(parent).name);
+            parent = byId.get(parent).parent_id;
+        }
+        return names.join(" / ");
+    };
+    const sorted = [...folderCache].sort((a,b) =>
+        depthOf(a) - depthOf(b) || String(a.name).localeCompare(String(b.name))
+    );
+
+    $("folderList").innerHTML = sorted.map(f => {
+        const childCount = folderCache.filter(x => x.parent_id === f.id).length;
+        const docCount = documents.filter(d => d.folder_id === f.id && d.owner_id === currentProfile.id).length;
+        const path = breadcrumb(f);
+        return `
+        <div class="folder-card" style="--folder-accent:${escapeHTML(f.color || "#2862a5")};--folder-depth:${Math.min(depthOf(f),4)}">
             <div class="folder-card-top">
                 <div class="folder-art" aria-hidden="true">
                     <svg viewBox="0 0 48 40" role="img">
@@ -2944,12 +3112,15 @@ async function loadFolders() {
                         <path d="M5 17h38" stroke="white" stroke-opacity=".35" stroke-width="1.5"/>
                     </svg>
                 </div>
-                <span class="folder-card-count">${documents.filter(d => d.folder_id === f.id).length} files</span>
+                <span class="folder-card-count">${docCount} files · ${childCount} folders</span>
             </div>
             <b class="folder-card-name">${escapeHTML(f.name)}</b>
+            ${path ? `<div class="folder-breadcrumb">Inside ${escapeHTML(path)}</div>` : ""}
             <p class="muted">Created ${dateText(f.created_at)}</p>
-            <div class="folder-card-actions">
-                <button class="btn secondary small" onclick="showFolderDocuments('${f.id}')">Open folder <span aria-hidden="true">→</span></button>
+            <div class="folder-card-actions folder-management-actions">
+                <button class="btn secondary small" onclick="showFolderDocuments('${f.id}')">Open</button>
+                <button class="btn secondary small" onclick="createSubfolder('${f.id}')">＋ Subfolder</button>
+                <button class="btn secondary small" onclick="renameFolder('${f.id}')">Rename</button>
                 ${isPremium ? `
                     <label class="folder-edit-color" title="Change folder color">
                         <input type="color" value="${escapeHTML(f.color || "#2862a5")}" aria-label="Change ${escapeHTML(f.name)} folder color"
@@ -2957,9 +3128,10 @@ async function loadFolders() {
                         <span>✎</span>
                     </label>` : `
                     <span class="folder-locked-color" title="Custom colors are a Premium feature">✦ <span>Premium</span></span>`}
+                <button class="btn danger small" onclick="deleteFolder('${f.id}')">Delete</button>
             </div>
-        </div>
-    `).join("") || '<div class="empty">No folders yet.</div>';
+        </div>`;
+    }).join("") || '<div class="empty">No folders yet. Create your first folder above.</div>';
 
     const colorInput = $("folderColor");
     if (colorInput) {
@@ -2968,15 +3140,17 @@ async function loadFolders() {
         $("folderColorPremiumLabel").classList.toggle("hidden", !isPremium);
         $("folderColorHelp").textContent = isPremium
             ? "Choose a color for your new folder."
-            : "Default folder color is available on Free. Upgrade to Premium to customize it.";
+            : "Custom folder colors are locked on Free. The default color will be used.";
         $("folderColorHelp").classList.toggle("premium-unlocked", isPremium);
     }
 
     $("uploadFolder").innerHTML =
         '<option value="">No folder</option>' +
-        (data || []).map(f => `
-            <option value="${f.id}">${escapeHTML(f.name)}</option>
-        `).join("");
+        sorted.map(f => `<option value="${f.id}">${"　".repeat(Math.min(depthOf(f),4))}${escapeHTML(f.name)}</option>`).join("");
+
+    $("folderParent").innerHTML =
+        '<option value="">No parent (top-level folder)</option>' +
+        sorted.map(f => `<option value="${f.id}">${"　".repeat(Math.min(depthOf(f),4))}${escapeHTML(f.name)}</option>`).join("");
 }
 
 function showFolderDocuments(id) {
@@ -2990,9 +3164,52 @@ function showFolderDocuments(id) {
 }
 window.showFolderDocuments = showFolderDocuments;
 
+function createSubfolder(parentId) {
+    $("folderParent").value = parentId;
+    $("folderName").focus();
+    $("folderName").scrollIntoView({ behavior: "smooth", block: "center" });
+    toast("Enter a name, then select Create folder.");
+}
+window.createSubfolder = createSubfolder;
+
+async function renameFolder(id) {
+    const f = folderCache.find(x => x.id === id);
+    if (!f) return;
+    const nextName = prompt("Enter a new folder name:", f.name);
+    if (nextName === null) return;
+    const name = nextName.trim();
+    if (!name) return toast("Folder name cannot be empty.");
+    if (name.length > 80) return toast("Folder names must be 80 characters or fewer.");
+
+    const { error } = await sb.from("docukeep_folders").update({ name })
+        .eq("id", id).eq("owner_id", currentProfile.id);
+    if (error) return toast("Could not rename folder: " + error.message);
+    await loadFolders();
+    toast("Folder renamed.");
+}
+window.renameFolder = renameFolder;
+
+async function deleteFolder(id) {
+    const f = folderCache.find(x => x.id === id);
+    if (!f) return;
+    const hasDocs = documents.some(d => d.folder_id === id && d.owner_id === currentProfile.id);
+    const hasChildren = folderCache.some(x => x.parent_id === id);
+    if (hasDocs || hasChildren) {
+        return toast("Move or remove the documents and subfolders first. Only empty folders can be deleted.");
+    }
+    if (!confirm(`Delete the empty folder "${f.name}"?`)) return;
+
+    const { error } = await sb.from("docukeep_folders").delete()
+        .eq("id", id).eq("owner_id", currentProfile.id);
+    if (error) return toast("Could not delete folder: " + error.message);
+    await loadFolders();
+    toast("Folder deleted.");
+}
+window.deleteFolder = deleteFolder;
+
 async function updateFolderColor(id, color) {
     if (!isPremium) {
-        toast("Custom folder colors are available with Premium.");
+        toast("Custom folder colors are a Premium feature.");
         await loadFolders();
         return;
     }
@@ -3010,34 +3227,26 @@ window.updateFolderColor = updateFolderColor;
 
 $("folderForm").addEventListener("submit", async e => {
     e.preventDefault();
-
     if (!currentProfile) return;
 
     const name = $("folderName").value.trim();
+    const parentId = $("folderParent").value || null;
     const color = isPremium ? $("folderColor").value : "#2862a5";
+    if (!name) return toast("Enter a folder name.");
+    if (parentId && !folderCache.some(f => f.id === parentId)) return toast("Choose a valid parent folder.");
 
-    if (!name) {
-        return toast("Enter a folder name.");
-    }
-
-    const { error } = await sb
-        .from("docukeep_folders")
-        .insert({
-            owner_id: currentProfile.id,
-            name,
-            color
-        });
-
-    if (error) {
-        return toast("Could not create folder: " + error.message);
-    }
+    const { error } = await sb.from("docukeep_folders").insert({
+        owner_id: currentProfile.id,
+        name,
+        color,
+        parent_id: parentId
+    });
+    if (error) return toast("Could not create folder: " + error.message);
 
     e.target.reset();
     $("folderColor").value = "#2862a5";
-
     await loadFolders();
-
-    toast("Folder created.");
+    toast(parentId ? "Subfolder created." : "Folder created.");
 });
 
 /* =========================================================
