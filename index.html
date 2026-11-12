@@ -550,17 +550,17 @@
         .plan-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px
+            gap: 14px
         }
 
         .plan-card {
+            background: #fff;
             border: 1px solid var(--line);
-            border-radius: 12px;
-            padding: 16px;
-            background: #fbfdff;
+            border-radius: 14px;
+            padding: 18px;
             display: flex;
             flex-direction: column;
-            gap: 10px
+            gap: 9px
         }
 
         .plan-card h3 {
@@ -568,53 +568,67 @@
             color: var(--navy)
         }
 
-        .plan-card .period {
-            font-size: 22px;
+        .plan-price {
+            font-size: 29px;
             font-weight: 800;
-            color: var(--blue)
-        }
-
-        .plan-card ul {
-            padding-left: 18px;
-            margin: 0;
-            line-height: 1.8;
-            color: #52647b;
-            font-size: 12px
+            color: var(--navy)
         }
 
         .plan-card .btn {
             margin-top: auto
         }
 
-        .sub-status {
-            padding: 13px;
+        .plan-card.featured {
+            border: 2px solid var(--blue);
+            box-shadow: 0 8px 25px #2862a51a
+        }
+
+        .receipt-preview {
+            max-width: 170px;
+            max-height: 110px;
+            object-fit: contain;
+            border: 1px solid var(--line);
+            border-radius: 8px
+        }
+
+        .request-card {
+            border: 1px solid var(--line);
             border-radius: 10px;
-            background: #edf4fd;
-            color: #294d78;
-            margin-bottom: 14px
+            padding: 14px;
+            margin: 10px 0;
+            background: #fff
         }
 
-        .sub-status.expired {
-            background: #fff1e9;
-            color: #98501c
+        .request-card p {
+            margin: 6px 0
         }
 
-        .sub-table {
-            min-width: 760px
+        .status-chip {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 20px;
+            background: #edf1f6;
+            font-size: 11px;
+            font-weight: 700
         }
 
-        .premium-locked {
-            padding: 15px;
-            border: 1px dashed #c7d4e5;
-            border-radius: 10px;
-            background: #f8fbff
+        .status-chip.approved {
+            background: #e6f6ed;
+            color: #16845b
         }
 
-        .premium-locked b {
-            color: var(--navy)
+        .status-chip.rejected {
+            background: #ffeded;
+            color: #bf4141
         }
 
-        @media(max-width:760px) {
+        .status-chip.pending,
+        .status-chip.needs_info {
+            background: #fff4dc;
+            color: #a96d12
+        }
+
+        @media(max-width:900px) {
             .plan-grid {
                 grid-template-columns: 1fr
             }
@@ -755,7 +769,7 @@
             <nav class="nav">
                 <button class="active" data-page="dashboard">▦ Dashboard</button><button data-page="documents">▤ My
                     Documents</button><button data-page="upload">＋ Upload Document</button><button
-                    data-page="tracking">◷ Digital Document Tracker</button><button data-page="folders">▣ My
+                    data-page="tracking">◷ Submission Tracking</button><button data-page="folders">▣ My
                     Folders</button><button data-page="notifications">♧ Notifications <span
                         id="notificationCount"></span></button><button data-page="premium">★ Premium
                     Plan</button><button id="adminNav" class="hidden" data-page="admin">⚙ Staff Administration</button>
@@ -766,8 +780,7 @@
             <header class="top"><span id="crumb">Dashboard</span><span><b id="who"></b> &nbsp; <button type="button"
                         class="btn secondary small" onclick="signOut()">Sign out</button></span></header>
             <div class="syncbar" id="syncbar">Offline mode: files are saved on this device and are NOT yet uploaded.
-                <span id="queueCount">0</span> waiting.
-            </div>
+                <span id="queueCount">0</span> waiting.</div>
             <div class="content">
                 <section class="page active" id="page-dashboard">
                     <div class="heading">
@@ -804,7 +817,6 @@
                             <p>Documents submitted by your account.</p>
                         </div>
                     </div>
-                    <div class="panel" id="duplicateTools"></div>
                     <div class="panel tablewrap">
                         <table>
                             <thead>
@@ -832,8 +844,7 @@
                         <form id="uploadForm">
                             <div class="grid">
                                 <div class="field"><label>Document file(s) *</label><input id="file" type="file"
-                                        required><small id="bulkUploadHint" class="muted">Free plan: upload one file at
-                                        a time. Bulk upload is Premium-only.</small></div>
+                                        multiple required></div>
                                 <div class="field"><label>Document title *</label><input id="title" required
                                         placeholder="e.g. Quarterly report"></div>
                                 <div class="field"><label>Category *</label><select id="category" required>
@@ -869,11 +880,10 @@
                 <section class="page" id="page-tracking">
                     <div class="heading">
                         <div>
-                            <h1>Digital Document Tracker</h1>
-                            <p>Track document submissions and review progress.</p>
+                            <h1>Submission Tracking</h1>
+                            <p>Check the review status of your documents.</p>
                         </div>
                     </div>
-                    <div class="panel" id="trackingPremiumGate"></div>
                     <div class="panel" id="tracking">
                         <div class="empty">No submissions yet.</div>
                     </div>
@@ -891,8 +901,7 @@
                             <div class="field"><label for="folderName">Folder name</label><input id="folderName"
                                     required maxlength="80" placeholder="e.g. School Year 2026-2027"></div>
                             <div class="field"><label for="folderColor">Folder color</label><input id="folderColor"
-                                    type="color" value="#2862a5"><small id="folderColorHint" class="muted">Custom folder
-                                    colors are Premium-only. Free folders use the default blue color.</small></div>
+                                    type="color" value="#2862a5"></div>
                             <div><button class="btn" type="submit">Create folder</button></div>
                         </form>
                     </div>
@@ -920,74 +929,99 @@
                 <section class="page" id="page-premium">
                     <div class="heading">
                         <div>
-                            <h1>Premium Plan</h1>
-                            <p>Choose a subscription period and request activation from the DocuKeep administrator.</p>
+                            <h1>Premium Subscription</h1>
+                            <p>Choose a plan and submit your payment receipt for staff verification.</p>
                         </div>
                     </div>
+                    <div class="notice">Premium benefits are activated only after an administrator verifies your
+                        payment. Use the placeholder payment details below for layout testing only. Replace them with
+                        the official GCash/Maya details before publishing or accepting payments.</div>
                     <div class="panel">
-                        <h2>My subscription</h2>
-                        <div id="mySubscriptionStatus" class="sub-status">Loading your subscription…</div>
-                        <div id="mySubscriptionHistory" class="muted" style="font-size:12px"></div>
+                        <h2>Payment details · Placeholder only</h2>
+                        <div class="grid">
+                            <div class="feature"><b>GCash / Maya recipient</b>
+                                <p style="font-size:18px;color:var(--navy);font-weight:800;margin:8px 0">Aimerck Bruznyr
+                                    Remollo</p>
+                                <p><b>Mobile number:</b> 09XX-XXX-XXXX</p><small class="muted">Replace this placeholder
+                                    number with the official wallet number.</small>
+                            </div>
+                            <div class="feature" style="display:grid;place-items:center;text-align:center">
+                                <div
+                                    style="width:150px;height:150px;border:2px dashed #9aabc0;border-radius:12px;display:grid;place-items:center;background:#f8fbff;color:#61748d;padding:12px">
+                                    <b>QR CODE PLACEHOLDER</b><small>Insert your official GCash or Maya QR image
+                                        here</small></div><small class="muted">This is not a scannable payment
+                                    QR.</small>
+                            </div>
+                        </div>
+                        <div class="notice warn">Confirm the recipient name and number before sending money. The name
+                            above is only a placeholder and does not identify a verified payment account.</div>
+                    </div>
+                    <div class="plan-grid">
+                        <div class="plan-card featured">
+                            <h3>1-Year Subscription</h3>
+                            <div class="plan-price">₱100</div><b>per year</b><small class="muted">Equivalent to
+                                ₱8.33/month</small><button class="btn" onclick="chooseSubscription('yearly')">Choose
+                                yearly</button>
+                        </div>
+                        <div class="plan-card">
+                            <h3>1-Month Subscription</h3>
+                            <div class="plan-price">₱50</div><b>per month</b><small class="muted">Billed once for 1
+                                month</small><button class="btn" onclick="chooseSubscription('monthly')">Choose
+                                monthly</button>
+                        </div>
+                        <div class="plan-card">
+                            <h3>1-Week Subscription</h3>
+                            <div class="plan-price">₱25</div><b>per week</b><small class="muted">Billed once for 7
+                                days</small><button class="btn" onclick="chooseSubscription('weekly')">Choose
+                                weekly</button>
+                        </div>
+                    </div>
+                    <div class="panel" id="subscriptionCheckout">
+                        <h2>Submit a subscription request</h2>
+                        <p class="muted">Select a plan above. Upload a screenshot or photo of your payment receipt.
+                            Accepted formats: JPG, PNG, or PDF (max 5 MB).</p>
+                        <form id="subscriptionForm" class="stack">
+                            <div class="grid">
+                                <div class="field"><label>Selected plan</label><input id="selectedPlanLabel" readonly
+                                        placeholder="Choose a plan above"></div>
+                                <div class="field"><label>Amount</label><input id="selectedPlanAmount" readonly
+                                        placeholder="—"></div>
+                            </div>
+                            <div class="grid">
+                                <div class="field"><label for="paymentMethod">Payment method</label><select
+                                        id="paymentMethod" required>
+                                        <option value="GCash">GCash</option>
+                                        <option value="Maya">Maya</option>
+                                    </select></div>
+                                <div class="field"><label for="paymentReference">Payment Reference ID *</label><input
+                                        id="paymentReference" maxlength="120" required
+                                        placeholder="Enter GCash / Maya reference ID"></div>
+                            </div>
+                            <div class="field"><label for="paymentReceipt">Payment receipt *</label><input
+                                    id="paymentReceipt" type="file" accept="image/jpeg,image/png,application/pdf"
+                                    required></div>
+                            <div class="field"><label for="paymentNote">Message to administrator
+                                    (optional)</label><textarea id="paymentNote" rows="3" maxlength="1000"
+                                    placeholder="Add payment details or questions"></textarea></div><button class="btn"
+                                type="submit">Send request and receipt</button>
+                        </form>
+                    </div>
+                    <div class="panel">
+                        <h2>My subscription requests</h2>
+                        <div id="mySubscriptionRequests">
+                            <div class="empty">Loading requests…</div>
+                        </div>
                     </div>
                     <div class="panel">
                         <h2>Premium features</h2>
-                        <p>These six features are available ONLY while your account has an active Premium subscription.
-                            Free accounts cannot use them:</p>
                         <div class="feature-grid">
-                            <div class="feature"><b>128GB storage</b>
-                                <p class="muted">Expanded account storage quota.</p>
-                            </div>
-                            <div class="feature"><b>Bulk upload</b>
-                                <p class="muted">Upload multiple school documents together.</p>
-                            </div>
-                            <div class="feature"><b>Delete duplicates</b>
-                                <p class="muted">Review and remove duplicate files.</p>
-                            </div>
-                            <div class="feature"><b>Digital document tracker</b>
-                                <p class="muted">Keep track of document submissions and status.</p>
-                            </div>
-                            <div class="feature"><b>Custom folder colors</b>
-                                <p class="muted">Organize folders with your preferred colors.</p>
-                            </div>
-                            <div class="feature"><b>Group file access</b>
-                                <p class="muted">Share selected documents with approved group members.</p>
-                            </div>
+                            <div class="feature">128 GB storage</div>
+                            <div class="feature">Bulk upload</div>
+                            <div class="feature">Delete duplicate files</div>
+                            <div class="feature">Digital document tracker</div>
+                            <div class="feature">Custom folder colors</div>
+                            <div class="feature">Group file access</div>
                         </div>
-                    </div>
-                    <div class="panel">
-                        <h2>Choose your subscription</h2>
-                        <p>All three options include the Premium features listed above. Subscription time starts after
-                            the administrator confirms your payment and activates your account.</p>
-                        <div class="plan-grid">
-                            <div class="plan-card">
-                                <h3>Weekly</h3>
-                                <div class="period">7 days</div>
-                                <p class="muted">Premium access for one week.</p>
-                                <div class="notice">Price and payment instructions will be provided by the
-                                    administrator.</div><button class="btn"
-                                    onclick="requestSubscription('week')">Request weekly plan</button>
-                            </div>
-                            <div class="plan-card">
-                                <h3>Monthly</h3>
-                                <div class="period">1 month</div>
-                                <p class="muted">Premium access for one month.</p>
-                                <div class="notice">Price and payment instructions will be provided by the
-                                    administrator.</div><button class="btn"
-                                    onclick="requestSubscription('month')">Request monthly plan</button>
-                            </div>
-                            <div class="plan-card">
-                                <h3>Yearly</h3>
-                                <div class="period">1 year</div>
-                                <p class="muted">Premium access for one year.</p>
-                                <div class="notice">Price and payment instructions will be provided by the
-                                    administrator.</div><button class="btn"
-                                    onclick="requestSubscription('year')">Request yearly plan</button>
-                            </div>
-                        </div>
-                        <div class="notice warn" style="margin-top:14px">How payment works: Submit a request, then the
-                            administrator will contact you using your registered email with the payment details. Pay the
-                            administrator directly. Your Premium plan will only start after the administrator verifies
-                            the payment and activates it. DocuKeep does not collect online payments.</div>
                     </div>
                 </section>
                 <section class="page" id="page-admin">
@@ -1033,34 +1067,18 @@
                         </div>
                     </div>
                     <div class="panel">
-                        <h2>Premium subscription requests</h2>
-                        <p class="muted" style="font-size:12px">Verify payment outside DocuKeep, then activate the
-                            selected plan here. The user's student/teacher account role will remain unchanged; Premium
-                            is stored as a separate subscription entitlement.</p>
-                        <div class="tablewrap">
-                            <table class="sub-table">
-                                <thead>
-                                    <tr>
-                                        <th>User</th>
-                                        <th>Requested plan</th>
-                                        <th>Requested on</th>
-                                        <th>Activate duration</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="subscriptionRequests">
-                                    <tr>
-                                        <td colspan="5">Loading subscription requests…</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="panel">
                         <h2>Pending account registrations</h2>
                         <p class="muted" style="font-size:12px">New student and teacher registrations appear here.</p>
                         <div id="requests">
                             <div class="empty">Loading account requests…</div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h2>Premium subscription and payment requests</h2>
+                        <p class="muted" style="font-size:12px">Review receipts, accept verified payments, or send a
+                            message about a transaction.</p>
+                        <div id="adminSubscriptionRequests">
+                            <div class="empty">Loading payment requests…</div>
                         </div>
                     </div>
                     <div class="panel">
@@ -1100,7 +1118,7 @@
         const SUPABASE_ANON_KEY = "sb_publishable_yfLj3YnmOh9PiwVV-HDpgA__Hc5ymr4";
         const TEACHER_EMAIL_DOMAIN = "deped.gov.ph", BUCKET = "docukeep-files", SITE_URL = "https://kiezuuu.github.io/DocuKeep/";
         const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } });
-        let accountType = null, currentProfile = null, documents = [], managedUsersCache = [], toastTimer = null, recoveryMode = false, currentEntitlement = null;
+        let accountType = null, currentProfile = null, documents = [], managedUsersCache = [], toastTimer = null, recoveryMode = false;
         const $ = id => document.getElementById(id);
         function toast(message) { const el = $("toast"); el.textContent = message; el.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 5000) }
         function escapeHTML(v = "") { return String(v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])) }
@@ -1117,10 +1135,7 @@
         function showForgot() { hideAllAuthForms(); $("forgotForm").classList.remove("hidden"); $("forgotSwitch").classList.add("hidden"); $("signupSwitch").classList.add("hidden"); $("resendSwitch").classList.add("hidden"); $("loginSwitch").classList.remove("hidden"); $("formTitle").textContent = "Reset your password" }
         function hideForgot() { toggleForm(false) }
         window.selectType = selectType; window.backChoice = backChoice; window.toggleForm = toggleForm; window.showForgot = showForgot; window.hideForgot = hideForgot;
-        function hasActivePremium() { if (!currentEntitlement) return false; const exp = currentEntitlement.expires_at ? new Date(currentEntitlement.expires_at).getTime() : 0; return currentEntitlement.plan === "premium" && currentEntitlement.active === true && exp > Date.now() }
-        function premiumLockHTML(feature) { return `<div class="premium-locked"><b>★ ${escapeHTML(feature)} is a Premium feature</b><p class="muted">Upgrade to an active Weekly, Monthly, or Yearly Premium subscription to unlock this feature.</p><button class="btn small" onclick="go('premium')">View Premium plans</button></div>` }
-        function updatePremiumFeatureUI() { const premium = hasActivePremium(); const bulk = $("file"); if (bulk) { bulk.multiple = premium; bulk.title = premium ? "Bulk upload enabled" : "Bulk upload requires Premium" } if ($("bulkUploadHint")) $("bulkUploadHint").textContent = premium ? "Premium active: you can upload multiple files together." : "Free plan: upload one file at a time. Bulk upload is Premium-only."; const color = $("folderColor"); if (color) { color.disabled = !premium; color.value = premium ? color.value : "#2862a5" } if ($("folderColorHint")) $("folderColorHint").textContent = premium ? "Premium active: choose a custom color for this folder." : "Custom folder colors are Premium-only. Free folders use the default blue color."; if ($("trackingPremiumGate")) $("trackingPremiumGate").innerHTML = premium ? '<div class="notice ok">Premium active: Digital Document Tracker is unlocked.</div>' : premiumLockHTML("Digital Document Tracker"); if ($("tracking")) $("tracking").classList.toggle("hidden", !premium); if ($("duplicateTools")) $("duplicateTools").innerHTML = premium ? '<h2>Duplicate file management</h2><p class="muted">Review duplicate files identified by their SHA-256 fingerprint. The oldest copy is kept.</p><div id="duplicateList"></div>' : premiumLockHTML("Delete duplicate files"); if (premium) renderDuplicateTools(); }
-        async function loadProfile(user, expectedType = null) { if (!user?.id) throw Error("Invalid login session. Please sign in again."); const { data: p, error } = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle(); console.log("DocuKeep profile check", { authId: user.id, email: user.email, profileId: p?.id, role: p?.role, status: p?.status, error }); if (error) throw Error("Could not load your profile: " + error.message); if (!p) throw Error("Your Auth account has no matching profiles row. Ask staff to repair the profile in this Supabase project."); const role = String(p.role || "").toLowerCase(), status = String(p.status || "").toLowerCase(); if (!["student", "teacher", "staff"].includes(role)) throw Error("Invalid account role."); if (status !== "approved") throw Error(status === "pending" ? "Your account is awaiting staff approval." : "Your account is not approved. Contact the administrator."); if (expectedType && role !== expectedType) throw Error(`Wrong sign-in category. This account's database role is ${role}. Select ${role} to sign in.`); if (role === "student" && !validEmail(user.email, "student")) throw Error("Student accounts must use a personal Gmail address."); if (role === "teacher" && !validEmail(user.email, "teacher")) throw Error("Teacher accounts must use an official DepEd email."); currentProfile = { ...p, role }; accountType = role; await loadMySubscription(); $("auth").classList.add("hidden"); $("app").classList.remove("hidden"); $("who").textContent = (p.full_name || "User") + " · " + role.toUpperCase(); $("greeting").textContent = "Welcome, " + (p.full_name || "User"); $("adminNav").classList.toggle("hidden", role !== "staff"); await loadDocuments(); await updateOfflineStatus(); if (navigator.onLine) syncOfflineUploads(); go("dashboard") }
+        async function loadProfile(user, expectedType = null) { if (!user?.id) throw Error("Invalid login session. Please sign in again."); const { data: p, error } = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle(); console.log("DocuKeep profile check", { authId: user.id, email: user.email, profileId: p?.id, role: p?.role, status: p?.status, error }); if (error) throw Error("Could not load your profile: " + error.message); if (!p) throw Error("Your Auth account has no matching profiles row. Ask staff to repair the profile in this Supabase project."); const role = String(p.role || "").toLowerCase(), status = String(p.status || "").toLowerCase(); if (!["student", "teacher", "staff"].includes(role)) throw Error("Invalid account role."); if (status !== "approved") throw Error(status === "pending" ? "Your account is awaiting staff approval." : "Your account is not approved. Contact the administrator."); if (expectedType && role !== expectedType) throw Error(`Wrong sign-in category. This account's database role is ${role}. Select ${role} to sign in.`); if (role === "student" && !validEmail(user.email, "student")) throw Error("Student accounts must use a personal Gmail address."); if (role === "teacher" && !validEmail(user.email, "teacher")) throw Error("Teacher accounts must use an official DepEd email."); currentProfile = { ...p, role }; accountType = role; $("auth").classList.add("hidden"); $("app").classList.remove("hidden"); $("who").textContent = (p.full_name || "User") + " · " + role.toUpperCase(); $("greeting").textContent = "Welcome, " + (p.full_name || "User"); $("adminNav").classList.toggle("hidden", role !== "staff"); await loadDocuments(); await updateOfflineStatus(); await loadMySubscriptionRequests(); if (navigator.onLine) syncOfflineUploads(); go("dashboard") }
         $("loginForm").addEventListener("submit", async e => { e.preventDefault(); if (!accountType) return toast("Choose an account type first."); const type = accountType, email = $("email").value.trim().toLowerCase(), password = $("password").value; if (!validEmail(email, type)) return toast(type === "student" ? "Use a personal @gmail.com address." : type === "teacher" ? "Use an official @deped.gov.ph address." : "Enter a valid staff email."); const b = e.target.querySelector('button[type="submit"]'); b.disabled = true; b.textContent = "Signing in…"; try { const { data, error } = await sb.auth.signInWithPassword({ email, password }); if (error) throw error; await loadProfile(data.user, type) } catch (err) { console.error("Login error", err); await sb.auth.signOut(); setAuthMessage("Login failed: " + friendlyAuthError(err), "warn"); toast("Login failed: " + friendlyAuthError(err)) } finally { b.disabled = false; b.textContent = "Sign in" } });
         $("signupForm").addEventListener("submit", async e => { e.preventDefault(); if (!["student", "teacher"].includes(accountType)) return toast("Only students and teachers can register here."); const full_name = $("fullName").value.trim(), email = $("signupEmail").value.trim().toLowerCase(), department = $("department").value.trim(), password = $("signupPassword").value; if (!full_name || !department) return toast("Complete all required fields."); if (!validEmail(email, accountType)) return toast(accountType === "student" ? "Use a personal Gmail address." : "Use an official @deped.gov.ph address."); if (password.length < 8) return toast("Password must contain at least 8 characters."); if (password !== $("confirmPassword").value) return toast("Passwords do not match."); const b = e.target.querySelector("button[type=submit]"); b.disabled = true; b.textContent = "Creating account…"; try { const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: SITE_URL, data: { full_name, requested_role: accountType, department } } }); if (error) throw error; if (!data.user) throw Error("Supabase did not return a user."); if (data.user.identities?.length === 0) throw Error("This email may already be registered. Try signing in."); if (data.session) await sb.auth.signOut(); e.target.reset(); toggleForm(false); setAuthMessage("Registration submitted. Confirm your email if required, then wait for staff approval.", "ok"); toast("Registration request submitted.") } catch (err) { setAuthMessage("Registration failed: " + friendlyAuthError(err), "warn"); toast("Signup failed: " + friendlyAuthError(err)) } finally { b.disabled = false; b.textContent = "Create account" } });
         $("forgotForm").addEventListener("submit", async e => { e.preventDefault(); const email = $("forgotEmail").value.trim().toLowerCase(); if (!validEmail(email, accountType)) return toast("Enter an email valid for the selected account type."); const b = e.target.querySelector("button[type=submit]"); b.disabled = true; try { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SITE_URL }); if (error) throw error; setAuthMessage("If the account exists, a password-reset link has been sent. Check your inbox and spam folder.", "ok"); toast("Password reset request processed.") } catch (err) { toast("Could not send reset email: " + err.message) } finally { b.disabled = false } });
@@ -1129,80 +1144,45 @@
         sb.auth.onAuthStateChange((event, session) => { if (event === "PASSWORD_RECOVERY") { recoveryMode = true; $("auth").classList.remove("hidden"); $("app").classList.add("hidden"); if (!accountType) accountType = "student"; $("choose").classList.add("hidden"); $("authform").classList.remove("hidden"); hideAllAuthForms(); $("resetForm").classList.remove("hidden"); $("formTitle").textContent = "Set a new password"; $("forgotSwitch").classList.add("hidden"); $("signupSwitch").classList.add("hidden"); $("resendSwitch").classList.add("hidden"); setAuthMessage("Enter and confirm your new password.") } else if (event === "SIGNED_OUT" && !recoveryMode) { currentProfile = null } });
         async function loadDocuments() { if (!currentProfile) return; const { data, error } = await sb.from("documents").select("id,title,category,created_at,status,review_comment,owner_id,owner_name,storage_path,file_name,mime_type,size_bytes,due_date,school_year,department,folder_id,sha256").order("created_at", { ascending: false }); if (error) { console.error(error); toast("Could not load documents: " + error.message); return } documents = data || []; renderDocuments(); updateStorageStats(); await Promise.all([loadFolders(), loadNotifications()]) }
         function reviewCommentHTML(d) { return d?.review_comment ? `<div class="review-feedback"><b>Staff Feedback</b><p>${escapeHTML(d.review_comment)}</p></div>` : "" }
-        function renderDocuments() { if (!currentProfile) return; const own = documents.filter(d => currentProfile.role === "staff" || d.owner_id === currentProfile.id); $("total").textContent = own.length; $("pending").textContent = own.filter(d => d.status === "pending").length; $("approved").textContent = own.filter(d => d.status === "approved").length; $("recent").innerHTML = own.slice(0, 5).map(d => `<p><b>${escapeHTML(d.title)}</b> · ${escapeHTML(d.category)} · <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span></p>`).join("") || '<div class="empty">No documents yet.</div>'; $("docRows").innerHTML = own.map(d => `<tr><td>${escapeHTML(d.title)}</td><td>${escapeHTML(d.category)}</td><td>${dateText(d.created_at)}</td><td><span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span>${reviewCommentHTML(d)}</td><td><div class="actions"><button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button><button class="btn secondary small" onclick="downloadDoc('${d.id}')">Download</button></div></td></tr>`).join(""); $("docEmpty").classList.toggle("hidden", own.length > 0); $("tracking").innerHTML = own.map(d => `<p><b>${escapeHTML(d.title)}</b> · ${dateText(d.created_at)} · <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span>${reviewCommentHTML(d)}</p>`).join("") || '<div class="empty">No submissions yet.</div>'; if (currentProfile.role === "staff") renderAdmin(); if (hasActivePremium()) renderDuplicateTools() }
-        const DB_NAME = "docukeep-offline-v1", STORE = "pendingUploads"; let uploadBatchId = null;
+        function renderDocuments() { if (!currentProfile) return; const own = documents.filter(d => currentProfile.role === "staff" || d.owner_id === currentProfile.id); $("total").textContent = own.length; $("pending").textContent = own.filter(d => d.status === "pending").length; $("approved").textContent = own.filter(d => d.status === "approved").length; $("recent").innerHTML = own.slice(0, 5).map(d => `<p><b>${escapeHTML(d.title)}</b> · ${escapeHTML(d.category)} · <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span></p>`).join("") || '<div class="empty">No documents yet.</div>'; $("docRows").innerHTML = own.map(d => `<tr><td>${escapeHTML(d.title)}</td><td>${escapeHTML(d.category)}</td><td>${dateText(d.created_at)}</td><td><span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span>${reviewCommentHTML(d)}</td><td><div class="actions"><button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button><button class="btn secondary small" onclick="downloadDoc('${d.id}')">Download</button></div></td></tr>`).join(""); $("docEmpty").classList.toggle("hidden", own.length > 0); $("tracking").innerHTML = own.map(d => `<p><b>${escapeHTML(d.title)}</b> · ${dateText(d.created_at)} · <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span>${reviewCommentHTML(d)}</p>`).join("") || '<div class="empty">No submissions yet.</div>'; if (currentProfile.role === "staff") renderAdmin() }
+        const DB_NAME = "docukeep-offline-v1", STORE = "pendingUploads";
         function openOfflineDB() { return new Promise((res, rej) => { const r = indexedDB.open(DB_NAME, 1); r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE, { keyPath: "id" }) }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error) }) }
         async function queueOfflineUpload(job) { const db = await openOfflineDB(); return new Promise((res, rej) => { const tx = db.transaction(STORE, "readwrite"); tx.objectStore(STORE).put(job); tx.oncomplete = res; tx.onerror = () => rej(tx.error) }) }
         async function getQueuedUploads() { const db = await openOfflineDB(); return new Promise((res, rej) => { const r = db.transaction(STORE).objectStore(STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error) }) }
         async function removeQueuedUpload(id) { const db = await openOfflineDB(); return new Promise((res, rej) => { const tx = db.transaction(STORE, "readwrite"); tx.objectStore(STORE).delete(id); tx.oncomplete = res; tx.onerror = () => rej(tx.error) }) }
         function humanBytes(n) { if (!n) return "0 B"; const u = ["B", "KB", "MB", "GB", "TB"]; let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++ } return n.toFixed(i ? 1 : 0) + " " + u[i] }
         async function syncOfflineUploads() { if (!navigator.onLine || !currentProfile) return; let jobs = []; try { jobs = await getQueuedUploads() } catch (e) { console.warn(e); return } for (const j of jobs) { try { await uploadJob(j); await removeQueuedUpload(j.id) } catch (e) { console.error("Offline sync stopped", e); j.lastError = e.message; await queueOfflineUpload(j); break } } await updateOfflineStatus(); await loadDocuments() }
-        async function uploadJob(j) { const { error: upErr } = await sb.storage.from(BUCKET).upload(j.path, j.file, { upsert: false, contentType: j.mimeType || "application/octet-stream" }); if (upErr) throw upErr; const row = { id: j.id, title: j.title, category: j.category, school_year: j.schoolYear, department: j.department, due_date: j.dueDate || null, submission_type: j.submissionType, description: j.description, folder_id: j.folderId || null, sha256: j.sha256 || null, upload_batch_id: j.uploadBatchId || null, owner_id: j.ownerId, owner_name: j.ownerName, storage_path: j.path, file_name: j.fileName, mime_type: j.mimeType || "application/octet-stream", size_bytes: j.sizeBytes, status: "pending" }; const { error: dbErr } = await sb.from("documents").insert(row); if (dbErr) { await sb.storage.from(BUCKET).remove([j.path]); throw dbErr } }
+        async function uploadJob(j) { const { error: upErr } = await sb.storage.from(BUCKET).upload(j.path, j.file, { upsert: false, contentType: j.mimeType || "application/octet-stream" }); if (upErr) throw upErr; const row = { id: j.id, title: j.title, category: j.category, school_year: j.schoolYear, department: j.department, due_date: j.dueDate || null, submission_type: j.submissionType, description: j.description, folder_id: j.folderId || null, sha256: j.sha256 || null, owner_id: j.ownerId, owner_name: j.ownerName, storage_path: j.path, file_name: j.fileName, mime_type: j.mimeType || "application/octet-stream", size_bytes: j.sizeBytes, status: "pending" }; const { error: dbErr } = await sb.from("documents").insert(row); if (dbErr) { await sb.storage.from(BUCKET).remove([j.path]); throw dbErr } }
         async function updateOfflineStatus() { let n = 0; try { n = (await getQueuedUploads()).length } catch (e) { } $("syncbar").classList.toggle("show", !navigator.onLine || n > 0); $("queueCount").textContent = n }
         window.addEventListener("online", () => { updateOfflineStatus(); syncOfflineUploads() }); window.addEventListener("offline", updateOfflineStatus);
         async function sha256File(f) { try { const d = await crypto.subtle.digest("SHA-256", await f.arrayBuffer()); return Array.from(new Uint8Array(d)).map(b => b.toString(16).padStart(2, "0")).join("") } catch (e) { return null } }
-        $("uploadForm").addEventListener("submit", async e => { e.preventDefault(); if (!currentProfile) return toast("Please sign in first."); const files = Array.from($("file").files || []); if (files.length > 1 && !hasActivePremium()) return toast("Bulk upload is Premium-only. Please upload one file at a time or upgrade."); if (!files.length) return toast("Choose at least one file."); const title = $("title").value.trim(), category = $("category").value; if (!title || !category) return toast("Enter a title and category."); const b = e.target.querySelector("button[type=submit]"), prog = $("uploadProgress"); uploadBatchId = files.length > 1 ? crypto.randomUUID() : null; b.disabled = true; b.textContent = "Processing files…"; prog.style.display = "block"; let ok = 0, queued = 0, failed = 0; try { for (let i = 0; i < files.length; i++) { const f = files[i]; prog.textContent = `Processing ${i + 1} of ${files.length}: ${f.name}`; if (f.size > 25 * 1024 * 1024) { failed++; toast(f.name + " exceeds 25 MB."); continue } const id = crypto.randomUUID(), batchId = files.length > 1 ? uploadBatchId : null, safe = f.name.replace(/[^\w.\-]/g, "_"), hash = await sha256File(f), dup = hash && documents.find(d => d.owner_id === currentProfile.id && d.sha256 === hash); if (dup && !confirm(`This file may duplicate "${dup.file_name || dup.title}". Upload anyway?`)) continue; const j = { id, path: `${currentProfile.id}/${id}/${safe}`, file: f, sha256: hash, title: files.length === 1 ? title : `${title} - ${f.name}`, category, schoolYear: $("year").value, department: $("subject").value, dueDate: $("due").value, submissionType: $("type").value, description: $("description").value, folderId: $("uploadFolder").value || null, uploadBatchId, ownerId: currentProfile.id, ownerName: currentProfile.full_name, fileName: f.name, mimeType: f.type, sizeBytes: f.size }; if (!navigator.onLine) { await queueOfflineUpload(j); queued++; continue } try { await uploadJob(j); ok++ } catch (err) { if (!navigator.onLine) { await queueOfflineUpload(j); queued++ } else { failed++; console.error(err); toast(f.name + ": " + err.message) } } } if (ok || queued) { if (files.length === 1 && ok) { e.target.reset(); $("year").value = "2026–2027" } await loadDocuments(); toast(`${ok} uploaded, ${queued} queued, ${failed} failed.`) } else if (failed) toast(`${failed} file(s) failed.`); await updateOfflineStatus() } catch (err) { console.error(err); toast("Upload error: " + err.message) } finally { b.disabled = false; b.textContent = "Upload and submit"; prog.style.display = "none" } });
+        $("uploadForm").addEventListener("submit", async e => { e.preventDefault(); if (!currentProfile) return toast("Please sign in first."); const files = Array.from($("file").files || []); if (!files.length) return toast("Choose at least one file."); const title = $("title").value.trim(), category = $("category").value; if (!title || !category) return toast("Enter a title and category."); const b = e.target.querySelector("button[type=submit]"), prog = $("uploadProgress"); b.disabled = true; b.textContent = "Processing files…"; prog.style.display = "block"; let ok = 0, queued = 0, failed = 0; try { for (let i = 0; i < files.length; i++) { const f = files[i]; prog.textContent = `Processing ${i + 1} of ${files.length}: ${f.name}`; if (f.size > 25 * 1024 * 1024) { failed++; toast(f.name + " exceeds 25 MB."); continue } const id = crypto.randomUUID(), safe = f.name.replace(/[^\w.\-]/g, "_"), hash = await sha256File(f), dup = hash && documents.find(d => d.owner_id === currentProfile.id && d.sha256 === hash); if (dup && !confirm(`This file may duplicate "${dup.file_name || dup.title}". Upload anyway?`)) continue; const j = { id, path: `${currentProfile.id}/${id}/${safe}`, file: f, sha256: hash, title: files.length === 1 ? title : `${title} - ${f.name}`, category, schoolYear: $("year").value, department: $("subject").value, dueDate: $("due").value, submissionType: $("type").value, description: $("description").value, folderId: $("uploadFolder").value || null, ownerId: currentProfile.id, ownerName: currentProfile.full_name, fileName: f.name, mimeType: f.type, sizeBytes: f.size }; if (!navigator.onLine) { await queueOfflineUpload(j); queued++; continue } try { await uploadJob(j); ok++ } catch (err) { if (!navigator.onLine) { await queueOfflineUpload(j); queued++ } else { failed++; console.error(err); toast(f.name + ": " + err.message) } } } if (ok || queued) { if (files.length === 1 && ok) { e.target.reset(); $("year").value = "2026–2027" } await loadDocuments(); toast(`${ok} uploaded, ${queued} queued, ${failed} failed.`) } else if (failed) toast(`${failed} file(s) failed.`); await updateOfflineStatus() } catch (err) { console.error(err); toast("Upload error: " + err.message) } finally { b.disabled = false; b.textContent = "Upload and submit"; prog.style.display = "none" } });
         async function signedUrl(d) { if (!d?.storage_path) throw Error("Document storage path is missing."); const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(d.storage_path, 300); if (error) throw error; return data.signedUrl }
         async function downloadDoc(id) { const d = documents.find(x => x.id === id); if (!d) return; try { const url = await signedUrl(d), a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; a.download = d.file_name || d.title; a.click() } catch (e) { toast("Download failed: " + e.message) } }
         async function previewDoc(id) { const d = documents.find(x => x.id === id); if (!d) return; try { const url = await signedUrl(d); $("previewTitle").textContent = d.file_name || d.title; $("previewBody").innerHTML = ""; const mime = (d.mime_type || "").toLowerCase(), name = (d.file_name || "").toLowerCase(); if (mime === "application/pdf" || name.endsWith(".pdf")) { const f = document.createElement("iframe"); f.src = url; f.title = "PDF preview"; $("previewBody").appendChild(f) } else if (mime.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(name)) { const im = document.createElement("img"); im.src = url; im.alt = d.file_name || "Document image"; $("previewBody").appendChild(im) } else $("previewBody").innerHTML = '<div class="empty"><h3>Preview not available</h3><p>Download this file to open it.</p></div>'; $("previewDownload").onclick = () => downloadDoc(id); $("previewModal").classList.add("open") } catch (e) { toast("Preview failed: " + e.message) } }
         function closePreview() { $("previewModal").classList.remove("open"); $("previewBody").innerHTML = "" } window.previewDoc = previewDoc; window.downloadDoc = downloadDoc; window.closePreview = closePreview; $("previewModal").addEventListener("click", e => { if (e.target.id === "previewModal") closePreview() });
         function updateStorageStats() { const n = documents.filter(d => d.owner_id === currentProfile?.id).reduce((s, d) => s + Number(d.size_bytes || 0), 0); $("storageUsed").textContent = humanBytes(n) }
-        async function renderDuplicateTools() { const box = $("duplicateList"); if (!box) return; if (!hasActivePremium()) { box.innerHTML = premiumLockHTML("Delete duplicate files"); return } const own = documents.filter(d => d.owner_id === currentProfile.id && d.sha256); const groups = {}; own.forEach(d => (groups[d.sha256] ??= []).push(d)); const duplicates = Object.values(groups).filter(g => g.length > 1); box.innerHTML = duplicates.map(group => { const sorted = [...group].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); return `<div class="feature"><b>Duplicate group · ${sorted.length} copies</b><p class="muted">Keeping the oldest copy: ${escapeHTML(sorted[0].file_name || sorted[0].title)}</p>${sorted.slice(1).map(d => `<div class="actions" style="justify-content:space-between;padding:6px 0"><span>${escapeHTML(d.file_name || d.title)}</span><button class="btn danger small" onclick="deleteDuplicateDocument('${d.id}')">Delete duplicate</button></div>`).join("")}</div>` }).join("") || '<div class="empty">No duplicate files were detected.</div>' }
-        async function deleteDuplicateDocument(id) { if (!hasActivePremium()) return toast("Deleting duplicate files is Premium-only."); const d = documents.find(x => x.id === id && x.owner_id === currentProfile.id); if (!d || !d.sha256) return toast("Duplicate file not found."); const matches = documents.filter(x => x.owner_id === currentProfile.id && x.sha256 === d.sha256); if (matches.length < 2) return toast("This file is no longer marked as a duplicate."); if (!confirm(`Permanently delete duplicate file \"${d.file_name || d.title}\"?`)) return; const { error: delErr } = await sb.from("documents").delete().eq("id", id).eq("owner_id", currentProfile.id); if (delErr) return toast("Could not delete duplicate record: " + delErr.message); if (d.storage_path) { const { error: storageErr } = await sb.storage.from(BUCKET).remove([d.storage_path]); if (storageErr) toast("Record deleted, but stored file cleanup failed: " + storageErr.message) } await loadDocuments(); toast("Duplicate file deleted.") }
-        window.deleteDuplicateDocument = deleteDuplicateDocument;
         async function loadFolders() { if (!currentProfile) return; const { data, error } = await sb.from("docukeep_folders").select("id,name,color,created_at").eq("owner_id", currentProfile.id).order("created_at"); if (error) { $("folderList").innerHTML = '<div class="empty">Folders unavailable. Check the folder table and RLS policies.</div>'; return } $("folderList").innerHTML = (data || []).map(f => `<div class="feature"><span class="folder-color" style="background:${escapeHTML(f.color || "#2862a5")}"></span><b>${escapeHTML(f.name)}</b><p class="muted">${documents.filter(d => d.folder_id === f.id).length} documents · Created ${dateText(f.created_at)}</p><button class="btn secondary small" onclick="showFolderDocuments('${f.id}')">View documents</button></div>`).join("") || '<div class="empty">No folders yet.</div>'; $("uploadFolder").innerHTML = '<option value="">No folder</option>' + (data || []).map(f => `<option value="${f.id}">${escapeHTML(f.name)}</option>`).join("") }
         function showFolderDocuments(id) { const items = documents.filter(d => d.folder_id === id && d.owner_id === currentProfile.id); $("docRows").innerHTML = items.map(d => `<tr><td>${escapeHTML(d.title)}</td><td>${escapeHTML(d.category)}</td><td>${dateText(d.created_at)}</td><td>${escapeHTML(d.status)}</td><td><button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button></td></tr>`).join(""); $("docEmpty").classList.toggle("hidden", items.length > 0); go("documents") } window.showFolderDocuments = showFolderDocuments;
-        $("folderForm").addEventListener("submit", async e => { e.preventDefault(); if (!currentProfile) return; const name = $("folderName").value.trim(), color = hasActivePremium() ? $("folderColor").value : "#2862a5"; if (!name) return toast("Enter a folder name."); const { error } = await sb.from("docukeep_folders").insert({ owner_id: currentProfile.id, name, color }); if (error) return toast("Could not create folder: " + error.message); e.target.reset(); $("folderColor").value = "#2862a5"; await loadFolders(); toast("Folder created.") });
+        $("folderForm").addEventListener("submit", async e => { e.preventDefault(); if (!currentProfile) return; const name = $("folderName").value.trim(), color = $("folderColor").value; if (!name) return toast("Enter a folder name."); const { error } = await sb.from("docukeep_folders").insert({ owner_id: currentProfile.id, name, color }); if (error) return toast("Could not create folder: " + error.message); e.target.reset(); $("folderColor").value = "#2862a5"; await loadFolders(); toast("Folder created.") });
         async function loadNotifications() { if (!currentProfile) return; const { data, error } = await sb.from("docukeep_notifications").select("id,title,message,created_at,is_read").eq("user_id", currentProfile.id).order("created_at", { ascending: false }).limit(100); if (error) { $("notificationList").innerHTML = '<div class="empty">Notifications unavailable. Check table and RLS policies.</div>'; return } const rows = data || [], unread = rows.filter(n => !n.is_read).length; $("notificationCount").textContent = unread ? `(${unread})` : ""; $("notificationList").innerHTML = rows.map(n => `<div style="padding:12px;border-bottom:1px solid var(--line);${n.is_read ? "opacity:.65" : ""}"><b>${escapeHTML(n.title)}</b><p>${escapeHTML(n.message)}</p><small class="muted">${dateText(n.created_at)} · ${n.is_read ? "Read" : "Unread"}</small>${n.is_read ? "" : ` <button class="btn secondary small" onclick="markNotificationRead('${n.id}')">Mark read</button>`}</div>`).join("") || '<div class="empty">You have no notifications.</div>' }
         async function markNotificationRead(id) { const { error } = await sb.from("docukeep_notifications").update({ is_read: true }).eq("id", id).eq("user_id", currentProfile.id); if (error) return toast(error.message); loadNotifications() }
         async function markAllNotificationsRead() { if (!currentProfile) return; const { error } = await sb.from("docukeep_notifications").update({ is_read: true }).eq("user_id", currentProfile.id).eq("is_read", false); if (error) return toast(error.message); await loadNotifications(); toast("Notifications marked as read") } window.markNotificationRead = markNotificationRead; window.markAllNotificationsRead = markAllNotificationsRead;
-        async function loadMySubscription() {
-            if (!currentProfile) return;
-            const { data, error } = await sb.from("docukeep_entitlements").select("plan,storage_limit_bytes,active,billing_period,starts_at,expires_at,updated_at").eq("user_id", currentProfile.id).maybeSingle();
-            if (error) { currentEntitlement = null; updatePremiumFeatureUI(); $("mySubscriptionStatus").textContent = "Subscription information is currently unavailable. Please try again later."; return }
-            currentEntitlement = data || { plan: "free", active: true, storage_limit_bytes: 26214400 };
-            const expiry = currentEntitlement.expires_at ? new Date(currentEntitlement.expires_at) : null;
-            const live = currentEntitlement.plan === "premium" && currentEntitlement.active && expiry && expiry.getTime() > Date.now();
-            const el = $("mySubscriptionStatus"); el.className = "sub-status" + (currentEntitlement.plan === "premium" && !live ? " expired" : "");
-            if (live) { el.innerHTML = `<b>Premium active</b><br>Plan: ${escapeHTML(currentEntitlement.billing_period || "Premium")} · Expires: ${expiry.toLocaleString()}<br>Storage allowance: 128 GB` }
-            else if (currentEntitlement.plan === "premium" || currentEntitlement.expires_at) { el.innerHTML = `<b>Premium expired</b><br>Your subscription ended${expiry ? " on " + expiry.toLocaleString() : ""}. Request a new plan to restore Premium access.` }
-            else { el.innerHTML = "<b>Free plan</b><br>You do not currently have an active Premium subscription." }
-            const { data: requests, error: reqErr } = await sb.from("docukeep_subscription_requests").select("billing_period,status,created_at,admin_note").eq("user_id", currentProfile.id).order("created_at", { ascending: false }).limit(5);
-            $("mySubscriptionHistory").innerHTML = reqErr ? "" : (requests || []).map(r => `<div style="padding:6px 0">Request: <b>${escapeHTML(r.billing_period)}</b> · ${escapeHTML(r.status)} · ${dateText(r.created_at)}${r.admin_note ? `<br>Admin note: ${escapeHTML(r.admin_note)}` : ""}</div>`).join("");
-        }
-        async function requestSubscription(period) {
-            if (!currentProfile || !['student', 'teacher'].includes(currentProfile.role)) return toast("Only approved student or teacher accounts can request Premium.");
-            if (!['week', 'month', 'year'].includes(period)) return;
-            const { data: pending, error: checkErr } = await sb.from("docukeep_subscription_requests").select("id").eq("user_id", currentProfile.id).eq("status", "pending").limit(1);
-            if (checkErr) return toast("Could not check existing requests: " + checkErr.message);
-            if (pending?.length) return toast("You already have a pending subscription request. Please wait for the administrator.");
-            if (!confirm(`Request the ${period} Premium plan? The administrator will contact you about payment.`)) return;
-            const { error } = await sb.from("docukeep_subscription_requests").insert({ user_id: currentProfile.id, plan: "premium", billing_period: period, user_note: "User requests manual payment instructions and Premium activation." });
-            if (error) return toast("Could not submit subscription request: " + error.message);
-            await loadMySubscription(); toast("Subscription request sent. Please wait for the administrator to contact you.");
-        }
-        window.requestSubscription = requestSubscription;
-        async function renderSubscriptionRequests() {
-            const body = $("subscriptionRequests"); if (currentProfile?.role !== "staff") { body.innerHTML = '<tr><td colspan="5">Staff access required.</td></tr>'; return }
-            const { data: reqs, error } = await sb.from("docukeep_subscription_requests").select("id,user_id,billing_period,status,created_at").eq("status", "pending").order("created_at", { ascending: true });
-            if (error) { body.innerHTML = `<tr><td colspan="5">${escapeHTML(error.message)}</td></tr>`; return }
-            const ids = [...new Set((reqs || []).map(r => r.user_id))];
-            const users = ids.length ? (await sb.from("profiles").select("id,full_name,email,role").in("id", ids)).data || [] : [];
-            const byId = Object.fromEntries(users.map(u => [u.id, u]));
-            body.innerHTML = (reqs || []).map(r => { const u = byId[r.user_id] || {}; return `<tr><td><b>${escapeHTML(u.full_name || "Unknown user")}</b><br><small>${escapeHTML(u.email || "")}</small><br><small>${escapeHTML(u.role || "")}</small></td><td>Premium · ${escapeHTML(r.billing_period)}</td><td>${dateText(r.created_at)}</td><td><select id="sub-period-${r.id}" style="padding:7px;border:1px solid var(--line);border-radius:7px"><option value="week" ${r.billing_period === "week" ? "selected" : ""}>1 week</option><option value="month" ${r.billing_period === "month" ? "selected" : ""}>1 month</option><option value="year" ${r.billing_period === "year" ? "selected" : ""}>1 year</option></select></td><td><div class="actions"><button class="btn green small" onclick="activateSubscription('${r.id}','${r.user_id}')">Confirm payment & activate</button><button class="btn danger small" onclick="rejectSubscription('${r.id}')">Reject</button></div></td></tr>` }).join("") || '<tr><td colspan="5" class="empty">No pending Premium requests.</td></tr>';
-        }
-        async function activateSubscription(requestId, userId) {
-            if (currentProfile?.role !== "staff") return toast("Staff access required.");
-            const period = $("sub-period-" + requestId)?.value; if (!['week', 'month', 'year'].includes(period)) return toast("Choose a valid subscription duration.");
-            if (!confirm("Have you verified the user's payment? Activating will start the subscription immediately.")) return;
-            const note = prompt("Optional payment/reference note for the admin record:") || null;
-            const { data, error } = await sb.rpc("activate_docukeep_subscription", { p_user_id: userId, p_duration: period, p_request_id: requestId, p_admin_note: note });
-            if (error) return toast("Activation failed: " + error.message);
-            toast("Premium activated until " + new Date(data).toLocaleString()); await renderSubscriptionRequests(); await loadMySubscription();
-        }
-        async function rejectSubscription(requestId) { if (currentProfile?.role !== "staff") return toast("Staff access required."); const note = prompt("Reason for rejecting this request (optional):"); if (note === null) return; const { error } = await sb.rpc("reject_docukeep_subscription_request", { p_request_id: requestId, p_admin_note: note || null }); if (error) return toast("Could not reject request: " + error.message); toast("Subscription request rejected."); await renderSubscriptionRequests() }
-        window.activateSubscription = activateSubscription; window.rejectSubscription = rejectSubscription;
-        async function renderAdmin() { if (currentProfile?.role !== "staff") { $("requests").innerHTML = '<div class="empty">Staff access required.</div>'; return } $("requests").innerHTML = '<div class="empty">Loading…</div>'; const { data: users, error } = await sb.from("profiles").select("id,full_name,email,role,department,created_at").eq("status", "pending").order("created_at"); if (error) { $("requests").innerHTML = '<div class="empty">Could not load requests: ' + escapeHTML(error.message) + '</div>'; return } $("requests").innerHTML = (users || []).map(u => `<div style="padding:12px 0;border-bottom:1px solid #eee"><b>${escapeHTML(u.full_name)}</b> · ${escapeHTML(u.role)}<br><small>${escapeHTML(u.email)} · ${escapeHTML(u.department || "No department")} · ${dateText(u.created_at)}</small><div class="actions" style="margin-top:8px"><button class="btn green small" onclick="reviewUser('${u.id}','approved')">Approve</button><button class="btn danger small" onclick="reviewUser('${u.id}','rejected')">Reject</button></div></div>`).join("") || '<div class="empty">No pending registrations.</div>'; const { data: all, error: allErr } = await sb.from("profiles").select("id,full_name,email,role,department,status,created_at").order("created_at", { ascending: false }); if (allErr) $("managedUsers").innerHTML = `<tr><td colspan="5">${escapeHTML(allErr.message)}</td></tr>`; else { managedUsersCache = all || []; filterManagedUsers() } await renderSubscriptionRequests(); $("allRows").innerHTML = documents.map(d => `<tr><td>${escapeHTML(d.owner_name || "")}</td><td><b>${escapeHTML(d.title)}</b><br><small class="muted">${escapeHTML(d.file_name || "")}</small>${reviewCommentHTML(d)}</td><td>${escapeHTML(d.category)}</td><td>${dateText(d.created_at)}</td><td><span class="pill ${statusClass(d.status)}">${escapeHTML(d.status)}</span><div class="actions" style="margin-top:6px"><button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button><button class="btn secondary small" onclick="downloadDoc('${d.id}')">Download</button><button class="btn green small" onclick="reviewDoc('${d.id}','approved')">Approve</button><button class="btn secondary small" onclick="reviewDoc('${d.id}','needs_revision')">Return</button><button class="btn danger small" onclick="reviewDoc('${d.id}','rejected')">Reject</button></div></td></tr>`).join("") }
+        async function renderAdmin() { if (currentProfile?.role !== "staff") { $("requests").innerHTML = '<div class="empty">Staff access required.</div>'; return } await loadAdminSubscriptionRequests(); $("requests").innerHTML = '<div class="empty">Loading…</div>'; const { data: users, error } = await sb.from("profiles").select("id,full_name,email,role,department,created_at").eq("status", "pending").order("created_at"); if (error) { $("requests").innerHTML = '<div class="empty">Could not load requests: ' + escapeHTML(error.message) + '</div>'; return } $("requests").innerHTML = (users || []).map(u => `<div style="padding:12px 0;border-bottom:1px solid #eee"><b>${escapeHTML(u.full_name)}</b> · ${escapeHTML(u.role)}<br><small>${escapeHTML(u.email)} · ${escapeHTML(u.department || "No department")} · ${dateText(u.created_at)}</small><div class="actions" style="margin-top:8px"><button class="btn green small" onclick="reviewUser('${u.id}','approved')">Approve</button><button class="btn danger small" onclick="reviewUser('${u.id}','rejected')">Reject</button></div></div>`).join("") || '<div class="empty">No pending registrations.</div>'; const { data: all, error: allErr } = await sb.from("profiles").select("id,full_name,email,role,department,status,created_at").order("created_at", { ascending: false }); if (allErr) $("managedUsers").innerHTML = `<tr><td colspan="5">${escapeHTML(allErr.message)}</td></tr>`; else { managedUsersCache = all || []; filterManagedUsers() } $("allRows").innerHTML = documents.map(d => `<tr><td>${escapeHTML(d.owner_name || "")}</td><td><b>${escapeHTML(d.title)}</b><br><small class="muted">${escapeHTML(d.file_name || "")}</small>${reviewCommentHTML(d)}</td><td>${escapeHTML(d.category)}</td><td>${dateText(d.created_at)}</td><td><span class="pill ${statusClass(d.status)}">${escapeHTML(d.status)}</span><div class="actions" style="margin-top:6px"><button class="btn secondary small" onclick="previewDoc('${d.id}')">Preview</button><button class="btn secondary small" onclick="downloadDoc('${d.id}')">Download</button><button class="btn green small" onclick="reviewDoc('${d.id}','approved')">Approve</button><button class="btn secondary small" onclick="reviewDoc('${d.id}','needs_revision')">Return</button><button class="btn danger small" onclick="reviewDoc('${d.id}','rejected')">Reject</button></div></td></tr>`).join("") }
+
+
+        const SUBSCRIPTION_PLANS = { yearly: { label: "1-Year Subscription", amount: 100, days: 365 }, monthly: { label: "1-Month Subscription", amount: 50, days: 30 }, weekly: { label: "1-Week Subscription", amount: 25, days: 7 } };
+        let selectedSubscriptionPlan = null;
+        function chooseSubscription(key) { const plan = SUBSCRIPTION_PLANS[key]; if (!plan) return; selectedSubscriptionPlan = key; $("selectedPlanLabel").value = plan.label; $("selectedPlanAmount").value = "₱" + plan.amount.toLocaleString("en-PH"); $("subscriptionCheckout").scrollIntoView({ behavior: "smooth", block: "start" }) }
+        function requestStatusLabel(status) { return ({ pending: "Awaiting staff review", needs_info: "Message from administrator", approved: "Payment accepted · Premium active", rejected: "Request rejected" })[status] || status }
+        function renderMySubscriptionRows(rows) { const el = $("mySubscriptionRequests"); if (!el) return; el.innerHTML = (rows || []).map(r => `<div class="request-card"><div class="actions" style="justify-content:space-between"><b>${escapeHTML(SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key)}</b><span class="status-chip ${escapeHTML(r.status)}">${escapeHTML(requestStatusLabel(r.status))}</span></div><p><b>Amount:</b> ₱${Number(r.amount_php).toLocaleString("en-PH")} · <b>Submitted:</b> ${dateText(r.created_at)}</p><p><b>Payment method:</b> ${escapeHTML(r.payment_method || "—")} · <b>Reference ID:</b> ${escapeHTML(r.payment_reference || "Not provided")}</p>${r.admin_message ? `<div class="review-feedback"><b>Administrator message</b><p>${escapeHTML(r.admin_message)}</p></div>` : ""}${r.status === "approved" ? `<p><b>Premium valid until:</b> ${dateText(r.expires_at)}</p>` : ""}</div>`).join("") || '<div class="empty">You have not submitted a subscription request yet.</div>' }
+        async function loadMySubscriptionRequests() { if (!currentProfile || currentProfile.role === "staff") return; const el = $("mySubscriptionRequests"); if (!el) return; const { data, error } = await sb.from("docukeep_subscription_requests").select("id,plan_key,amount_php,payment_reference,payment_method,status,admin_message,created_at,expires_at").eq("user_id", currentProfile.id).order("created_at", { ascending: false }); if (error) { el.innerHTML = `<div class="empty">Payment requests unavailable. Run the subscription SQL migration. ${escapeHTML(error.message)}</div>`; return } renderMySubscriptionRows(data || []) }
+        $("subscriptionForm")?.addEventListener("submit", async e => { e.preventDefault(); if (!currentProfile || currentProfile.role === "staff") return toast("Sign in as a student or teacher to request Premium."); if (!selectedSubscriptionPlan) return toast("Choose a subscription plan first."); const file = $("paymentReceipt").files[0], reference = $("paymentReference").value.trim(); if (!reference) return toast("Enter your payment Reference ID."); if (!file) return toast("Upload your payment receipt."); if (!["image/jpeg", "image/png", "application/pdf"].includes(file.type)) return toast("Receipt must be JPG, PNG, or PDF."); if (file.size > 5 * 1024 * 1024) return toast("Receipt must be 5 MB or smaller."); const plan = SUBSCRIPTION_PLANS[selectedSubscriptionPlan], btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Submitting…"; try { const requestId = crypto.randomUUID(), ext = file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : "jpg", path = `${currentProfile.id}/${requestId}.${ext}`; const up = await sb.storage.from("docukeep-payment-receipts").upload(path, file, { upsert: false, contentType: file.type }); if (up.error) throw up.error; const { error } = await sb.from("docukeep_subscription_requests").insert({ id: requestId, user_id: currentProfile.id, plan_key: selectedSubscriptionPlan, amount_php: plan.amount, payment_reference: reference, payment_method: $("paymentMethod").value, receipt_path: path, user_message: $("paymentNote").value.trim() || null, status: "pending" }); if (error) { await sb.storage.from("docukeep-payment-receipts").remove([path]); throw error } e.target.reset(); selectedSubscriptionPlan = null; toast("Subscription request and receipt sent to staff."); await loadMySubscriptionRequests() } catch (err) { toast("Could not submit payment request: " + err.message) } finally { btn.disabled = false; btn.textContent = "Send request and receipt" } });
+        async function loadAdminSubscriptionRequests() { const el = $("adminSubscriptionRequests"); if (!el || currentProfile?.role !== "staff") return; el.innerHTML = '<div class="empty">Loading payment requests…</div>'; const { data: rows, error } = await sb.from("docukeep_subscription_requests").select("id,user_id,plan_key,amount_php,payment_reference,payment_method,receipt_path,user_message,status,admin_message,created_at,starts_at,expires_at").order("created_at", { ascending: false }); if (error) { el.innerHTML = `<div class="empty">Could not load payment requests. ${escapeHTML(error.message)}</div>`; return } if (!rows?.length) { el.innerHTML = '<div class="empty">No subscription requests yet.</div>'; return } const ids = [...new Set(rows.map(r => r.user_id))], pr = await sb.from("profiles").select("id,full_name,email,role,department").in("id", ids), profiles = Object.fromEntries((pr.data || []).map(p => [p.id, p])); el.innerHTML = rows.map(r => { const u = profiles[r.user_id] || {}; return `<div class="request-card"><div class="actions" style="justify-content:space-between"><b>${escapeHTML(u.full_name || u.email || r.user_id)} · ${escapeHTML(u.role || "user")}</b><span class="status-chip ${escapeHTML(r.status)}">${escapeHTML(requestStatusLabel(r.status))}</span></div><p>${escapeHTML(u.email || "")} · ${escapeHTML(u.department || "")}</p><p><b>${escapeHTML(SUBSCRIPTION_PLANS[r.plan_key]?.label || r.plan_key)}</b> · ₱${Number(r.amount_php).toLocaleString("en-PH")} · ${dateText(r.created_at)}</p><p><b>Payment method:</b> ${escapeHTML(r.payment_method || "—")} · <b>Reference ID:</b> ${escapeHTML(r.payment_reference || "Not provided")}</p><p><b>User message:</b> ${escapeHTML(r.user_message || "—")}</p><div class="actions"><button class="btn secondary small" onclick="viewPaymentReceipt('${r.id}')">View receipt</button>${r.status !== "approved" ? `<button class="btn green small" onclick="decideSubscription('${r.id}','approved')">Accept & activate</button>` : ""}<button class="btn secondary small" onclick="messageSubscription('${r.id}')">Send message</button>${r.status !== "rejected" ? `<button class="btn danger small" onclick="decideSubscription('${r.id}','rejected')">Reject</button>` : ""}</div>${r.admin_message ? `<div class="review-feedback"><b>Last admin message</b><p>${escapeHTML(r.admin_message)}</p></div>` : ""}${r.status === "approved" ? `<small class="muted">Premium: ${dateText(r.starts_at)} – ${dateText(r.expires_at)}</small>` : ""}</div>` }).join("") }
+        async function viewPaymentReceipt(id) { if (currentProfile?.role !== "staff") return toast("Staff access required."); const { data: r, error } = await sb.from("docukeep_subscription_requests").select("receipt_path").eq("id", id).single(); if (error) return toast(error.message); const signed = await sb.storage.from("docukeep-payment-receipts").createSignedUrl(r.receipt_path, 300); if (signed.error) return toast("Cannot open receipt: " + signed.error.message); window.open(signed.data.signedUrl, "_blank", "noopener") }
+        async function decideSubscription(id, status) { if (currentProfile?.role !== "staff") return toast("Staff access required."); if (!["approved", "rejected"].includes(status)) return; let msg = prompt(status === "approved" ? "Optional message to the user:" : "Reason for rejecting this payment:", ""); if (msg === null) return; if (status === "rejected" && !msg.trim()) return toast("Please enter a rejection reason."); const { error } = await sb.rpc("review_docukeep_subscription_request", { p_request_id: id, p_status: status, p_admin_message: msg.trim() || null }); if (error) return toast("Could not update request: " + error.message); toast(status === "approved" ? "Payment accepted. Premium has been activated." : "Payment request rejected."); await loadAdminSubscriptionRequests() }
+        async function messageSubscription(id) { if (currentProfile?.role !== "staff") return toast("Staff access required."); const msg = prompt("Write a message about this transaction:"); if (msg === null || !msg.trim()) return; const { error } = await sb.rpc("message_docukeep_subscription_request", { p_request_id: id, p_admin_message: msg.trim() }); if (error) return toast("Message could not be sent: " + error.message); toast("Message sent to user."); await loadAdminSubscriptionRequests() }
+        window.chooseSubscription = chooseSubscription; window.viewPaymentReceipt = viewPaymentReceipt; window.decideSubscription = decideSubscription; window.messageSubscription = messageSubscription;
 
         function filterManagedUsers() { const q = ($("userSearch")?.value || "").trim().toLowerCase(), rf = $("userRoleFilter")?.value || "all", arr = managedUsersCache.filter(u => (!q || `${u.full_name || ""} ${u.email || ""}`.toLowerCase().includes(q)) && (rf === "all" || u.role === rf)); $("managedUsers").innerHTML = arr.map(u => { const self = u.id === currentProfile?.id; return `<tr><td><b>${escapeHTML(u.full_name || "Unnamed user")}</b><br><small>${escapeHTML(u.email || "")}</small></td><td>${escapeHTML(u.department || "—")}</td><td><span class="pill ${u.role === "staff" ? "approved" : "pending"}">${escapeHTML(u.role)}</span></td><td><div class="actions"><select id="role-${u.id}" ${self ? "disabled" : ""} style="padding:6px;border:1px solid var(--line);border-radius:7px"><option value="student" ${u.role === "student" ? "selected" : ""}>Student</option><option value="teacher" ${u.role === "teacher" ? "selected" : ""}>Teacher</option><option value="staff" ${u.role === "staff" ? "selected" : ""}>Staff / Admin</option></select><button class="btn small" onclick="changeUserRole('${u.id}')" ${self ? "disabled" : ""}>Save</button></div></td><td>${escapeHTML(u.status || "unknown")}${self ? " · You" : ""}</td></tr>` }).join("") || '<tr><td colspan="5" class="empty">No matching accounts.</td></tr>' }
         async function changeUserRole(id) { if (currentProfile?.role !== "staff") return toast("Staff access required."); if (id === currentProfile.id) return toast("You cannot change your own role."); const role = $("role-" + id)?.value; if (!["student", "teacher", "staff"].includes(role)) return toast("Choose a valid role."); const u = managedUsersCache.find(x => x.id === id); if (!u) return toast("User not found."); if (role === u.role) return toast("Account already has that role."); if (!confirm(`Change ${u.email} from ${u.role} to ${role}?`)) return; const { error } = await sb.rpc("manage_docukeep_user_role", { p_user_id: id, p_new_role: role }); if (error) return toast("Role change failed: " + error.message); toast("Role updated."); await renderAdmin() }
@@ -1221,8 +1201,8 @@
             await loadDocuments();
         }
         window.filterManagedUsers = filterManagedUsers; window.changeUserRole = changeUserRole; window.reviewUser = reviewUser; window.reviewDoc = reviewDoc;
-        function go(page) { if (page === "tracking" && !hasActivePremium()) { updatePremiumFeatureUI(); page = "tracking"; } const allowed = ["dashboard", "documents", "upload", "tracking", "folders", "notifications", "premium", "admin"]; if (!allowed.includes(page)) return; if (!currentProfile) return toast("Please sign in first."); if (page === "admin" && currentProfile.role !== "staff") return toast("Staff access required."); document.querySelectorAll(".page").forEach(x => x.classList.remove("active")); $("page-" + page).classList.add("active"); document.querySelectorAll("[data-page]").forEach(x => x.classList.toggle("active", x.dataset.page === page)); $("crumb").textContent = ({ dashboard: "Dashboard", documents: "My Documents", upload: "Upload Document", tracking: "Submission Tracking", folders: "My Folders", notifications: "Notifications", premium: "Premium Plan", admin: "Staff Administration" })[page]; if (page === "admin") renderAdmin(); if (page === "premium") loadMySubscription(); if (page === "folders") loadFolders(); if (page === "notifications") loadNotifications(); window.scrollTo(0, 0) } window.go = go; document.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => go(b.dataset.page)));
-        async function signOut() { const { error } = await sb.auth.signOut(); if (error) return toast("Sign out failed: " + error.message); currentProfile = null; documents = []; accountType = null; managedUsersCache = []; $("app").classList.add("hidden"); $("auth").classList.remove("hidden"); $("loginForm").reset(); $("signupForm").reset(); backChoice(); toast("Successfully signed out") } window.signOut = signOut;
+        function go(page) { const allowed = ["dashboard", "documents", "upload", "tracking", "folders", "notifications", "premium", "admin"]; if (!allowed.includes(page)) return; if (!currentProfile) return toast("Please sign in first."); if (page === "admin" && currentProfile.role !== "staff") return toast("Staff access required."); document.querySelectorAll(".page").forEach(x => x.classList.remove("active")); $("page-" + page).classList.add("active"); document.querySelectorAll("[data-page]").forEach(x => x.classList.toggle("active", x.dataset.page === page)); $("crumb").textContent = ({ dashboard: "Dashboard", documents: "My Documents", upload: "Upload Document", tracking: "Submission Tracking", folders: "My Folders", notifications: "Notifications", premium: "Premium Plan", admin: "Staff Administration" })[page]; if (page === "admin") renderAdmin(); if (page === "premium") loadMySubscriptionRequests(); if (page === "folders") loadFolders(); if (page === "notifications") loadNotifications(); window.scrollTo(0, 0) } window.go = go; document.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => go(b.dataset.page)));
+        async function signOut() { cons t { error } = await sb.auth.signOut(); if (error) return toast("Sign out failed: " + error.message); currentProfile = null; documents = []; accountType = null; managedUsersCache = []; $("app").classList.add("hidden"); $("auth").classList.remove("hidden"); $("loginForm").reset(); $("signupForm").reset(); backChoice(); toast("Successfully signed out") } window.signOut = signOut;
         async function restoreSession() { const { data, error } = await sb.auth.getSession(); if (error) throw error; if (data.session) await loadProfile(data.session.user, null) }
         (async () => { try { await updateOfflineStatus(); const params = new URLSearchParams(location.hash.replace(/^#/, "")); const isRecovery = params.get("type") === "recovery"; if (isRecovery) { recoveryMode = true; $("choose").classList.add("hidden"); $("authform").classList.remove("hidden"); accountType = "student"; hideAllAuthForms(); $("resetForm").classList.remove("hidden"); $("formTitle").textContent = "Set a new password"; $("forgotSwitch").classList.add("hidden"); $("signupSwitch").classList.add("hidden"); $("resendSwitch").classList.add("hidden"); setAuthMessage("Enter and confirm your new password.") } else await restoreSession() } catch (e) { console.error("Startup/session restore", e); await sb.auth.signOut(); currentProfile = null; $("app").classList.add("hidden"); $("auth").classList.remove("hidden"); toast("Session could not be restored: " + e.message) } })();
         if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(e => console.warn("Service worker unavailable", e)));
