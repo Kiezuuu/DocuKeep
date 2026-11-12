@@ -1221,6 +1221,77 @@
         .folder-management-actions .btn { flex:1 1 auto; }
     }
 
+
+    /* Dashboard inspired by the supplied reference */
+    .logo { overflow:hidden; background:#fff; }
+    .logo img { display:block; width:100%; height:100%; object-fit:contain; padding:3px; }
+    .sidebar .logo { background:#fff; }
+    .dashboard-heading { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:14px; }
+    .dashboard-heading h1 { margin:0 0 3px; font-size:23px; font-weight:750; letter-spacing:-.04em; }
+    .dashboard-heading p { margin:0; font-size:11px; }
+    .dashboard-quickstats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:11px; margin:0 0 17px; }
+    .dashboard-quickstat { display:flex; align-items:center; gap:10px; min-width:0; padding:10px 12px; border:1px solid #e8edf4; border-radius:11px; background:#fff; box-shadow:var(--shadow-sm); }
+    .dashboard-quickstat-icon { display:grid; place-items:center; width:30px; height:30px; flex:0 0 30px; border-radius:9px; background:#eff5fd; color:#3978bc; font-size:14px; }
+    .dashboard-quickstat:nth-child(2) .dashboard-quickstat-icon { background:#fff6e9; color:#c58a31; }
+    .dashboard-quickstat:nth-child(3) .dashboard-quickstat-icon { background:#effaf4; color:#219264; }
+    .dashboard-quickstat:nth-child(4) .dashboard-quickstat-icon { background:#f3f0ff; color:#7764bd; }
+    .dashboard-quickstat span { display:block; color:#8593a5; font-size:9px; font-weight:650; }
+    .dashboard-quickstat strong { display:block; margin-top:2px; color:#263f5d; font-size:14px; font-weight:800; }
+    .dashboard-main-grid { display:grid; grid-template-columns:minmax(0,1.85fr) minmax(230px,.9fr); gap:14px; margin-bottom:14px; }
+    .dashboard-bottom-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+    .dashboard-panel { min-width:0; margin:0; padding:16px; border:1px solid #e7edf4; border-radius:13px; background:#fff; box-shadow:var(--shadow-sm); }
+    .dashboard-panel-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
+    .dashboard-panel-head h2 { margin:0; color:#31465f; font-size:10px; font-weight:850; letter-spacing:.045em; text-transform:uppercase; }
+    .dashboard-viewall { padding:0; border:0; background:none; color:#3978bc; font-size:9px; font-weight:750; }
+    .dashboard-table-wrap { overflow-x:auto; }
+    .dashboard-table { width:100%; min-width:390px; border-collapse:collapse; }
+    .dashboard-table th { padding:7px 6px; border-bottom:1px solid #edf1f6; background:transparent; color:#a0aaba; font-size:8px; text-align:left; white-space:nowrap; }
+    .dashboard-table td { padding:9px 6px; border-bottom:1px solid #f0f3f7; color:#66778c; font-size:9px; vertical-align:middle; }
+    .dashboard-table tr:last-child td { border-bottom:0; }
+    .dashboard-table .doc-title-button { max-width:190px; overflow:hidden; padding:0; border:0; background:none; color:#40536b; font-size:9px; font-weight:700; text-align:left; text-overflow:ellipsis; white-space:nowrap; }
+    .dashboard-summary { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:190px; }
+    .dashboard-donut { display:grid; place-items:center; width:116px; height:116px; border-radius:50%; background:conic-gradient(#75d99c 0 var(--approved-angle,0deg), #f4c66f var(--approved-angle,0deg) var(--pending-angle,0deg), #f28a8a var(--pending-angle,0deg) 360deg); }
+    .dashboard-donut-hole { display:flex; flex-direction:column; align-items:center; justify-content:center; width:82px; height:82px; border-radius:50%; background:#fff; }
+    .dashboard-donut-hole strong { color:#2d4662; font-size:21px; line-height:1.1; }
+    .dashboard-donut-hole span { margin-top:3px; color:#9aa6b5; font-size:8px; }
+    .dashboard-legend { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 13px; margin-top:13px; color:#8391a3; font-size:8px; }
+    .dashboard-legend span { display:flex; align-items:center; gap:4px; }
+    .dashboard-legend i { width:6px; height:6px; border-radius:50%; }
+    .dashboard-legend .lg-pending { background:#f4c66f; } .dashboard-legend .lg-rejected { background:#f28a8a; } .dashboard-legend .lg-approved { background:#75d99c; }
+    .dashboard-mini-list { display:grid; gap:9px; }
+    .dashboard-mini-row { display:flex; align-items:center; gap:8px; min-width:0; }
+    .dashboard-file-icon { display:grid; place-items:center; width:25px; height:29px; flex:0 0 25px; border:1px solid #e7edf4; border-radius:6px; background:#f7faff; color:#4382c4; font-size:10px; }
+    .dashboard-mini-info { min-width:0; flex:1; }
+    .dashboard-mini-info b { display:block; overflow:hidden; color:#50627a; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
+    .dashboard-mini-info small { display:block; margin-top:3px; color:#a0abba; font-size:8px; }
+    .dashboard-mini-date { color:#a0abba; font-size:8px; white-space:nowrap; }
+    .dashboard-activity-dot { width:8px; height:8px; flex:0 0 8px; border-radius:50%; background:#65c991; box-shadow:0 0 0 3px #effaf4; }
+    .dashboard-activity-dot.pending { background:#e8b65c; box-shadow:0 0 0 3px #fff8eb; }
+    .dashboard-activity-dot.rejected { background:#e47c7c; box-shadow:0 0 0 3px #fff2f2; }
+    .dashboard-analysis-select { max-width:112px; padding:5px 7px; border:1px solid #e4eaf2; border-radius:6px; color:#748399; background:#fff; font-size:8px; }
+    .dashboard-chart { display:flex; align-items:flex-end; justify-content:space-around; gap:10px; height:116px; padding:10px 5px 0; border-bottom:1px solid #edf1f6; }
+    .dashboard-chart-item { display:flex; flex:1; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px; height:100%; min-width:0; }
+    .dashboard-chart-bar { width:min(19px,70%); min-height:4px; border-radius:4px 4px 0 0; background:linear-gradient(180deg,#8edca9,#54bf83); }
+    .dashboard-chart-item span { max-width:100%; overflow:hidden; color:#9aa6b5; font-size:8px; text-overflow:ellipsis; white-space:nowrap; }
+    .dashboard-chart-item b { color:#64768c; font-size:8px; }
+    .dashboard-empty { padding:20px 8px; color:#a0abba; font-size:10px; text-align:center; }
+    @media(max-width:1000px) {
+      .dashboard-bottom-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .dashboard-bottom-grid .dashboard-panel:last-child { grid-column:1/-1; }
+    }
+    @media(max-width:760px) {
+      .dashboard-heading { align-items:flex-start; flex-direction:column; }
+      .dashboard-quickstats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .dashboard-main-grid, .dashboard-bottom-grid { grid-template-columns:1fr; }
+      .dashboard-bottom-grid .dashboard-panel:last-child { grid-column:auto; }
+    }
+    @media(max-width:420px) {
+      .dashboard-quickstat { padding:9px; gap:7px; }
+      .dashboard-quickstat-icon { width:27px; height:27px; flex-basis:27px; }
+      .dashboard-quickstat strong { font-size:12px; }
+      .dashboard-panel { padding:12px; }
+    }
+
 </style>
 </head>
 
@@ -1228,7 +1299,7 @@
     <section class="authscreen" id="auth">
         <div class="authcard">
             <div class="brand">
-                <div class="logo">D</div>
+                <div class="logo"><img src="Logo.png" alt="DocuKeep logo"></div>
                 <div><b>DocuKeep</b>
                     <div class="muted">Smart School File System</div>
                 </div>
@@ -1287,7 +1358,7 @@
     <div class="app hidden" id="app">
         <aside class="sidebar">
             <div class="brand">
-                <div class="logo">D</div>
+                <div class="logo"><img src="Logo.png" alt="DocuKeep logo"></div>
                 <div><b>DocuKeep</b><small>Smart School File System</small></div>
             </div>
             <div class="navlabel">WORKSPACE</div>
@@ -1308,21 +1379,55 @@
                 <span id="queueCount">0</span> waiting.</div>
             <div class="content">
                 <section class="page active" id="page-dashboard">
-                    <div class="heading">
+                    <div class="dashboard-heading">
                         <div>
                             <h1 id="greeting">Dashboard</h1>
                             <p>Your document workspace and submission activity.</p>
-                        </div><button class="btn" onclick="go('upload')">＋ Upload document</button>
-                    </div>
-                    <div class="stats">
-                        <div class="stat">Total documents<strong id="total">0</strong><small>Accessible to your
-                                account</small></div>
-                        <div class="stat">Pending review<strong id="pending">0</strong><small>Awaiting staff
-                                review</small></div>
-                        <div class="stat">Approved<strong id="approved">0</strong><small>Completed submissions</small>
                         </div>
+                        <button class="btn" onclick="go('upload')">＋ New document</button>
                     </div>
-                    <div class="panel">
+
+                    <div class="dashboard-quickstats">
+                        <div class="dashboard-quickstat"><div class="dashboard-quickstat-icon">▤</div><div><span>Total documents</span><strong id="dashTotal">0</strong></div></div>
+                        <div class="dashboard-quickstat"><div class="dashboard-quickstat-icon">◷</div><div><span>Pending review</span><strong id="dashPending">0</strong></div></div>
+                        <div class="dashboard-quickstat"><div class="dashboard-quickstat-icon">✓</div><div><span>Approved</span><strong id="dashApproved">0</strong></div></div>
+                        <div class="dashboard-quickstat"><div class="dashboard-quickstat-icon">▣</div><div><span>My folders</span><strong id="dashFolders">0</strong></div></div>
+                    </div>
+
+                    <div class="dashboard-main-grid">
+                        <section class="dashboard-panel">
+                            <div class="dashboard-panel-head"><h2>Pending documents</h2><button class="dashboard-viewall" onclick="go('documents')">View all ›</button></div>
+                            <div id="dashboardPendingTable" class="dashboard-table-wrap"><div class="dashboard-empty">Loading documents…</div></div>
+                        </section>
+                        <section class="dashboard-panel">
+                            <div class="dashboard-panel-head"><h2>Document summary</h2></div>
+                            <div class="dashboard-summary">
+                                <div class="dashboard-donut" id="dashboardDonut"><div class="dashboard-donut-hole"><strong id="dashboardTotalDonut">0</strong><span>Total files</span></div></div>
+                                <div class="dashboard-legend">
+                                    <span><i class="lg-pending"></i>Pending <b id="dashboardPendingCount">0</b></span>
+                                    <span><i class="lg-rejected"></i>Rejected <b id="dashboardRejectedCount">0</b></span>
+                                    <span><i class="lg-approved"></i>Approved <b id="dashboardApprovedCount">0</b></span>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="dashboard-bottom-grid">
+                        <section class="dashboard-panel">
+                            <div class="dashboard-panel-head"><h2>Recent documents</h2><button class="dashboard-viewall" onclick="go('documents')">View all ›</button></div>
+                            <div id="dashboardRecent" class="dashboard-mini-list"><div class="dashboard-empty">No documents yet.</div></div>
+                        </section>
+                        <section class="dashboard-panel">
+                            <div class="dashboard-panel-head"><h2>Recent activity</h2><button class="dashboard-viewall" onclick="go('tracking')">View tracking ›</button></div>
+                            <div id="dashboardActivity" class="dashboard-mini-list"><div class="dashboard-empty">No recent activity.</div></div>
+                        </section>
+                        <section class="dashboard-panel">
+                            <div class="dashboard-panel-head"><h2>Document analysis</h2><select class="dashboard-analysis-select" id="dashboardAnalysisMode" aria-label="Analysis type" onchange="renderDashboard()"><option value="category">Document type</option><option value="status">Status</option></select></div>
+                            <div id="dashboardAnalysis" class="dashboard-chart"><div class="dashboard-empty">No data to analyze.</div></div>
+                        </section>
+                    </div>
+
+                    <div class="panel" style="margin-top:14px">
                         <h2>Storage information</h2>
                         <div class="grid">
                             <div>Storage used: <b id="storageUsed">0 B</b></div>
@@ -1330,10 +1435,7 @@
                             <div>Storage note: <b>Per-file limit applies</b></div>
                         </div>
                     </div>
-                    <div class="panel">
-                        <h2>Recent documents</h2>
-                        <div id="recent" class="empty">No documents yet.</div>
-                    </div>
+                    <div id="recent" class="hidden"></div>
                 </section>
                 <section class="page" id="page-documents">
                     <div class="heading">
@@ -2513,6 +2615,90 @@ function filterDocumentCards(value) {
 window.selectDocumentPreview = selectDocumentPreview;
 window.filterDocumentCards = filterDocumentCards;
 
+
+function renderDashboard(items = documents) {
+    const list = Array.isArray(items) ? items : [];
+    const pending = list.filter(d => studentDocumentStatus(d) === "pending");
+    const approved = list.filter(d => studentDocumentStatus(d) === "approved");
+    const rejected = list.filter(d => studentDocumentStatus(d) === "rejected");
+    const folders = Array.isArray(folderCache) ? folderCache.filter(f => f.owner_id === currentProfile?.id) : [];
+
+    const setText = (id, value) => { const el = $(id); if (el) el.textContent = String(value); };
+    setText("dashTotal", list.length);
+    setText("dashPending", pending.length);
+    setText("dashApproved", approved.length);
+    setText("dashFolders", folders.length);
+    setText("dashboardTotalDonut", list.length);
+    setText("dashboardPendingCount", pending.length);
+    setText("dashboardRejectedCount", rejected.length);
+    setText("dashboardApprovedCount", approved.length);
+
+    const total = Math.max(list.length, 1);
+    const approvedAngle = approved.length / total * 360;
+    const pendingAngle = (approved.length + pending.length) / total * 360;
+    const donut = $("dashboardDonut");
+    if (donut) {
+        donut.style.setProperty("--approved-angle", `${approvedAngle}deg`);
+        donut.style.setProperty("--pending-angle", `${pendingAngle}deg`);
+    }
+
+    const pendingHost = $("dashboardPendingTable");
+    if (pendingHost) {
+        pendingHost.innerHTML = pending.slice(0, 5).length ? `
+            <table class="dashboard-table">
+                <thead><tr><th>DOCUMENT</th><th>STATUS</th><th>DATE</th><th>UPLOADED BY</th><th></th></tr></thead>
+                <tbody>${pending.slice(0, 5).map(d => `
+                    <tr>
+                        <td><button class="doc-title-button" onclick="previewDoc('${d.id}')">${escapeHTML(d.title || d.file_name || "Untitled document")}</button></td>
+                        <td><span class="pill pending">Pending</span></td>
+                        <td>${dateText(d.created_at)}</td>
+                        <td>${escapeHTML(d.owner_name || "User")}</td>
+                        <td><button class="dashboard-viewall" aria-label="Open document" onclick="previewDoc('${d.id}')">›</button></td>
+                    </tr>`).join("")}</tbody>
+            </table>` : '<div class="dashboard-empty">No pending documents. You are all caught up.</div>';
+    }
+
+    const recentHost = $("dashboardRecent");
+    if (recentHost) {
+        recentHost.innerHTML = list.slice(0, 5).map(d => `
+            <div class="dashboard-mini-row">
+                <div class="dashboard-file-icon">▤</div>
+                <div class="dashboard-mini-info"><b title="${escapeHTML(d.title || d.file_name || "")}">${escapeHTML(d.title || d.file_name || "Untitled document")}</b><small>${escapeHTML(d.category || "Uncategorized")} · <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span></small></div>
+                <span class="dashboard-mini-date">${dateText(d.created_at)}</span>
+            </div>`).join("") || '<div class="dashboard-empty">No documents uploaded yet.</div>';
+    }
+
+    const activityHost = $("dashboardActivity");
+    if (activityHost) {
+        activityHost.innerHTML = list.slice(0, 5).map(d => {
+            const state = studentDocumentStatus(d);
+            const action = state === "pending" ? "was submitted for review" : state === "approved" ? "was approved" : state === "rejected" ? "was rejected" : "was updated";
+            return `<div class="dashboard-mini-row">
+                <i class="dashboard-activity-dot ${escapeHTML(state)}"></i>
+                <div class="dashboard-mini-info"><b>${escapeHTML(d.title || d.file_name || "Document")}</b><small>${escapeHTML(d.owner_name || "A user")} · ${action}</small></div>
+                <span class="dashboard-mini-date">${dateText(d.created_at)}</span>
+            </div>`;
+        }).join("") || '<div class="dashboard-empty">No recent activity.</div>';
+    }
+
+    const analysisHost = $("dashboardAnalysis");
+    if (analysisHost) {
+        const mode = $("dashboardAnalysisMode")?.value || "category";
+        const counts = new Map();
+        list.forEach(d => {
+            const key = mode === "status" ? studentDocumentStatus(d) : (d.category || "Other");
+            counts.set(key, (counts.get(key) || 0) + 1);
+        });
+        const entries = [...counts.entries()].sort((a,b) => b[1] - a[1]).slice(0, 5);
+        const max = Math.max(1, ...entries.map(entry => entry[1]));
+        analysisHost.innerHTML = entries.length ? entries.map(([label, count]) => `
+            <div class="dashboard-chart-item" title="${escapeHTML(label)}: ${count}">
+                <b>${count}</b><div class="dashboard-chart-bar" style="height:${Math.max(5, count / max * 76)}px"></div>
+                <span>${escapeHTML(label)}</span>
+            </div>`).join("") : '<div class="dashboard-empty">No data to analyze.</div>';
+    }
+}
+
 function renderDocuments() {
     if (!currentProfile) return;
     // Shared school library: every signed-in user sees all uploaded documents.
@@ -2524,6 +2710,7 @@ function renderDocuments() {
         <p><b>${escapeHTML(d.title)}</b> · ${escapeHTML(d.category)} ·
         <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span></p>
     `).join("") || '<div class="empty">No documents yet.</div>';
+    renderDashboard(visibleDocuments);
     renderDocumentCards(visibleDocuments);
     $("tracking").innerHTML = visibleDocuments.map(d => `
         <p><b>${escapeHTML(d.title)}</b> · ${dateText(d.created_at)} ·
