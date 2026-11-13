@@ -5300,7 +5300,7 @@ async function saveCroppedAvatar() {
         const {error:uploadError} = await sb.storage.from(PROFILE_BUCKET).upload(path,blob,{upsert:false,contentType:"image/jpeg",cacheControl:"3600"});
         if (uploadError) throw uploadError;
         uploadedPath = path;
-        const {error:saveError} = await sb.rpc("docukeep_update_student_profile",{p_profile_data:{profile_picture_path:path}});
+        const {error:saveError} = await sb.rpc("docukeep_update_my_profile_picture",{p_path:path});
         if (saveError) throw saveError;
         currentProfile.profile_picture_path = path;
         currentProfile.avatar_url = null;
@@ -5331,7 +5331,7 @@ async function removeProfilePicture() {
     if (!confirm("Remove your profile picture and restore the default avatar?")) return;
     try {
         const oldPath = currentProfile.profile_picture_path || null;
-        const {error} = await sb.rpc("docukeep_update_student_profile",{p_profile_data:{profile_picture_path:""}});
+        const {error} = await sb.rpc("docukeep_update_my_profile_picture",{p_path:null});
         if (error) throw error;
         currentProfile.profile_picture_path = null;
         currentProfile.avatar_url = null;
