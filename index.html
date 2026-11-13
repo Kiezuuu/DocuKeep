@@ -1343,6 +1343,18 @@
 .profile-hero-body{display:flex;align-items:flex-end;gap:16px;padding:0 20px 18px;margin-top:-42px;position:relative}
 .profile-hero-avatar{width:104px;height:104px;border:5px solid white;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#e8f1fc;color:#2862a5;font-size:32px;font-weight:800;box-shadow:0 4px 15px #172b4d20}
 .profile-hero-avatar img{width:100%;height:100%;object-fit:cover}
+.profile-avatar-wrap{position:relative;width:104px;height:104px;flex:0 0 104px}
+.profile-avatar-camera{position:absolute;right:1px;bottom:3px;width:32px;height:32px;border:3px solid #fff;border-radius:50%;background:#2862a5;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 8px #172b4d30}
+.profile-avatar-camera:hover{background:#174b83}
+.avatar-crop-backdrop{position:fixed;inset:0;background:#101d30b8;z-index:100;display:none;align-items:center;justify-content:center;padding:16px}
+.avatar-crop-backdrop.open{display:flex}
+.avatar-crop-dialog{width:min(440px,100%);background:#fff;border-radius:16px;padding:18px;box-shadow:0 24px 70px #0004}
+.avatar-crop-stage{width:280px;height:280px;max-width:100%;aspect-ratio:1;margin:12px auto;border-radius:50%;overflow:hidden;background:#e9eff7;touch-action:none;cursor:grab;border:3px solid #d8e3f0}
+#avatarCropCanvas{width:100%;height:100%;display:block}
+.avatar-crop-controls{display:grid;gap:8px}
+.avatar-crop-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.avatar-upload-status{font-size:12px;color:var(--muted);min-height:18px}
+@media(max-width:760px){.profile-avatar-wrap{width:82px;height:82px;flex-basis:82px}.profile-avatar-camera{width:29px;height:29px}}
 .profile-section-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .profile-info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .profile-info-item{padding:11px;border:1px solid #edf1f6;border-radius:10px;min-width:0}
@@ -1761,7 +1773,7 @@
                     <div class="heading"><div><h1>Student Profile</h1><p>Your personal information, academic details, and school files.</p></div><div class="actions"><button class="btn secondary" id="profileEditToggle" type="button" onclick="setProfileEdit(true)">✎ Edit Profile</button></div></div>
                     <div class="profile-hero">
                         <div class="profile-cover" id="profileCoverView"></div>
-                        <div class="profile-hero-body"><div class="profile-hero-avatar" id="profileAvatarLarge">U</div><div style="min-width:0;padding-bottom:7px"><h2 id="profileHeroName" style="margin:0 0 4px;color:var(--navy)">Your profile</h2><div class="muted" id="profileHeroMeta">Student · @username</div></div></div>
+                        <div class="profile-hero-body"><div class="profile-avatar-wrap"><div class="profile-hero-avatar" id="profileAvatarLarge">U</div><button class="profile-avatar-camera" type="button" title="Upload profile picture" aria-label="Upload profile picture" onclick="document.getElementById('profilePictureFile').click()">📷</button></div><div style="min-width:0;padding-bottom:7px"><h2 id="profileHeroName" style="margin:0 0 4px;color:var(--navy)">Your profile</h2><div class="muted" id="profileHeroMeta">Student · @username</div></div></div>
                     </div>
                     <div id="profileReadView">
                         <div class="profile-section-grid">
@@ -1777,7 +1789,7 @@
                     </div>
                     <div id="profileEditView" class="profile-hidden">
                         <form id="studentProfileForm">
-                            <div class="panel"><h2>Profile Photos</h2><div class="profile-upload-row"><div class="field"><label for="profilePictureFile">Profile picture</label><input id="profilePictureFile" type="file" accept="image/*"><small class="muted">JPG, PNG, or WebP. Maximum 5 MB.</small></div><div class="field"><label for="profileCoverFile">Cover photo</label><input id="profileCoverFile" type="file" accept="image/*"><small class="muted">JPG, PNG, or WebP. Maximum 8 MB.</small></div></div></div>
+                            <div class="panel"><h2>Profile Photos</h2><div class="profile-upload-row"><div class="field"><label>Profile picture</label><div class="actions"><button class="btn secondary small" type="button" onclick="document.getElementById('profilePictureFile').click()">📷 Upload / Change Picture</button><button class="btn danger small" type="button" onclick="removeProfilePicture()">Remove Picture</button></div><small class="muted">JPG, JPEG, PNG, or WebP. Maximum 5 MB. You can crop, zoom, and reposition before saving.</small></div><div class="field"><label for="profileCoverFile">Cover photo</label><input id="profileCoverFile" type="file" accept="image/*"><small class="muted">JPG, PNG, or WebP. Maximum 8 MB.</small></div></div></div>
                             <div class="profile-section-grid">
                                 <div class="panel"><h2>Profile Information</h2>
                                     <div class="field"><label for="spFullName">Full Name</label><input id="spFullName" maxlength="100" required></div>
@@ -1916,6 +1928,16 @@
     <div class="toast" id="toast"></div>
    
 
+<input id="profilePictureFile" type="file" accept="image/jpeg,image/png,image/webp" class="profile-hidden" aria-label="Choose profile picture">
+<div class="avatar-crop-backdrop" id="avatarCropModal" role="dialog" aria-modal="true" aria-labelledby="avatarCropTitle">
+  <div class="avatar-crop-dialog">
+    <h2 id="avatarCropTitle" style="margin:0;color:var(--navy)">Adjust profile picture</h2>
+    <p class="muted" style="font-size:12px;margin:6px 0">Drag to reposition. Use the slider to zoom. The circular area is your profile picture.</p>
+    <div class="avatar-crop-stage" id="avatarCropStage"><canvas id="avatarCropCanvas" width="560" height="560"></canvas></div>
+    <div class="avatar-crop-controls"><label for="avatarCropZoom" style="font-size:12px;font-weight:700;color:#5c6c80">Zoom</label><input id="avatarCropZoom" type="range" min="1" max="3" step="0.01" value="1"><div class="avatar-upload-status" id="avatarCropStatus">Move the image to fit the circle.</div><progress id="avatarUploadProgress" class="profile-hidden" style="width:100%" max="100"></progress></div>
+    <div class="avatar-crop-actions" style="margin-top:15px"><button class="btn secondary" type="button" onclick="closeAvatarCrop()">Cancel</button><button class="btn" id="avatarCropSave" type="button" onclick="saveCroppedAvatar()">Use This Picture</button></div>
+  </div>
+</div>
 <script>
 /* =========================================================
    DOCUKEEP CLIENT
@@ -2227,7 +2249,7 @@ function renderProfileMenu() {
     const name = currentProfile.full_name || "DocuKeep User";
     const roleText = String(currentProfile.role || "user").toUpperCase();
     $("who").textContent = `${name} · ${roleText}`;
-    $("topProfileRole").textContent = currentProfile.username ? "@" + currentProfile.username : "MY ACCOUNT";
+    $("topProfileRole").textContent = roleText;
     const avatar = $("topProfileAvatar");
     avatar.innerHTML = currentProfile.avatar_url
         ? `<img src="${escapeHTML(currentProfile.avatar_url)}" alt="">`
@@ -2319,8 +2341,7 @@ $("studentProfileForm").addEventListener("submit",async e=>{
         if(username&&!/^[a-z0-9_]{3,30}$/.test(username))throw Error("Username must be 3–30 letters, numbers, or underscores.");
         const data={full_name:$("spFullName").value.trim(),student_id:$("spStudentId").value.trim(),contact_number:$("spContact").value.trim(),birthday:$("spBirthday").value||null,gender:$("spGender").value||null,address:$("spAddress").value.trim(),bio:$("spBio").value.trim(),school_name:$("spSchool").value.trim(),college_department:$("spCollege").value.trim(),course_program:$("spCourse").value.trim(),year_level:$("spYear").value.trim(),section:$("spSection").value.trim(),student_status:$("spStudentStatus").value||null,academic_year:$("spAcademicYear").value.trim(),username:username||null,department:$("spDepartment").value.trim()};
         if(!data.full_name)throw Error("Full name is required.");
-        const avatarFile=$("profilePictureFile").files[0], coverFile=$("profileCoverFile").files[0];
-        if(avatarFile)data.profile_picture_path=await uploadProfileAsset(avatarFile,"avatar");
+        const coverFile=$("profileCoverFile").files[0];
         if(coverFile)data.cover_photo_path=await uploadProfileAsset(coverFile,"cover");
         const {error}=await sb.rpc("docukeep_update_student_profile",{p_profile_data:data});
         if(error)throw error;
@@ -2433,7 +2454,14 @@ async function loadPeople() {
         host.innerHTML = `<div class="empty">Could not load profiles. Run the latest profile directory SQL migration. ${escapeHTML(error.message)}</div>`;
         return;
     }
-    peopleCache = data || [];
+    peopleCache = await Promise.all((data || []).map(async p => {
+        let avatarUrl = p.avatar_url || null;
+        if (p.profile_picture_path) {
+            try { avatarUrl = await signedProfileUrl(p.profile_picture_path); }
+            catch (e) { console.warn("Directory avatar unavailable", e); }
+        }
+        return { ...p, avatar_url: avatarUrl };
+    }));
     filterPeople();
 }
 
@@ -2471,6 +2499,10 @@ async function viewUserProfile(id) {
         }
     }
     const d = details;
+    if (d.profile_picture_path) {
+        try { d.avatar_url = await signedProfileUrl(d.profile_picture_path); }
+        catch (e) { console.warn("Profile avatar unavailable", e); }
+    }
     const rows = [
         ["Department", d.department], ["Student ID", d.student_id],
         ["School", d.school_name], ["College / Department", d.college_department],
@@ -5143,6 +5175,181 @@ async function restoreSession() {
 })();
 
 /* =========================================================
+   PROFILE AVATAR: LOCAL CROP, UPLOAD, REPLACE, REMOVE
+========================================================= */
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+const AVATAR_ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+let avatarCropImage = null;
+let avatarCropObjectUrl = null;
+let avatarCropScale = 1;
+let avatarCropOffsetX = 0;
+let avatarCropOffsetY = 0;
+let avatarCropDrag = null;
+let avatarCropSourceFile = null;
+
+const avatarFileInput = $("profilePictureFile");
+if (avatarFileInput) avatarFileInput.addEventListener("change", async () => {
+    const file = avatarFileInput.files?.[0];
+    if (!file) return;
+    if (!AVATAR_ALLOWED_TYPES.includes(file.type)) {
+        avatarFileInput.value = "";
+        return toast("Choose a JPG, JPEG, PNG, or WEBP image.");
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+        avatarFileInput.value = "";
+        return toast("Profile picture must be 5 MB or smaller.");
+    }
+    try {
+        avatarCropSourceFile = file;
+        if (avatarCropObjectUrl) URL.revokeObjectURL(avatarCropObjectUrl);
+        avatarCropObjectUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            avatarCropImage = img;
+            avatarCropScale = 1;
+            avatarCropOffsetX = 0;
+            avatarCropOffsetY = 0;
+            $("avatarCropZoom").value = "1";
+            $("avatarCropStatus").textContent = `${file.name} · ${humanBytes(file.size)}`;
+            $("avatarCropModal").classList.add("open");
+            drawAvatarCrop();
+        };
+        img.onerror = () => { avatarFileInput.value = ""; toast("The selected image could not be opened."); };
+        img.src = avatarCropObjectUrl;
+    } catch (err) {
+        avatarFileInput.value = "";
+        toast("Could not prepare image: " + err.message);
+    }
+});
+
+function drawAvatarCrop() {
+    const canvas = $("avatarCropCanvas");
+    if (!canvas || !avatarCropImage) return;
+    const ctx = canvas.getContext("2d");
+    const size = canvas.width;
+    const base = Math.max(size / avatarCropImage.naturalWidth, size / avatarCropImage.naturalHeight);
+    const scale = base * avatarCropScale;
+    const w = avatarCropImage.naturalWidth * scale;
+    const h = avatarCropImage.naturalHeight * scale;
+    const maxX = Math.max(0, (w-size)/2);
+    const maxY = Math.max(0, (h-size)/2);
+    avatarCropOffsetX = Math.max(-maxX, Math.min(maxX, avatarCropOffsetX));
+    avatarCropOffsetY = Math.max(-maxY, Math.min(maxY, avatarCropOffsetY));
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillStyle = "#e9eff7";
+    ctx.fillRect(0, 0, size, size);
+    ctx.drawImage(avatarCropImage, (size-w)/2 + avatarCropOffsetX*2, (size-h)/2 + avatarCropOffsetY*2, w, h);
+}
+
+$("avatarCropZoom")?.addEventListener("input", e => {
+    avatarCropScale = Number(e.target.value) || 1;
+    drawAvatarCrop();
+});
+
+const cropStage = $("avatarCropStage");
+if (cropStage) {
+    cropStage.addEventListener("pointerdown", e => {
+        if (!avatarCropImage) return;
+        cropStage.setPointerCapture(e.pointerId);
+        avatarCropDrag = {x:e.clientX,y:e.clientY,ox:avatarCropOffsetX,oy:avatarCropOffsetY};
+        cropStage.style.cursor = "grabbing";
+    });
+    cropStage.addEventListener("pointermove", e => {
+        if (!avatarCropDrag) return;
+        const rect = cropStage.getBoundingClientRect();
+        const factor = 560 / rect.width;
+        avatarCropOffsetX = avatarCropDrag.ox + (e.clientX-avatarCropDrag.x)*factor/2;
+        avatarCropOffsetY = avatarCropDrag.oy + (e.clientY-avatarCropDrag.y)*factor/2;
+        drawAvatarCrop();
+    });
+    const stopDrag = () => { avatarCropDrag=null; cropStage.style.cursor="grab"; };
+    cropStage.addEventListener("pointerup", stopDrag);
+    cropStage.addEventListener("pointercancel", stopDrag);
+}
+
+function closeAvatarCrop() {
+    $("avatarCropModal")?.classList.remove("open");
+    if (avatarFileInput) avatarFileInput.value = "";
+    avatarCropImage = null;
+    avatarCropSourceFile = null;
+    if (avatarCropObjectUrl) URL.revokeObjectURL(avatarCropObjectUrl);
+    avatarCropObjectUrl = null;
+}
+window.closeAvatarCrop = closeAvatarCrop;
+
+async function saveCroppedAvatar() {
+    if (!avatarCropImage || !currentProfile) return toast("Please sign in and select a picture first.");
+    const btn = $("avatarCropSave");
+    btn.disabled = true;
+    btn.textContent = "Uploading…";
+    $("avatarCropStatus").textContent = "Preparing your cropped picture…";
+    let uploadedPath = null;
+    try {
+        const out = document.createElement("canvas");
+        out.width = 512; out.height = 512;
+        const ctx = out.getContext("2d");
+        const source = $("avatarCropCanvas");
+        ctx.drawImage(source, 0, 0, 560, 560, 0, 0, 512, 512);
+        const blob = await new Promise((resolve,reject)=>out.toBlob(b=>b?resolve(b):reject(Error("Could not process this image.")),"image/jpeg",0.9));
+        if (blob.size > AVATAR_MAX_BYTES) throw Error("Processed image exceeds the 5 MB limit.");
+        const oldPath = currentProfile.profile_picture_path || null;
+        const path = `${currentProfile.id}/profile/avatar-${Date.now()}.jpg`;
+        $("avatarCropStatus").textContent = "Uploading securely to your profile…";
+        $("avatarUploadProgress").classList.remove("profile-hidden");
+        $("avatarUploadProgress").removeAttribute("value");
+        const {error:uploadError} = await sb.storage.from(PROFILE_BUCKET).upload(path,blob,{upsert:false,contentType:"image/jpeg",cacheControl:"3600"});
+        if (uploadError) throw uploadError;
+        uploadedPath = path;
+        const {error:saveError} = await sb.rpc("docukeep_update_student_profile",{p_profile_data:{profile_picture_path:path}});
+        if (saveError) throw saveError;
+        currentProfile.profile_picture_path = path;
+        currentProfile.avatar_url = null;
+        await refreshProfilePhotoViews();
+        renderProfileMenu();
+        if (oldPath && oldPath !== path) {
+            const {error:removeError} = await sb.storage.from(PROFILE_BUCKET).remove([oldPath]);
+            if (removeError) console.warn("Old profile picture cleanup failed:",removeError);
+        }
+        closeAvatarCrop();
+        toast("Profile picture updated successfully.","ok");
+    } catch (err) {
+        console.error("Profile picture upload failed:",err);
+        if (uploadedPath) await sb.storage.from(PROFILE_BUCKET).remove([uploadedPath]);
+        $("avatarCropStatus").textContent = err.message || "Upload failed. Please try again.";
+        toast("Could not update profile picture: " + (err.message || "Unknown error"));
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Use This Picture";
+        $("avatarUploadProgress")?.classList.add("profile-hidden");
+    }
+}
+window.saveCroppedAvatar = saveCroppedAvatar;
+
+async function removeProfilePicture() {
+    if (!currentProfile) return toast("Please sign in first.");
+    if (!currentProfile.profile_picture_path && !currentProfile.avatar_url) return toast("You are already using the default avatar.");
+    if (!confirm("Remove your profile picture and restore the default avatar?")) return;
+    try {
+        const oldPath = currentProfile.profile_picture_path || null;
+        const {error} = await sb.rpc("docukeep_update_student_profile",{p_profile_data:{profile_picture_path:""}});
+        if (error) throw error;
+        currentProfile.profile_picture_path = null;
+        currentProfile.avatar_url = null;
+        await refreshProfilePhotoViews();
+        renderProfileMenu();
+        if (oldPath) {
+            const {error:removeError} = await sb.storage.from(PROFILE_BUCKET).remove([oldPath]);
+            if (removeError) console.warn("Profile picture storage cleanup failed:",removeError);
+        }
+        toast("Profile picture removed. Default avatar restored.","ok");
+    } catch (err) {
+        console.error(err);
+        toast("Could not remove profile picture: " + (err.message || "Unknown error"));
+    }
+}
+window.removeProfilePicture = removeProfilePicture;
+
+/* =========================================================
    SERVICE WORKER
 ========================================================= */
 
@@ -5154,6 +5361,8 @@ if ("serviceWorker" in navigator) {
     });
 }
 </script>
+
+
 
 
 </body>
