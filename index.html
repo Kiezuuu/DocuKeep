@@ -462,7 +462,7 @@
             display: none;
             align-items: center;
             justify-content: center;
-            padding: 18px
+            padding: 0
         }
 
         .viewer-backdrop.open {
@@ -472,8 +472,10 @@
         .viewer {
             background: #fff;
             border-radius: 14px;
-            width: min(1100px, 100%);
-            height: min(88vh, 900px);
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            border-radius: 0;
             display: flex;
             flex-direction: column;
             overflow: hidden
@@ -1391,7 +1393,7 @@
                     data-page="tracking">◷ Submission Tracking</button><button data-page="folders">▣ My
                     Folders</button><button data-page="classrooms">▣ Classrooms</button><button data-page="notifications">♧ Notifications <span
                         id="notificationCount"></span></button><button data-page="premium">★ Premium
-                    Plan</button><button id="adminNav" class="hidden" data-page="admin">⚙ Staff Administration</button>
+                    Plan</button><button data-page="profile">◉ My Profile</button><button id="adminNav" class="hidden" data-page="admin">⚙ Staff Administration</button>
             </nav>
             <div style="margin-top:auto;color:#bdcde0;font-size:11px;padding:12px">Organize. Track. Retrieve.</div>
         </aside>
@@ -1489,7 +1491,7 @@
                             <div class="preview-empty">
                                 <div class="preview-empty-icon">▤</div>
                                 <b>Select a document</b>
-                                <span>Choose a file to see its details and preview.</span>
+                                <span>Choose a file and open it in the full document viewer.</span>
                             </div>
                         </aside>
                     </div>
@@ -1498,7 +1500,7 @@
                     <div class="heading">
                         <div>
                             <h1>Upload Document</h1>
-                            <p>Submit a school document for review or record keeping.</p>
+                            <p>Upload a school document directly to your shared document library.</p>
                         </div>
                     </div>
                     <div class="panel">
@@ -1526,13 +1528,13 @@
                                         <option value="">No folder</option>
                                     </select></div>
                                 <div class="field"><label>Submission type</label><select id="type">
-                                        <option>For review</option>
+                                        <option>Direct upload</option>
                                         <option>For record keeping</option>
                                         <option>Final submission</option>
                                     </select></div>
                                 <div class="field"><label>Description</label><input id="description"
                                         placeholder="Optional notes"></div>
-                            </div><button class="btn" type="submit">Upload and submit</button>
+                            </div><button class="btn" type="submit">Upload document</button>
                             <div id="uploadProgress" class="notice" style="display:none;margin-top:12px">Preparing upload…</div>
                             <div id="queuedUploadManager" class="queued-upload-manager"></div>
                         </form>
@@ -1712,6 +1714,22 @@
                             <div class="feature">Custom folder colors</div>
                             <div class="feature">Group file access</div>
                         </div>
+                    </div>
+                </section>
+                <section class="page" id="page-profile">
+                    <div class="heading"><div><h1>My Profile</h1><p>Customize how your account appears in DocuKeep.</p></div></div>
+                    <div class="panel">
+                        <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+                            <div id="profileAvatarPreview" style="width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:#e8f1fc;color:#2862a5;font-size:22px;font-weight:800;overflow:hidden">U</div>
+                            <div><h2 id="profileDisplayPreview" style="margin:0">Your profile</h2><p id="profileUsernamePreview" class="muted" style="margin:4px 0 0">@username</p></div>
+                        </div>
+                        <form id="profileForm" class="grid">
+                            <div class="field"><label for="profileDisplayName">Display name</label><input id="profileDisplayName" maxlength="100" required></div>
+                            <div class="field"><label for="profileUsername">Username</label><input id="profileUsername" maxlength="30" pattern="[A-Za-z0-9_]{3,30}" placeholder="e.g. ralph_v" required><small class="muted">3–30 characters; letters, numbers, and underscores only.</small></div>
+                            <div class="field"><label for="profileDepartment">Department / Grade / Section</label><input id="profileDepartment" maxlength="120"></div>
+                            <div class="field"><label for="profileAvatarUrl">Profile picture URL (optional)</label><input id="profileAvatarUrl" type="url" placeholder="https://example.com/photo.jpg"></div>
+                            <div><button class="btn" type="submit">Save profile</button></div>
+                        </form>
                     </div>
                 </section>
                 <section class="page" id="page-admin">
@@ -1963,7 +1981,8 @@ function renderPremiumBadge() {
            </span>`
         : "";
 
-    who.innerHTML = `${name} · ${role} ${badge}`;
+    const username = currentProfile.username ? ` <small style="opacity:.72">@${escapeHTML(currentProfile.username)}</small>` : "";
+    who.innerHTML = `${name}${username} · ${role} ${badge}`;
 }
 
 async function loadPremiumStatus() {
@@ -2107,6 +2126,48 @@ window.hideForgot = hideForgot;
    LOAD USER PROFILE
 ========================================================= */
 
+function renderProfileEditor() {
+    if (!currentProfile) return;
+    $("profileDisplayName").value = currentProfile.full_name || "";
+    $("profileUsername").value = currentProfile.username || "";
+    $("profileDepartment").value = currentProfile.department || "";
+    $("profileAvatarUrl").value = currentProfile.avatar_url || "";
+    $("profileDisplayPreview").textContent = currentProfile.full_name || "Your profile";
+    $("profileUsernamePreview").textContent = currentProfile.username ? "@" + currentProfile.username : "@username";
+    const avatar = $("profileAvatarPreview");
+    avatar.innerHTML = currentProfile.avatar_url
+        ? `<img src="${escapeHTML(currentProfile.avatar_url)}" alt="Profile picture" style="width:100%;height:100%;object-fit:cover">`
+        : escapeHTML((currentProfile.full_name || "U").trim().charAt(0).toUpperCase());
+}
+
+$("profileForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!currentProfile) return toast("Please sign in first.");
+    const fullName = $("profileDisplayName").value.trim();
+    const username = $("profileUsername").value.trim().toLowerCase();
+    const department = $("profileDepartment").value.trim();
+    const avatarUrl = $("profileAvatarUrl").value.trim();
+    if (!fullName || !/^[a-zA-Z0-9_]{3,30}$/.test(username)) return toast("Enter a display name and a valid username (3–30 letters, numbers, or underscores).");
+    if (avatarUrl && !/^https:\/\//i.test(avatarUrl)) return toast("Profile picture URL must start with https://");
+    const button = e.target.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+        const { error } = await sb.rpc("docukeep_update_my_profile", {
+            p_full_name: fullName, p_username: username,
+            p_department: department || null, p_avatar_url: avatarUrl || null
+        });
+        if (error) throw error;
+        currentProfile = {...currentProfile, full_name:fullName, username, department, avatar_url:avatarUrl || null};
+        $("greeting").textContent = "Welcome, " + fullName;
+        renderPremiumBadge();
+        renderProfileEditor();
+        toast("Profile updated successfully.", "ok");
+    } catch (err) {
+        console.error(err);
+        toast("Could not update profile: " + (err.message || "Unknown error"));
+    } finally { button.disabled = false; }
+});
+
 async function loadProfile(user, expectedType = null) {
     if (!user?.id) {
         throw Error("Invalid login session. Please sign in again.");
@@ -2171,6 +2232,7 @@ async function loadProfile(user, expectedType = null) {
     $("app").classList.remove("hidden");
 
     $("greeting").textContent = "Welcome, " + (p.full_name || "User");
+    renderProfileEditor();
 
     $("adminNav").classList.toggle("hidden", role !== "staff");
 
@@ -2566,8 +2628,8 @@ function renderDocumentCards(items) {
         const kind = documentFileKind(d);
         const active = d.id === selectedDocumentId ? " selected" : "";
         return `
-            <article class="document-card${active}" onclick="selectDocumentPreview('${d.id}')" tabindex="0"
-                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDocumentPreview('${d.id}')}" >
+            <article class="document-card${active}" onclick="previewDoc('${d.id}')" tabindex="0"
+                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();previewDoc('${d.id}')}" >
                 <div class="document-card-top">
                     <span class="file-type-icon file-${kind.toLowerCase()}">${kind}</span>
                     <span class="document-card-menu" aria-hidden="true">•••</span>
@@ -2580,7 +2642,7 @@ function renderDocumentCards(items) {
                     <span>${dateText(d.created_at)}</span>
                 </div>
                 <div class="document-card-actions">
-                    <button class="btn secondary small" onclick="event.stopPropagation();previewDoc('${d.id}')">Preview</button>
+                    <button class="btn small" onclick="event.stopPropagation();previewDoc('${d.id}')">Full view</button>
                     <button class="btn secondary small" onclick="event.stopPropagation();downloadDoc('${d.id}')">Download</button>
                     ${d.owner_id === currentProfile?.id ? `<select class="btn secondary small" aria-label="Move document to folder" onclick="event.stopPropagation()" onchange="event.stopPropagation();moveDocument('${d.id}',this.value)"><option value="" ${!d.folder_id ? "selected" : ""}>No folder</option>${folderCache.filter(f=>f.owner_id===currentProfile.id).map(f=>`<option value="${f.id}" ${d.folder_id===f.id?"selected":""}>${escapeHTML(f.name)}</option>`).join("")}</select>${["teacher","staff"].includes(currentProfile?.role) ? `<button class="btn secondary small" onclick="event.stopPropagation();shareDocument('${d.id}')">Share</button><button class="btn secondary small" onclick="event.stopPropagation();unshareDocument('${d.id}')">Revoke share</button>` : ""}` : ""}
                     ${(d.owner_id === currentProfile?.id || currentProfile?.role === "staff") ? `<button class="btn danger small" title="${currentProfile?.role === "staff" && d.owner_id !== currentProfile?.id ? "Admin: delete this user's document" : "Delete your document"}" onclick="event.stopPropagation();deleteDocument('${d.id}')">Delete</button>` : ""}
@@ -2605,7 +2667,7 @@ function documentPreviewPanelHTML(d) {
     const kind = documentFileKind(d);
     const fileName = d.file_name || d.title || "Document";
     $("documentPreviewPanel").innerHTML = `
-        <div class="preview-panel-heading"><span>PREVIEW</span><span class="preview-page-count">DOCUMENT DETAILS</span></div>
+        <div class="preview-panel-heading"><span>DOCUMENT</span><span class="preview-page-count">DOCUMENT DETAILS</span></div>
         <div class="preview-file-stage"><div class="preview-paper">
             <div class="preview-paper-mark">${kind}</div>
             <div class="preview-paper-title">${escapeHTML(d.title)}</div>
@@ -2625,7 +2687,7 @@ function documentPreviewPanelHTML(d) {
             <div><span>File size</span><b>${humanBytes(Number(d.size_bytes || 0))}</b></div>
         </div>
         <div class="preview-panel-actions">
-            <button class="btn" onclick="previewDoc('${d.id}')">Open preview</button>
+            <button class="btn" onclick="previewDoc('${d.id}')">Open full view</button>
             <button class="btn secondary" onclick="downloadDoc('${d.id}')">Download</button>
             ${d.owner_id === currentProfile?.id && ["teacher","staff"].includes(currentProfile?.role) ? `<button class="btn secondary" onclick="shareDocument('${d.id}')">Share</button><button class="btn secondary" onclick="unshareDocument('${d.id}')">Revoke share</button>` : ""}
         </div>
@@ -2731,10 +2793,12 @@ function renderDocuments() {
     if (!currentProfile) return;
     // Shared school library: every signed-in user sees all uploaded documents.
     const visibleDocuments = documents;
-    $("total").textContent = visibleDocuments.length;
-    $("pending").textContent = visibleDocuments.filter(d => d.status === "pending").length;
-    $("approved").textContent = visibleDocuments.filter(d => d.status === "approved").length;
-    $("recent").innerHTML = visibleDocuments.slice(0, 5).map(d => `
+    const setIfPresent = (id, value) => { const node = $(id); if (node) node.textContent = String(value); };
+    setIfPresent("total", visibleDocuments.length);
+    setIfPresent("pending", visibleDocuments.filter(d => d.status === "pending").length);
+    setIfPresent("approved", visibleDocuments.filter(d => d.status === "approved").length);
+    const recent = $("recent");
+    if (recent) recent.innerHTML = visibleDocuments.slice(0, 5).map(d => `
         <p><b>${escapeHTML(d.title)}</b> · ${escapeHTML(d.category)} ·
         <span class="pill ${statusClass(studentDocumentStatus(d))}">${escapeHTML(studentDocumentStatus(d))}</span></p>
     `).join("") || '<div class="empty">No documents yet.</div>';
@@ -2893,7 +2957,7 @@ async function uploadJob(j) {
         file_name: j.fileName,
         mime_type: j.mimeType || "application/octet-stream",
         size_bytes: j.sizeBytes,
-        status: "pending"
+        status: "approved"
     };
 
     const { error: dbErr } = await sb
@@ -3148,7 +3212,7 @@ $("uploadForm").addEventListener("submit", async e => {
 
     } finally {
         b.disabled = false;
-        b.textContent = "Upload and submit";
+        b.textContent = "Upload document";
         prog.style.display = "none";
     }
 });
@@ -3267,9 +3331,10 @@ async function previewDoc(id) {
 
         } else {
             $("previewBody").innerHTML = `
-                <div class="empty">
-                    <h3>Preview not available</h3>
-                    <p>Download this file to open it.</p>
+                <div class="empty" style="padding:28px">
+                    <h3>Full document view</h3>
+                    <p>This file type cannot be displayed inside the browser. Open the original file or download it.</p>
+                    <p><a href="${url}" target="_blank" rel="noopener" class="btn">Open original file</a></p>
                 </div>
             `;
         }
