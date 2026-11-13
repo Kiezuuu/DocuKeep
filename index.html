@@ -939,6 +939,8 @@
     .nav button[data-page="notifications"]::before { content: "♧"; }
     .nav button[data-page="premium"]::before { content: "✧"; }
     .nav button[data-page="admin"]::before { content: "⚙"; }
+    .nav button[data-page="profile"]::before { content: "◉"; }
+    .nav button[data-page="people"]::before { content: "♙"; }
     .nav button[data-page="dashboard"]::after { content: "Dashboard"; }
     .nav button[data-page="documents"]::after { content: "My Documents"; }
     .nav button[data-page="upload"]::after { content: "Upload Document"; }
@@ -948,6 +950,8 @@
     .nav button[data-page="notifications"]::after { content: "Notifications"; }
     .nav button[data-page="premium"]::after { content: "Premium Plan"; }
     .nav button[data-page="admin"]::after { content: "Staff Administration"; }
+    .nav button[data-page="profile"]::after { content: "My Profile"; }
+    .nav button[data-page="people"]::after { content: "People"; }
     .nav button:hover { color: #245d9e; background: #e7effa; }
     .nav button:hover::before { color: #2868bd; background: #dce9fa; }
     .nav button.active {
@@ -1393,7 +1397,7 @@
                     data-page="tracking">◷ Submission Tracking</button><button data-page="folders">▣ My
                     Folders</button><button data-page="classrooms">▣ Classrooms</button><button data-page="notifications">♧ Notifications <span
                         id="notificationCount"></span></button><button data-page="premium">★ Premium
-                    Plan</button><button data-page="profile">◉ My Profile</button><button id="adminNav" class="hidden" data-page="admin">⚙ Staff Administration</button>
+                    Plan</button><button data-page="profile">◉ My Profile</button><button data-page="people">♙ People</button><button id="adminNav" class="hidden" data-page="admin">⚙ Staff Administration</button>
             </nav>
             <div style="margin-top:auto;color:#bdcde0;font-size:11px;padding:12px">Organize. Track. Retrieve.</div>
         </aside>
@@ -1732,6 +1736,13 @@
                         </form>
                     </div>
                 </section>
+                <section class="page" id="page-people">
+                    <div class="heading"><div><h1>People</h1><p>Find DocuKeep users and view their public profile information.</p></div></div>
+                    <div class="panel">
+                        <div class="field"><label for="peopleSearch">Search users</label><input id="peopleSearch" type="search" placeholder="Search by name, username, department, or role" oninput="filterPeople()"></div>
+                        <div id="peopleDirectory"><div class="empty">Loading profiles…</div></div>
+                    </div>
+                </section>
                 <section class="page" id="page-admin">
                     <div class="heading">
                         <div>
@@ -1764,11 +1775,12 @@
                                         <th>Current role</th>
                                         <th>Change role</th>
                                         <th>Account status</th>
+                                        <th>Profile</th>
                                     </tr>
                                 </thead>
                                 <tbody id="managedUsers">
                                     <tr>
-                                        <td colspan="5">Loading users…</td>
+                                        <td colspan="6">Loading users…</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1809,6 +1821,15 @@
                 </section>
             </div>
         </main>
+    </div>
+    <div id="profileViewBackdrop" class="viewer-backdrop" onclick="if(event.target===this)closeUserProfile()">
+        <div class="panel" style="width:min(560px,calc(100% - 28px));max-height:90vh;overflow:auto;margin:14px;border-radius:16px">
+            <div class="actions" style="justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h2 style="margin:0">User profile</h2>
+                <button class="btn secondary small" type="button" onclick="closeUserProfile()">Close</button>
+            </div>
+            <div id="profileViewContent"><div class="empty">Loading profile…</div></div>
+        </div>
     </div>
     <div class="viewer-backdrop" id="previewModal" role="dialog" aria-modal="true" aria-label="Document preview">
         <div class="viewer">
@@ -2158,6 +2179,7 @@ $("profileForm").addEventListener("submit", async e => {
         });
         if (error) throw error;
         currentProfile = {...currentProfile, full_name:fullName, username, department, avatar_url:avatarUrl || null};
+        peopleCache = peopleCache.map(p => p.id === currentProfile.id ? {...p, ...currentProfile} : p);
         $("greeting").textContent = "Welcome, " + fullName;
         renderPremiumBadge();
         renderProfileEditor();
@@ -2167,6 +2189,77 @@ $("profileForm").addEventListener("submit", async e => {
         toast("Could not update profile: " + (err.message || "Unknown error"));
     } finally { button.disabled = false; }
 });
+
+/* =========================================================
+   PEOPLE DIRECTORY + PROFILE VIEW
+========================================================= */
+let peopleCache = [];
+
+function initials(name) {
+    return String(name || "U").trim().split(/\s+/).slice(0,2).map(x => x.charAt(0)).join("").toUpperCase() || "U";
+}
+
+function profileAvatarHTML(profile, size = 48) {
+    const style = `width:${size}px;height:${size}px;flex:0 0 ${size}px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:#e8f1fc;color:#2862a5;font-weight:800;font-size:${Math.max(15, size/2.7)}px`;
+    return profile.avatar_url
+        ? `<div style="${style}"><img src="${escapeHTML(profile.avatar_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover"></div>`
+        : `<div style="${style}">${escapeHTML(initials(profile.full_name))}</div>`;
+}
+
+async function loadPeople() {
+    const host = $("peopleDirectory");
+    if (!host || !currentProfile) return;
+    host.innerHTML = '<div class="empty">Loading profiles…</div>';
+    const { data, error } = await sb.rpc("docukeep_list_profiles");
+    if (error) {
+        host.innerHTML = `<div class="empty">Could not load profiles. Run the latest profile directory SQL migration. ${escapeHTML(error.message)}</div>`;
+        return;
+    }
+    peopleCache = data || [];
+    filterPeople();
+}
+
+function filterPeople() {
+    const host = $("peopleDirectory");
+    if (!host) return;
+    const q = ($("peopleSearch")?.value || "").trim().toLowerCase();
+    const rows = peopleCache.filter(p => `${p.full_name || ""} ${p.username || ""} ${p.department || ""} ${p.role || ""}`.toLowerCase().includes(q));
+    host.innerHTML = rows.map(p => `
+        <div class="actions" style="align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)">
+            <div class="actions" style="align-items:center;gap:12px;min-width:0;flex:1">
+                ${profileAvatarHTML(p, 46)}
+                <div style="min-width:0">
+                    <b>${escapeHTML(p.full_name || "DocuKeep user")}</b>
+                    <div class="muted" style="font-size:12px">${p.username ? "@"+escapeHTML(p.username) : "No username"} · ${escapeHTML(p.role || "user")}</div>
+                    <div class="muted" style="font-size:11px">${escapeHTML(p.department || "No department")}</div>
+                </div>
+            </div>
+            <button class="btn secondary small" type="button" onclick="viewUserProfile('${p.id}')">View profile</button>
+        </div>`).join("") || '<div class="empty">No matching users found.</div>';
+}
+
+function viewUserProfile(id) {
+    const p = peopleCache.find(x => x.id === id);
+    if (!p) return toast("Profile not found. Refresh the People page.");
+    const isStaff = currentProfile?.role === "staff";
+    $("profileViewContent").innerHTML = `
+        <div class="actions" style="align-items:center;gap:14px;margin-bottom:18px">
+            ${profileAvatarHTML(p, 76)}
+            <div><h2 style="margin:0 0 5px">${escapeHTML(p.full_name || "DocuKeep user")}</h2>
+            <div class="muted">${p.username ? "@"+escapeHTML(p.username) : "No username"}</div>
+            <span class="pill approved">${escapeHTML(p.role || "user")}</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:130px 1fr;gap:11px;font-size:13px">
+            <b>Department</b><span>${escapeHTML(p.department || "Not provided")}</span>
+            ${isStaff ? `<b>Email</b><span>${escapeHTML(p.email || "Not available")}</span><b>Account status</b><span>${escapeHTML(p.status || "Not available")}</span><b>Joined</b><span>${p.created_at ? dateText(p.created_at) : "Not available"}</span>` : ""}
+        </div>`;
+    $("profileViewBackdrop").classList.add("open");
+}
+
+function closeUserProfile() { $("profileViewBackdrop")?.classList.remove("open"); }
+window.filterPeople = filterPeople;
+window.viewUserProfile = viewUserProfile;
+window.closeUserProfile = closeUserProfile;
 
 async function loadProfile(user, expectedType = null) {
     if (!user?.id) {
@@ -3912,7 +4005,7 @@ async function renderAdmin() {
 
     const { data: all, error: allErr } = await sb
         .from("profiles")
-        .select("id,full_name,email,role,department,status,created_at")
+        .select("id,full_name,email,role,department,status,created_at,username,avatar_url")
         .order("created_at", { ascending: false });
 
     if (allErr) {
@@ -4506,10 +4599,22 @@ function filterManagedUsers() {
                     ${escapeHTML(u.status || "unknown")}
                     ${self ? " · You" : ""}
                 </td>
+                <td><button class="btn secondary small" type="button" onclick="viewManagedUserProfile('${u.id}')">View profile</button></td>
             </tr>
         `;
-    }).join("") || '<tr><td colspan="5" class="empty">No matching accounts.</td></tr>';
+    }).join("") || '<tr><td colspan="6" class="empty">No matching accounts.</td></tr>';
 }
+
+function viewManagedUserProfile(id) {
+    const u = managedUsersCache.find(x => x.id === id);
+    if (!u) return toast("User not found.");
+    const p = {...u, username: u.username || null, avatar_url: u.avatar_url || null};
+    const existing = peopleCache.find(x => x.id === id);
+    if (existing) Object.assign(p, existing);
+    peopleCache = [...peopleCache.filter(x => x.id !== id), p];
+    viewUserProfile(id);
+}
+window.viewManagedUserProfile = viewManagedUserProfile;
 
 async function changeUserRole(id) {
     if (currentProfile?.role !== "staff") {
@@ -4645,6 +4750,8 @@ function go(page) {
         "classrooms",
         "notifications",
         "premium",
+        "profile",
+        "people",
         "admin"
     ];
 
@@ -4677,10 +4784,14 @@ function go(page) {
         classrooms: "Classrooms",
         notifications: "Notifications",
         premium: "Premium Plan",
+        profile: "My Profile",
+        people: "People",
         admin: "Staff Administration"
     })[page];
 
     if (page === "admin") renderAdmin();
+    if (page === "people") loadPeople();
+    if (page === "profile") renderProfileEditor();
     if (page === "premium") loadMySubscriptionRequests();
     if (page === "folders") loadFolders();
     if (page === "classrooms") loadClassrooms();
