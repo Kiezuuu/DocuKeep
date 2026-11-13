@@ -1321,6 +1321,44 @@
       .dashboard-panel { padding:12px; }
     }
 
+
+/* Student profile management */
+.profile-menu-wrap{position:relative;display:flex;align-items:center;gap:10px;min-width:0}
+.profile-menu{position:relative}
+.profile-menu>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;max-width:min(360px,48vw)}
+.profile-menu>summary::-webkit-details-marker{display:none}
+.profile-menu>summary:hover{border-color:#a9c4e5;background:#f8fbff}
+.profile-menu-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:#e8f1fc;color:#2862a5;font-weight:800;flex:0 0 36px}
+.profile-menu-avatar img{width:100%;height:100%;object-fit:cover}
+.profile-menu-label{min-width:0;text-align:left;line-height:1.3}
+.profile-menu-label b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#243b57;font-size:12px}
+.profile-menu-label small{display:block;color:#7c8ca1;font-size:10px;font-weight:800;letter-spacing:.04em}
+.profile-menu-panel{position:absolute;right:0;top:calc(100% + 9px);width:220px;padding:7px;background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:0 16px 40px #172b4d20;z-index:20}
+.profile-menu-panel button{display:flex;align-items:center;gap:10px;width:100%;padding:11px;border:0;border-radius:8px;background:transparent;color:#31465f;text-align:left;font-size:12px;font-weight:650}
+.profile-menu-panel button:hover{background:#edf4fd;color:#205b9e}
+.profile-menu-panel button.danger{color:#b63d45}
+.profile-menu-panel button.danger:hover{background:#fff0f0}
+.profile-hero{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:#fff;margin-bottom:16px}
+.profile-cover{height:190px;background:linear-gradient(120deg,#17385f,#3679bd);background-size:cover;background-position:center}
+.profile-hero-body{display:flex;align-items:flex-end;gap:16px;padding:0 20px 18px;margin-top:-42px;position:relative}
+.profile-hero-avatar{width:104px;height:104px;border:5px solid white;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#e8f1fc;color:#2862a5;font-size:32px;font-weight:800;box-shadow:0 4px 15px #172b4d20}
+.profile-hero-avatar img{width:100%;height:100%;object-fit:cover}
+.profile-section-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.profile-info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.profile-info-item{padding:11px;border:1px solid #edf1f6;border-radius:10px;min-width:0}
+.profile-info-item small{display:block;color:#8290a2;font-size:10px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.profile-info-item b{display:block;color:#31465f;font-size:13px;overflow-wrap:anywhere;font-weight:600}
+.profile-file-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px}
+.profile-file-card{border:1px solid var(--line);border-radius:11px;padding:10px;min-width:0;background:#fff}
+.profile-file-thumb{height:110px;border-radius:8px;background:#f1f5fa;display:grid;place-items:center;overflow:hidden;margin-bottom:8px}
+.profile-file-thumb img{width:100%;height:100%;object-fit:cover}
+.profile-file-name{font-size:11px;font-weight:700;overflow-wrap:anywhere;min-height:30px}
+.profile-file-meta{font-size:10px;color:#8190a3;margin:4px 0 8px}
+.profile-form-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px}
+.profile-upload-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.profile-cover-edit{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.profile-hidden{display:none!important}
+@media(max-width:760px){.profile-menu>summary{max-width:52vw;padding:6px}.profile-menu-label b{max-width:125px}.profile-menu-avatar{width:32px;height:32px;flex-basis:32px}.profile-hero{border-radius:12px}.profile-cover{height:135px}.profile-hero-body{padding:0 13px 14px;gap:12px}.profile-hero-avatar{width:82px;height:82px;font-size:25px}.profile-section-grid,.profile-info-grid,.profile-upload-row,.profile-cover-edit{grid-template-columns:1fr}.profile-menu-panel{right:0;width:210px}}
 </style>
 </head>
 
@@ -1402,8 +1440,7 @@
             <div style="margin-top:auto;color:#bdcde0;font-size:11px;padding:12px">Organize. Track. Retrieve.</div>
         </aside>
         <main class="main">
-            <header class="top"><span id="crumb">Dashboard</span><span><b id="who"></b> &nbsp; <button type="button"
-                        class="btn secondary small" onclick="signOut()">Sign out</button></span></header>
+            <header class="top"><span id="crumb">Dashboard</span><div class="profile-menu-wrap"><details class="profile-menu" id="profileMenu"><summary aria-label="Open profile menu"><span class="profile-menu-avatar" id="topProfileAvatar">U</span><span class="profile-menu-label"><b id="who">Account</b><small id="topProfileRole">USER</small></span><span aria-hidden="true">⌄</span></summary><div class="profile-menu-panel"><button type="button" onclick="profileMenuAction('view')">◉ View Profile</button><button type="button" onclick="profileMenuAction('edit')">✎ Edit Profile</button><button type="button" onclick="profileMenuAction('settings')">⚙ Account Settings</button><button type="button" class="danger" onclick="signOut()">↪ Log Out</button></div></details></div></header>
             <div class="syncbar" id="syncbar">Offline mode: files are saved on this device and are NOT yet uploaded.
                 <span id="queueCount">0</span> waiting.</div>
             <div class="content">
@@ -1721,20 +1758,56 @@
                     </div>
                 </section>
                 <section class="page" id="page-profile">
-                    <div class="heading"><div><h1>My Profile</h1><p>Customize how your account appears in DocuKeep.</p></div></div>
-                    <div class="panel">
-                        <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
-                            <div id="profileAvatarPreview" style="width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:#e8f1fc;color:#2862a5;font-size:22px;font-weight:800;overflow:hidden">U</div>
-                            <div><h2 id="profileDisplayPreview" style="margin:0">Your profile</h2><p id="profileUsernamePreview" class="muted" style="margin:4px 0 0">@username</p></div>
+                    <div class="heading"><div><h1>Student Profile</h1><p>Your personal information, academic details, and school files.</p></div><div class="actions"><button class="btn secondary" id="profileEditToggle" type="button" onclick="setProfileEdit(true)">✎ Edit Profile</button></div></div>
+                    <div class="profile-hero">
+                        <div class="profile-cover" id="profileCoverView"></div>
+                        <div class="profile-hero-body"><div class="profile-hero-avatar" id="profileAvatarLarge">U</div><div style="min-width:0;padding-bottom:7px"><h2 id="profileHeroName" style="margin:0 0 4px;color:var(--navy)">Your profile</h2><div class="muted" id="profileHeroMeta">Student · @username</div></div></div>
+                    </div>
+                    <div id="profileReadView">
+                        <div class="profile-section-grid">
+                            <div class="panel"><h2>Personal Information</h2><div class="profile-info-grid" id="profilePersonalInfo"></div></div>
+                            <div class="panel"><h2>Academic Information</h2><div class="profile-info-grid" id="profileAcademicInfo"></div></div>
                         </div>
-                        <form id="profileForm" class="grid">
-                            <div class="field"><label for="profileDisplayName">Display name</label><input id="profileDisplayName" maxlength="100" required></div>
-                            <div class="field"><label for="profileUsername">Username</label><input id="profileUsername" maxlength="30" pattern="[A-Za-z0-9_]{3,30}" placeholder="e.g. ralph_v" required><small class="muted">3–30 characters; letters, numbers, and underscores only.</small></div>
-                            <div class="field"><label for="profileDepartment">Department / Grade / Section</label><input id="profileDepartment" maxlength="120"></div>
-                            <div class="field"><label for="profileAvatarUrl">Profile picture URL (optional)</label><input id="profileAvatarUrl" type="url" placeholder="https://example.com/photo.jpg"></div>
-                            <div><button class="btn" type="submit">Save profile</button></div>
+                        <div class="panel"><div class="heading" style="margin-bottom:12px"><div><h2 style="margin:0">School Information & Personal Files</h2><p>Student ID, certificates, schedules, and other school-related files.</p></div><button class="btn small" type="button" onclick="document.getElementById('profileFileInput').click()">＋ Upload files</button></div>
+                            <div id="profileFilesList" class="profile-file-grid"><div class="empty">Loading your files…</div></div>
+                            <div class="field" style="max-width:300px"><label for="profileFileCategory">File category for next upload</label><select id="profileFileCategory"><option>Student ID picture</option><option>School document</option><option>Certificate / Achievement</option><option>Award / Recognition</option><option>Class schedule</option><option>Personal school image</option><option>Other academic file</option></select></div>
+                            <div id="profileUploadProgress" class="notice" style="display:none;margin-top:10px"><div id="profileUploadProgressText">Preparing upload…</div><progress id="profileUploadProgressBar" value="0" max="100" style="width:100%;margin-top:7px"></progress></div>
+                            <input id="profileFileInput" type="file" multiple class="profile-hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onchange="uploadProfileFiles(this.files)">
+                        </div>
+                    </div>
+                    <div id="profileEditView" class="profile-hidden">
+                        <form id="studentProfileForm">
+                            <div class="panel"><h2>Profile Photos</h2><div class="profile-upload-row"><div class="field"><label for="profilePictureFile">Profile picture</label><input id="profilePictureFile" type="file" accept="image/*"><small class="muted">JPG, PNG, or WebP. Maximum 5 MB.</small></div><div class="field"><label for="profileCoverFile">Cover photo</label><input id="profileCoverFile" type="file" accept="image/*"><small class="muted">JPG, PNG, or WebP. Maximum 8 MB.</small></div></div></div>
+                            <div class="profile-section-grid">
+                                <div class="panel"><h2>Profile Information</h2>
+                                    <div class="field"><label for="spFullName">Full Name</label><input id="spFullName" maxlength="100" required></div>
+                                    <div class="field"><label for="spStudentId">Student ID</label><input id="spStudentId" maxlength="60"></div>
+                                    <div class="field"><label for="spEmail">Email Address</label><input id="spEmail" type="email" readonly disabled></div>
+                                    <div class="field"><label for="spContact">Contact Number</label><input id="spContact" maxlength="40" type="tel"></div>
+                                    <div class="field"><label for="spBirthday">Birthday</label><input id="spBirthday" type="date"></div>
+                                    <div class="field"><label for="spGender">Gender (optional)</label><select id="spGender"><option value="">Prefer not to say</option><option>Female</option><option>Male</option><option>Non-binary</option><option>Other</option></select></div>
+                                    <div class="field"><label for="spAddress">Address (optional)</label><textarea id="spAddress" rows="2" maxlength="500"></textarea></div>
+                                    <div class="field"><label for="spBio">Short Bio / About Me</label><textarea id="spBio" rows="3" maxlength="600" placeholder="Tell us a little about yourself…"></textarea></div>
+                                </div>
+                                <div class="panel"><h2>Academic Information</h2>
+                                    <div class="field"><label for="spSchool">School / University</label><input id="spSchool" maxlength="160"></div>
+                                    <div class="field"><label for="spCollege">College / Department</label><input id="spCollege" maxlength="160"></div>
+                                    <div class="field"><label for="spCourse">Course / Program</label><input id="spCourse" maxlength="160"></div>
+                                    <div class="field"><label for="spYear">Year Level</label><input id="spYear" maxlength="60" placeholder="e.g. Grade 12 / 2nd Year"></div>
+                                    <div class="field"><label for="spSection">Section</label><input id="spSection" maxlength="80"></div>
+                                    <div class="field"><label for="spStudentStatus">Student Status</label><select id="spStudentStatus"><option value="">Not specified</option><option>Currently Enrolled</option><option>Graduated</option><option>On Leave</option><option>Transferred</option></select></div>
+                                    <div class="field"><label for="spAcademicYear">Academic Year</label><input id="spAcademicYear" maxlength="30" placeholder="e.g. 2026–2027"></div>
+                                    <div class="field"><label for="spUsername">Username</label><input id="spUsername" maxlength="30" pattern="[A-Za-z0-9_]{3,30}" placeholder="3–30 letters, numbers, underscores"></div>
+                                    <div class="field"><label for="spDepartment">DocuKeep Department / Subject</label><input id="spDepartment" maxlength="120"></div>
+                                </div>
+                            </div>
+                            <div class="profile-form-actions"><button class="btn secondary" type="button" onclick="setProfileEdit(false)">Cancel</button><button class="btn" id="saveStudentProfileBtn" type="submit">Save Changes</button></div>
                         </form>
                     </div>
+                </section>
+                <section class="page" id="page-settings">
+                    <div class="heading"><div><h1>Account Settings</h1><p>Manage your DocuKeep sign-in and account preferences.</p></div></div>
+                    <div class="panel"><h2>Sign-in & Security</h2><p class="muted">Your email address is used to sign in and cannot be changed here.</p><button class="btn secondary" type="button" onclick="sendPasswordReset()">Send password reset email</button></div>
                 </section>
                 <section class="page" id="page-people">
                     <div class="heading"><div><h1>People</h1><p>Find DocuKeep users and view their public profile information.</p></div></div>
@@ -1990,20 +2063,10 @@ function friendlyAuthError(e) {
 ========================================================= */
 
 function renderPremiumBadge() {
-    const who = $("who");
-    if (!who || !currentProfile) return;
-
-    const name = escapeHTML(currentProfile.full_name || "User");
-    const role = escapeHTML(currentProfile.role.toUpperCase());
-
-    const badge = isPremium
-        ? `<span class="docukeep-premium-badge" title="Active Premium Subscription">
-                👑 PREMIUM
-           </span>`
-        : "";
-
-    const username = currentProfile.username ? ` <small style="opacity:.72">@${escapeHTML(currentProfile.username)}</small>` : "";
-    who.innerHTML = `${name}${username} · ${role} ${badge}`;
+    if (!currentProfile) return;
+    renderProfileMenu();
+    const role = $("topProfileRole");
+    if (role && isPremium) role.textContent = `${currentProfile.username ? "@" + currentProfile.username + " · " : ""}PREMIUM`;
 }
 
 async function loadPremiumStatus() {
@@ -2144,51 +2207,206 @@ window.showForgot = showForgot;
 window.hideForgot = hideForgot;
 
 /* =========================================================
-   LOAD USER PROFILE
+   PROFILE MENU + STUDENT PROFILE MANAGEMENT
 ========================================================= */
+const PROFILE_BUCKET = "docukeep-profile-files";
+const PROFILE_MAX_IMAGE = 8 * 1024 * 1024;
+let profileFilesCache = [];
+let profileSignedUrls = {};
 
-function renderProfileEditor() {
+function profileMenuAction(action) {
+    const menu = $("profileMenu"); if (menu) menu.open = false;
+    if (action === "view") { go("profile"); setProfileEdit(false); }
+    if (action === "edit") { go("profile"); setProfileEdit(true); }
+    if (action === "settings") go("settings");
+}
+window.profileMenuAction = profileMenuAction;
+
+function renderProfileMenu() {
     if (!currentProfile) return;
-    $("profileDisplayName").value = currentProfile.full_name || "";
-    $("profileUsername").value = currentProfile.username || "";
-    $("profileDepartment").value = currentProfile.department || "";
-    $("profileAvatarUrl").value = currentProfile.avatar_url || "";
-    $("profileDisplayPreview").textContent = currentProfile.full_name || "Your profile";
-    $("profileUsernamePreview").textContent = currentProfile.username ? "@" + currentProfile.username : "@username";
-    const avatar = $("profileAvatarPreview");
+    const name = currentProfile.full_name || "DocuKeep User";
+    const roleText = String(currentProfile.role || "user").toUpperCase();
+    $("who").textContent = `${name} · ${roleText}`;
+    $("topProfileRole").textContent = currentProfile.username ? "@" + currentProfile.username : "MY ACCOUNT";
+    const avatar = $("topProfileAvatar");
     avatar.innerHTML = currentProfile.avatar_url
-        ? `<img src="${escapeHTML(currentProfile.avatar_url)}" alt="Profile picture" style="width:100%;height:100%;object-fit:cover">`
-        : escapeHTML((currentProfile.full_name || "U").trim().charAt(0).toUpperCase());
+        ? `<img src="${escapeHTML(currentProfile.avatar_url)}" alt="">`
+        : escapeHTML(initials(name));
 }
 
-$("profileForm").addEventListener("submit", async e => {
-    e.preventDefault();
-    if (!currentProfile) return toast("Please sign in first.");
-    const fullName = $("profileDisplayName").value.trim();
-    const username = $("profileUsername").value.trim().toLowerCase();
-    const department = $("profileDepartment").value.trim();
-    const avatarUrl = $("profileAvatarUrl").value.trim();
-    if (!fullName || !/^[a-zA-Z0-9_]{3,30}$/.test(username)) return toast("Enter a display name and a valid username (3–30 letters, numbers, or underscores).");
-    if (avatarUrl && !/^https:\/\//i.test(avatarUrl)) return toast("Profile picture URL must start with https://");
-    const button = e.target.querySelector('button[type="submit"]');
-    button.disabled = true;
+function profileField(label, value) {
+    return `<div class="profile-info-item"><small>${escapeHTML(label)}</small><b>${escapeHTML(value || "Not provided")}</b></div>`;
+}
+
+function setProfileEdit(editing) {
+    $("profileReadView")?.classList.toggle("profile-hidden", editing);
+    $("profileEditView")?.classList.toggle("profile-hidden", !editing);
+    $("profileEditToggle")?.classList.toggle("profile-hidden", editing);
+    if (editing) fillStudentProfileForm();
+}
+window.setProfileEdit = setProfileEdit;
+
+function fillStudentProfileForm() {
+    const p = currentProfile || {};
+    const map = {spFullName:"full_name",spStudentId:"student_id",spContact:"contact_number",spBirthday:"birthday",spGender:"gender",spAddress:"address",spBio:"bio",spSchool:"school_name",spCollege:"college_department",spCourse:"course_program",spYear:"year_level",spSection:"section",spStudentStatus:"student_status",spAcademicYear:"academic_year",spUsername:"username",spDepartment:"department"};
+    Object.entries(map).forEach(([id,key])=>{const el=$(id);if(el)el.value=p[key]||"";});
+    $("spEmail").value = p.email || "";
+}
+
+async function signedProfileUrl(path) {
+    if (!path) return null;
+    const {data,error}=await sb.storage.from(PROFILE_BUCKET).createSignedUrl(path,3600);
+    if(error) throw error;
+    return data?.signedUrl || null;
+}
+
+async function refreshProfilePhotoViews() {
+    const p=currentProfile||{};
+    let avatarUrl=p.avatar_url||null, coverUrl=null;
+    try { if(p.profile_picture_path) avatarUrl=await signedProfileUrl(p.profile_picture_path); } catch(e){console.warn("Profile photo URL unavailable",e);}
+    try { if(p.cover_photo_path) coverUrl=await signedProfileUrl(p.cover_photo_path); } catch(e){console.warn("Cover photo URL unavailable",e);}
+    currentProfile.avatar_url=avatarUrl;
+    const avatarHTML=avatarUrl?`<img src="${escapeHTML(avatarUrl)}" alt="Profile picture">`:escapeHTML(initials(p.full_name));
+    $("topProfileAvatar").innerHTML=avatarHTML;
+    $("profileAvatarLarge").innerHTML=avatarHTML;
+    $("profileCoverView").style.backgroundImage=coverUrl?`url("${coverUrl.replace(/"/g,'%22')}")`:"linear-gradient(120deg,#17385f,#3679bd)";
+}
+
+function renderProfileReadView() {
+    const p=currentProfile||{};
+    $("profileHeroName").textContent=p.full_name||"Your profile";
+    $("profileHeroMeta").textContent=`${String(p.role||"student").toUpperCase()} · ${p.username?"@"+p.username:"No username"}`;
+    $("profilePersonalInfo").innerHTML=[
+        profileField("Full Name",p.full_name),profileField("Username",p.username?"@"+p.username:""),
+        profileField("Student ID",p.student_id),profileField("Email Address",p.email),
+        profileField("Contact Number",p.contact_number),profileField("Birthday",p.birthday?dateText(p.birthday):""),
+        profileField("Gender",p.gender),profileField("Address",p.address),profileField("About Me",p.bio)
+    ].join("");
+    $("profileAcademicInfo").innerHTML=[
+        profileField("School / University",p.school_name),profileField("College / Department",p.college_department||p.department),
+        profileField("Course / Program",p.course_program),profileField("Year Level",p.year_level),
+        profileField("Section",p.section),profileField("Student Status",p.student_status),profileField("Academic Year",p.academic_year)
+    ].join("");
+}
+
+async function loadStudentProfilePage() {
+    if(!currentProfile)return;
+    $("profileFilesList").innerHTML='<div class="empty">Loading your files…</div>';
     try {
-        const { error } = await sb.rpc("docukeep_update_my_profile", {
-            p_full_name: fullName, p_username: username,
-            p_department: department || null, p_avatar_url: avatarUrl || null
-        });
-        if (error) throw error;
-        currentProfile = {...currentProfile, full_name:fullName, username, department, avatar_url:avatarUrl || null};
-        peopleCache = peopleCache.map(p => p.id === currentProfile.id ? {...p, ...currentProfile} : p);
-        $("greeting").textContent = "Welcome, " + fullName;
-        renderPremiumBadge();
-        renderProfileEditor();
-        toast("Profile updated successfully.", "ok");
-    } catch (err) {
-        console.error(err);
-        toast("Could not update profile: " + (err.message || "Unknown error"));
-    } finally { button.disabled = false; }
+        const {data,error}=await sb.from("profiles").select("*").eq("id",currentProfile.id).single();
+        if(error)throw error;
+        currentProfile={...currentProfile,...data};
+        renderProfileMenu(); renderProfileReadView(); await refreshProfilePhotoViews(); await loadProfileFiles();
+    } catch(err) { toast("Could not load profile: "+err.message); }
+}
+
+async function uploadProfileAsset(file, kind) {
+    if(!file)return null;
+    if(!file.type.startsWith("image/"))throw Error("Choose an image file.");
+    if(file.size>PROFILE_MAX_IMAGE)throw Error("Image is too large. Maximum size is 8 MB.");
+    const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg";
+    const path=`${currentProfile.id}/profile/${kind}-${Date.now()}.${ext}`;
+    const {error}=await sb.storage.from(PROFILE_BUCKET).upload(path,file,{upsert:false,contentType:file.type});
+    if(error)throw error;
+    return path;
+}
+
+$("studentProfileForm").addEventListener("submit",async e=>{
+    e.preventDefault(); if(!currentProfile)return toast("Please sign in first.");
+    const btn=$("saveStudentProfileBtn");btn.disabled=true;btn.textContent="Saving…";
+    try {
+        const username=$("spUsername").value.trim().toLowerCase();
+        if(username&&!/^[a-z0-9_]{3,30}$/.test(username))throw Error("Username must be 3–30 letters, numbers, or underscores.");
+        const data={full_name:$("spFullName").value.trim(),student_id:$("spStudentId").value.trim(),contact_number:$("spContact").value.trim(),birthday:$("spBirthday").value||null,gender:$("spGender").value||null,address:$("spAddress").value.trim(),bio:$("spBio").value.trim(),school_name:$("spSchool").value.trim(),college_department:$("spCollege").value.trim(),course_program:$("spCourse").value.trim(),year_level:$("spYear").value.trim(),section:$("spSection").value.trim(),student_status:$("spStudentStatus").value||null,academic_year:$("spAcademicYear").value.trim(),username:username||null,department:$("spDepartment").value.trim()};
+        if(!data.full_name)throw Error("Full name is required.");
+        const avatarFile=$("profilePictureFile").files[0], coverFile=$("profileCoverFile").files[0];
+        if(avatarFile)data.profile_picture_path=await uploadProfileAsset(avatarFile,"avatar");
+        if(coverFile)data.cover_photo_path=await uploadProfileAsset(coverFile,"cover");
+        const {error}=await sb.rpc("docukeep_update_student_profile",{p_profile_data:data});
+        if(error)throw error;
+        currentProfile={...currentProfile,...data};
+        $("profilePictureFile").value="";$("profileCoverFile").value="";
+        renderProfileMenu();renderProfileReadView();await refreshProfilePhotoViews();setProfileEdit(false);
+        $("greeting").textContent="Welcome, "+currentProfile.full_name;
+        toast("Your profile has been saved successfully.","ok");
+    } catch(err){console.error(err);toast("Could not save profile: "+(err.message||"Unknown error"));}
+    finally{btn.disabled=false;btn.textContent="Save Changes";}
 });
+
+async function loadProfileFiles() {
+    const host=$("profileFilesList");if(!host||!currentProfile)return;
+    const {data,error}=await sb.from("docukeep_profile_files").select("*").eq("owner_id",currentProfile.id).order("created_at",{ascending:false});
+    if(error){host.innerHTML=`<div class="empty">Unable to load files: ${escapeHTML(error.message)}</div>`;return;}
+    profileFilesCache=data||[];
+    if(!profileFilesCache.length){host.innerHTML='<div class="empty">No school files uploaded yet. Use “Upload files” to add your student ID, certificates, schedule, or other academic files.</div>';return;}
+    const cards=await Promise.all(profileFilesCache.map(async f=>{
+        let url=null;try{url=await signedProfileUrl(f.storage_path);}catch(e){console.warn(e);}
+        const isImage=(f.mime_type||"").startsWith("image/");
+        return `<article class="profile-file-card"><div class="profile-file-thumb">${isImage&&url?`<img src="${escapeHTML(url)}" alt="${escapeHTML(f.file_name)}">`:`<div style="font-size:34px">${(f.mime_type||"").includes("pdf")?"📕":"📄"}</div>`}</div><div class="profile-file-name">${escapeHTML(f.file_name)}</div><div class="profile-file-meta">${escapeHTML(f.category||"School file")} · ${escapeHTML(humanBytes(Number(f.size_bytes)||0))}</div><div class="field" style="margin:5px 0"><select aria-label="Edit file category" onchange="updateProfileFileCategory('${f.id}',this.value)"><option ${f.category==="Student ID picture"?"selected":""}>Student ID picture</option><option ${f.category==="School document"?"selected":""}>School document</option><option ${f.category==="Certificate / Achievement"?"selected":""}>Certificate / Achievement</option><option ${f.category==="Award / Recognition"?"selected":""}>Award / Recognition</option><option ${f.category==="Class schedule"?"selected":""}>Class schedule</option><option ${f.category==="Personal school image"?"selected":""}>Personal school image</option><option ${f.category==="Other academic file"?"selected":""}>Other academic file</option></select></div><div class="actions"><button class="btn secondary small" type="button" onclick="openProfileFile('${f.id}')">Preview</button><button class="btn danger small" type="button" onclick="deleteProfileFile('${f.id}')">Remove</button></div></article>`;
+    }));
+    host.innerHTML=cards.join("");
+}
+
+async function uploadProfileFiles(fileList) {
+    const files=Array.from(fileList||[]);if(!files.length)return;
+    const host=$("profileFilesList");host.innerHTML='<div class="empty">Uploading your files… Please keep this page open.</div>';
+    const progress=$("profileUploadProgress"), progressBar=$("profileUploadProgressBar"), progressText=$("profileUploadProgressText");
+    if(progress)progress.style.display="block"; if(progressBar)progressBar.value=0;
+    let completed=0;
+    try {
+        for(const file of files){
+            if(file.size>25*1024*1024)throw Error(`${file.name} exceeds the 25 MB limit.`);
+            const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+            const path=`${currentProfile.id}/files/${Date.now()}-${crypto.randomUUID()}-${safe}`;
+            const {error:upErr}=await sb.storage.from(PROFILE_BUCKET).upload(path,file,{upsert:false,contentType:file.type||"application/octet-stream"});
+            if(upErr)throw upErr;
+            const category=$("profileFileCategory")?.value || (file.type.startsWith("image/")?"Personal school image":"School document");
+            const {error:dbErr}=await sb.from("docukeep_profile_files").insert({owner_id:currentProfile.id,file_name:file.name,category,storage_path:path,mime_type:file.type||"application/octet-stream",size_bytes:file.size});
+            if(dbErr){await sb.storage.from(PROFILE_BUCKET).remove([path]);throw dbErr;}
+            completed++;
+            if(progressBar)progressBar.value=Math.round((completed/files.length)*100);
+            if(progressText)progressText.textContent=`Uploaded ${completed} of ${files.length} file(s)…`;
+        }
+        toast(`${completed} file(s) uploaded successfully.`,"ok");
+    } catch(err){toast(`Upload stopped after ${completed} file(s): ${err.message}`);}
+    finally{if(progressText)progressText.textContent="Upload finished.";setTimeout(()=>{if(progress)progress.style.display="none";},1200);$("profileFileInput").value="";await loadProfileFiles();}
+}
+window.uploadProfileFiles=uploadProfileFiles;
+
+async function openProfileFile(id){
+    const f=profileFilesCache.find(x=>x.id===id);if(!f)return toast("File not found.");
+    try{const url=await signedProfileUrl(f.storage_path);if(!url)throw Error("Could not create file preview.");window.open(url,"_blank","noopener,noreferrer");}
+    catch(err){toast("Could not open file: "+err.message);}
+}
+window.openProfileFile=openProfileFile;
+
+async function updateProfileFileCategory(id, category) {
+    try {
+        const {error}=await sb.from("docukeep_profile_files").update({category}).eq("id",id).eq("owner_id",currentProfile.id);
+        if(error)throw error;
+        toast("File information updated.","ok");
+        await loadProfileFiles();
+    } catch(err) { toast("Could not update file information: "+err.message); }
+}
+window.updateProfileFileCategory=updateProfileFileCategory;
+
+async function deleteProfileFile(id){
+    const f=profileFilesCache.find(x=>x.id===id);if(!f)return;
+    if(!confirm(`Remove ${f.file_name} from your profile?`))return;
+    try{const {error}=await sb.from("docukeep_profile_files").delete().eq("id",id).eq("owner_id",currentProfile.id);if(error)throw error;const {error:storageError}=await sb.storage.from(PROFILE_BUCKET).remove([f.storage_path]);if(storageError)console.warn("Storage cleanup failed",storageError);toast("File removed.","ok");await loadProfileFiles();}
+    catch(err){toast("Could not remove file: "+err.message);}
+}
+window.deleteProfileFile=deleteProfileFile;
+
+async function sendPasswordReset(){
+    if(!currentProfile?.email)return toast("No email address is available.");
+    const {error}=await sb.auth.resetPasswordForEmail(currentProfile.email,{redirectTo:SITE_URL});
+    if(error)return toast("Could not send password reset: "+error.message);
+    toast("Password reset instructions have been sent to your email.","ok");
+}
+window.sendPasswordReset=sendPasswordReset;
+
+function renderProfileEditor(){renderProfileMenu();renderProfileReadView();fillStudentProfileForm();}
 
 /* =========================================================
    PEOPLE DIRECTORY + PROFILE VIEW
@@ -2238,24 +2456,42 @@ function filterPeople() {
         </div>`).join("") || '<div class="empty">No matching users found.</div>';
 }
 
-function viewUserProfile(id) {
+async function viewUserProfile(id) {
     const p = peopleCache.find(x => x.id === id);
     if (!p) return toast("Profile not found. Refresh the People page.");
     const isStaff = currentProfile?.role === "staff";
+    let details = p;
+    if (isStaff) {
+        try {
+            const { data, error } = await sb.rpc("docukeep_admin_get_student_profile", { p_user_id: id });
+            if (error) throw error;
+            details = { ...p, ...(data || {}) };
+        } catch (err) {
+            toast("Could not load administrator profile details: " + err.message);
+        }
+    }
+    const d = details;
+    const rows = [
+        ["Department", d.department], ["Student ID", d.student_id],
+        ["School", d.school_name], ["College / Department", d.college_department],
+        ["Course / Program", d.course_program], ["Year Level", d.year_level],
+        ["Section", d.section], ["Student Status", d.student_status],
+        ["Academic Year", d.academic_year]
+    ];
+    if (isStaff) rows.push(["Email",d.email],["Contact Number",d.contact_number],["Birthday",d.birthday],["Gender",d.gender],["Address",d.address],["About Me",d.bio],["Account Status",d.status],["Joined",d.created_at?dateText(d.created_at):""]);
     $("profileViewContent").innerHTML = `
         <div class="actions" style="align-items:center;gap:14px;margin-bottom:18px">
-            ${profileAvatarHTML(p, 76)}
-            <div><h2 style="margin:0 0 5px">${escapeHTML(p.full_name || "DocuKeep user")}</h2>
-            <div class="muted">${p.username ? "@"+escapeHTML(p.username) : "No username"}</div>
-            <span class="pill approved">${escapeHTML(p.role || "user")}</span></div>
+            ${profileAvatarHTML(d, 76)}
+            <div><h2 style="margin:0 0 5px">${escapeHTML(d.full_name || "DocuKeep user")}</h2>
+            <div class="muted">${d.username ? "@"+escapeHTML(d.username) : "No username"}</div>
+            <span class="pill approved">${escapeHTML(d.role || "user")}</span></div>
         </div>
-        <div style="display:grid;grid-template-columns:130px 1fr;gap:11px;font-size:13px">
-            <b>Department</b><span>${escapeHTML(p.department || "Not provided")}</span>
-            ${isStaff ? `<b>Email</b><span>${escapeHTML(p.email || "Not available")}</span><b>Account status</b><span>${escapeHTML(p.status || "Not available")}</span><b>Joined</b><span>${p.created_at ? dateText(p.created_at) : "Not available"}</span>` : ""}
-        </div>`;
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;font-size:13px">
+            ${rows.map(([label,value])=>`<div class="profile-info-item"><small>${escapeHTML(label)}</small><b>${escapeHTML(value || "Not provided")}</b></div>`).join("")}
+        </div>
+        ${isStaff ? `<div class="notice" style="margin-top:12px">Administrator view. Account role and approval controls remain available in Staff Administration.</div>` : ""}`;
     $("profileViewBackdrop").classList.add("open");
 }
-
 function closeUserProfile() { $("profileViewBackdrop")?.classList.remove("open"); }
 window.filterPeople = filterPeople;
 window.viewUserProfile = viewUserProfile;
@@ -2326,6 +2562,7 @@ async function loadProfile(user, expectedType = null) {
 
     $("greeting").textContent = "Welcome, " + (p.full_name || "User");
     renderProfileEditor();
+    await refreshProfilePhotoViews();
 
     $("adminNav").classList.toggle("hidden", role !== "staff");
 
@@ -4751,6 +4988,7 @@ function go(page) {
         "notifications",
         "premium",
         "profile",
+        "settings",
         "people",
         "admin"
     ];
@@ -4785,13 +5023,15 @@ function go(page) {
         notifications: "Notifications",
         premium: "Premium Plan",
         profile: "My Profile",
+        settings: "Account Settings",
         people: "People",
         admin: "Staff Administration"
     })[page];
 
     if (page === "admin") renderAdmin();
     if (page === "people") loadPeople();
-    if (page === "profile") renderProfileEditor();
+    if (page === "profile") { renderProfileEditor(); loadStudentProfilePage(); }
+    if (page === "settings") renderProfileMenu();
     if (page === "premium") loadMySubscriptionRequests();
     if (page === "folders") loadFolders();
     if (page === "classrooms") loadClassrooms();
@@ -4801,6 +5041,8 @@ function go(page) {
 }
 
 window.go = go;
+
+document.addEventListener("click", e => { const menu=$("profileMenu"); if(menu && !menu.contains(e.target)) menu.open=false; });
 
 document.querySelectorAll("[data-page]").forEach(b => {
     b.addEventListener("click", () => go(b.dataset.page));
