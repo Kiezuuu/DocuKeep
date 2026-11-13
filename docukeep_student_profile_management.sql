@@ -53,11 +53,23 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- Storage path format: <auth.uid()>/profile/... and <auth.uid()>/files/...
 DROP POLICY IF EXISTS "DocuKeep profile files read own or staff" ON storage.objects;
+DROP POLICY IF EXISTS "DocuKeep approved users read profile photos" ON storage.objects;
 CREATE POLICY "DocuKeep profile files read own or staff"
 ON storage.objects FOR SELECT TO authenticated
 USING (
   bucket_id = 'docukeep-profile-files'
-  AND ((storage.foldername(name))[1] = auth.uid()::text OR public.is_docukeep_staff())
+  AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR public.is_docukeep_staff()
+    OR (
+      (storage.foldername(name))[2] = 'profile'
+      AND EXISTS (
+        SELECT 1 FROM public.profiles p
+        WHERE p.id::text = (storage.foldername(name))[1]
+          AND p.status = 'approved'
+      )
+    )
+  )
 );
 
 DROP POLICY IF EXISTS "DocuKeep profile files upload own" ON storage.objects;
@@ -184,6 +196,7 @@ BEGIN
       academic_year = nullif(left(btrim(coalesce(p_profile_data->>'academic_year','')),30),''),
       profile_picture_path = CASE WHEN p_profile_data ? 'profile_picture_path'
         THEN nullif(p_profile_data->>'profile_picture_path','') ELSE profile_picture_path END,
+      avatar_url = CASE WHEN p_profile_data ? 'profile_picture_path' THEN NULL ELSE avatar_url END,
       cover_photo_path = CASE WHEN p_profile_data ? 'cover_photo_path'
         THEN nullif(p_profile_data->>'cover_photo_path','') ELSE cover_photo_path END
   WHERE id = v_uid;
@@ -201,8 +214,10 @@ NOTIFY pgrst, 'reload schema';
 
 
 -- Public directory fields for approved users; staff may also see pending/rejected accounts.
-CREATE OR REPLACE FUNCTION public.docukeep_list_profiles()
-RETURNS TABLE (id uuid, full_name text, username text, department text, avatar_url text, role text, email text, status text, created_at timestamptz)
+-- Drop the previous return shape before adding the private storage path column.
+DROP FUNCTION IF EXISTS public.docukeep_list_profiles();
+CREATE FUNCTION public.docukeep_list_profiles()
+RETURNS TABLE (id uuid, full_name text, username text, department text, avatar_url text, role text, email text, status text, created_at timestamptz, profile_picture_path text)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_is_staff boolean := public.is_docukeep_staff();
 BEGIN
@@ -210,7 +225,8 @@ BEGIN
   RETURN QUERY SELECT p.id,p.full_name::text,p.username::text,p.department::text,p.avatar_url::text,p.role::text,
     CASE WHEN v_is_staff THEN p.email::text ELSE NULL::text END,
     CASE WHEN v_is_staff THEN p.status::text ELSE NULL::text END,
-    CASE WHEN v_is_staff THEN p.created_at ELSE NULL::timestamptz END
+    CASE WHEN v_is_staff THEN p.created_at ELSE NULL::timestamptz END,
+    p.profile_picture_path::text
   FROM public.profiles p WHERE v_is_staff OR p.status='approved'
   ORDER BY lower(coalesce(p.full_name,''));
 END; $$;
