@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>DocuKeep | Smart School File System</title>
+    <title>DocuKeep | Smart School File & Tutorial Hub</title>
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#172b4d">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -935,7 +935,7 @@
     .nav button[data-page="upload"]::before { content: "＋"; }
     .nav button[data-page="tracking"]::before { content: "◷"; }
     .nav button[data-page="folders"]::before { content: "▱"; }
-    .nav button[data-page="classrooms"]::before { content: "♧"; }
+    .nav button[data-page="tutorials"]::before { content: "▧"; }
     .nav button[data-page="notifications"]::before { content: "♧"; }
     .nav button[data-page="premium"]::before { content: "✧"; }
     .nav button[data-page="admin"]::before { content: "⚙"; }
@@ -946,7 +946,7 @@
     .nav button[data-page="upload"]::after { content: "Upload Document"; }
     .nav button[data-page="tracking"]::after { content: "Submission Tracking"; }
     .nav button[data-page="folders"]::after { content: "My Folders"; }
-    .nav button[data-page="classrooms"]::after { content: "Classrooms"; }
+    .nav button[data-page="tutorials"]::after { content: "Tutorials"; }
     .nav button[data-page="notifications"]::after { content: "Notifications"; }
     .nav button[data-page="premium"]::after { content: "Premium Plan"; }
     .nav button[data-page="admin"]::after { content: "Staff Administration"; }
@@ -1445,7 +1445,7 @@
                 <button class="active" data-page="dashboard">▦ Dashboard</button><button data-page="documents">▤ My
                     Documents</button><button data-page="upload">＋ Upload Document</button><button
                     data-page="tracking">◷ Submission Tracking</button><button data-page="folders">▣ My
-                    Folders</button><button data-page="classrooms">▣ Classrooms</button><button data-page="notifications">♧ Notifications <span
+                    Folders</button><button data-page="tutorials">▧ Tutorials</button><button data-page="notifications">♧ Notifications <span
                         id="notificationCount"></span></button><button data-page="premium">★ Premium
                     Plan</button><button data-page="profile">◉ My Profile</button><button data-page="people">♙ People</button><button id="adminNav" class="hidden" data-page="admin">⚙ Staff Administration</button>
             </nav>
@@ -1505,13 +1505,12 @@
                         </section>
                     </div>
 
-                    <div class="panel" style="margin-top:14px">
-                        <h2>Storage information</h2>
-                        <div class="grid">
-                            <div>Storage used: <b id="storageUsed">0 B</b></div>
-                            <div>Upload limit: <b>25 MB per file</b></div>
-                            <div>Storage note: <b>Per-file limit applies</b></div>
-                        </div>
+                    <div class="storage-card" aria-live="polite">
+                        <div class="dashboard-panel-head"><h2>My Storage</h2><span id="storagePlanBadge" class="premium-inline-label">FREE ACCOUNT</span></div>
+                        <div class="storage-meta"><span>Used: <b id="storageUsed">0 MB</b></span><span>Available: <b id="storageAvailable">200 MB</b></span><span>Total: <b id="storageTotal">200 MB</b></span></div>
+                        <div class="storage-track"><div id="storageProgress" class="storage-fill"></div></div>
+                        <div class="storage-meta"><span id="storagePercent">0% used</span><span id="storageWarning"></span></div>
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div id="storageUpgradeHint" class="notice" style="margin-bottom:0;flex:1">Free accounts include 200 MB. Premium includes 20 GB of storage.</div><button id="storageUpgradeButton" class="btn small" type="button" onclick="go('premium')">Upgrade to Premium</button></div>
                     </div>
                     <div id="recent" class="hidden"></div>
                 </section>
@@ -1636,30 +1635,25 @@
                         </div>
                     </div>
                 </section>
-                <section class="page" id="page-classrooms">
-                    <div class="heading">
-                        <div><h1>Classrooms</h1><p>Share classroom folders and learning materials with approved members.</p></div>
-                    </div>
-                    <div class="panel" id="teacherClassroomPanel">
-                        <h2>Create a classroom</h2>
-                        <p class="muted">Available to all approved teachers, including Free accounts.</p>
-                        <form id="classroomForm" class="grid">
-                            <div class="field"><label for="classroomName">Classroom name</label><input id="classroomName" maxlength="80" required placeholder="e.g. Grade 10 - Rizal"></div>
-                            <div><button class="btn" type="submit">Create classroom</button></div>
+                
+                <section class="page" id="page-tutorials">
+                    <div class="heading"><div><h1>Tutorials</h1><p>Create, publish, and manage step-by-step learning guides.</p></div><button class="btn" onclick="newTutorial()">＋ Create tutorial</button></div>
+                    <div class="panel" id="tutorialEditorPanel">
+                        <div class="dashboard-panel-head"><h2 id="tutorialFormHeading">Create a tutorial</h2><button class="btn secondary small" type="button" onclick="resetTutorialForm()">Clear</button></div>
+                        <form id="tutorialForm" class="grid">
+                            <div class="field"><label for="tutorialTitle">Tutorial title *</label><input id="tutorialTitle" maxlength="140" required placeholder="e.g. Getting started with research"></div>
+                            <div class="field"><label for="tutorialCategory">Category *</label><select id="tutorialCategory" required><option value="">Choose a category</option><option>Study Guides</option><option>Technology</option><option>Writing</option><option>Research</option><option>Productivity</option><option>Other</option></select></div>
+                            <div class="field" style="grid-column:1/-1"><label for="tutorialDescription">Short description *</label><textarea id="tutorialDescription" rows="2" maxlength="600" required placeholder="What will readers learn?"></textarea></div>
+                            <div class="field" style="grid-column:1/-1"><label for="tutorialContent">Tutorial content *</label><textarea id="tutorialContent" rows="7" required placeholder="Write the steps, explanations, and helpful tips here…"></textarea></div>
+                            <div class="field"><label for="tutorialCover">Thumbnail / cover image</label><input id="tutorialCover" type="file" accept="image/png,image/jpeg,image/webp"></div>
+                            <div class="field"><label for="tutorialFiles">Tutorial files (optional)</label><input id="tutorialFiles" type="file" multiple><small class="muted">Files count toward your storage quota.</small></div>
+                            <div style="grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit" id="tutorialSaveButton">Publish tutorial</button><button class="btn secondary" type="button" onclick="resetTutorialForm()">Cancel</button></div>
                         </form>
                     </div>
-                    <div class="panel">
-                        <h2>Join a classroom</h2>
-                        <p class="muted">Enter the code shared by your teacher. You can also join by opening an invitation link.</p>
-                        <form id="joinClassroomForm" class="grid">
-                            <div class="field"><label for="classJoinCode">Class code</label><input id="classJoinCode" maxlength="32" autocomplete="off" placeholder="Enter class code"></div>
-                            <div><button class="btn secondary" type="submit">Join classroom</button></div>
-                        </form>
-                    </div>
-                    <div class="panel">
-                        <h2>Your classrooms</h2>
-                        <div id="classroomList" class="feature-grid"><div class="empty">Loading classrooms…</div></div>
-                    </div>
+                    <div class="heading" style="margin-top:24px"><div><h2>Explore tutorials</h2><p>Published tutorials from the DocuKeep community.</p></div></div>
+                    <div id="tutorialBrowseList" class="tutorial-grid"><div class="empty">Loading tutorials…</div></div>
+                    <div class="heading" style="margin-top:26px"><div><h2>My tutorials</h2><p>Update or remove tutorials you created.</p></div></div>
+                    <div id="myTutorialList" class="tutorial-grid"><div class="empty">Loading your tutorials…</div></div>
                 </section>
                 <section class="page" id="page-notifications">
                     <div class="heading">
@@ -1682,7 +1676,7 @@
                             <p>Choose a plan and submit your payment receipt for staff verification.</p>
                         </div>
                     </div>
-                    <div class="notice">Premium access starts only after staff verifies your payment. The payment
+                    <div class="notice">Premium access starts only after staff verifies your payment. Free includes 200 MB; Premium includes 20 GB of storage. The payment
                         account name, numbers, and QR below are placeholders. Confirm the official details with DocuKeep
                         staff before sending money.</div>
                     <div class="panel">
@@ -1760,12 +1754,11 @@
                     <div class="panel">
                         <h2>Premium features</h2>
                         <div class="feature-grid">
-                            <div class="feature">128 GB storage</div>
+                            <div class="feature">20 GB storage</div>
                             <div class="feature">Bulk upload</div>
                             <div class="feature">Delete duplicate files</div>
                             <div class="feature">Digital document tracker</div>
                             <div class="feature">Custom folder colors</div>
-                            <div class="feature">Group file access</div>
                         </div>
                     </div>
                 </section>
@@ -1977,14 +1970,8 @@ let documentSearchTerm = "";
 let selectedUploadFiles = [];
 let cancelUploadRequested = false;
 let folderCache = [];
-let classroomCache = [];
 
 const $ = id => document.getElementById(id);
-try {
-    const inviteOnLoad = new URLSearchParams(window.location.search).get("join");
-    if (inviteOnLoad) sessionStorage.setItem("docukeep_pending_class_invite", inviteOnLoad);
-} catch (_) {}
-
 /* =========================================================
    GENERAL HELPERS
 ========================================================= */
@@ -2087,8 +2074,6 @@ function friendlyAuthError(e) {
 function renderPremiumBadge() {
     if (!currentProfile) return;
     renderProfileMenu();
-    const role = $("topProfileRole");
-    if (role && isPremium) role.textContent = `${currentProfile.username ? "@" + currentProfile.username + " · " : ""}PREMIUM`;
 }
 
 async function loadPremiumStatus() {
@@ -2249,7 +2234,7 @@ function renderProfileMenu() {
     const name = currentProfile.full_name || "DocuKeep User";
     const roleText = String(currentProfile.role || "user").toUpperCase();
     $("who").textContent = `${name} · ${roleText}`;
-    $("topProfileRole").textContent = roleText;
+    $("topProfileRole").textContent = currentProfile.role === "staff" ? roleText : `${roleText} · ${isPremium ? "PREMIUM" : "FREE"}`;
     const avatar = $("topProfileAvatar");
     avatar.innerHTML = currentProfile.avatar_url
         ? `<img src="${escapeHTML(currentProfile.avatar_url)}" alt="">`
@@ -2600,8 +2585,8 @@ async function loadProfile(user, expectedType = null) {
 
     await loadPremiumStatus();
     await loadDocuments();
-    await loadClassrooms();
-    await processClassInviteLink();
+    await refreshStorageDashboard();
+    await loadTutorials();
     await updateOfflineStatus();
     await loadMySubscriptionRequests();
 
@@ -3729,11 +3714,7 @@ $("previewModal").addEventListener("click", e => {
 ========================================================= */
 
 function updateStorageStats() {
-    const n = documents
-        .filter(d => d.owner_id === currentProfile?.id)
-        .reduce((s, d) => s + Number(d.size_bytes || 0), 0);
-
-    $("storageUsed").textContent = humanBytes(n);
+    refreshStorageDashboard().catch(err => console.warn("Storage refresh failed", err));
 }
 
 /* =========================================================
@@ -3929,135 +3910,12 @@ $("folderForm").addEventListener("submit", async e => {
 });
 
 /* =========================================================
-   CLASSROOMS AND SHARING
+   PRIVATE USER-TO-USER SHARING
 ========================================================= */
 
-async function loadClassrooms() {
-    if (!currentProfile) return;
-    const panel = $("teacherClassroomPanel");
-    if (panel) panel.classList.toggle("hidden", currentProfile.role !== "teacher" && currentProfile.role !== "staff");
-    const { data, error } = await sb.from("docukeep_groups")
-        .select("id,name,created_by,created_at")
-        .order("created_at", { ascending: false });
-    if (error) {
-        $("classroomList").innerHTML = `<div class="empty">Could not load classrooms: ${escapeHTML(error.message)}</div>`;
-        return;
-    }
-    classroomCache = data || [];
-    if (!classroomCache.length) {
-        $("classroomList").innerHTML = '<div class="empty">No classrooms yet. A teacher can create one or you can join using a class code.</div>';
-        return;
-    }
-    const cards = await Promise.all(classroomCache.map(async g => {
-        const { count } = await sb.from("docukeep_group_members").select("user_id", { count: "exact", head: true }).eq("group_id", g.id);
-        const isOwner = g.created_by === currentProfile.id || currentProfile.role === "staff";
-        let roster = "";
-        if (isOwner) {
-            const { data: members } = await sb.rpc("docukeep_list_group_members", { p_group_id: g.id });
-            roster = (members || []).map(m => `<div class="muted" style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin:6px 0"><span>${escapeHTML(m.full_name || m.email || "Student")} · ${escapeHTML(m.email || "")}</span>${m.user_id !== g.created_by ? `<button class="btn danger small" onclick="removeClassroomMember('${g.id}','${m.user_id}')">Remove</button>` : `<span>Teacher</span>`}</div>`).join("");
-        }
-        return `<article class="panel" style="margin:0;min-width:0"><h3>${escapeHTML(g.name)}</h3><p class="muted">${isOwner ? `${Number(count || 0)} member(s) · Your classroom` : "Joined classroom"}</p>${isOwner ? `<div class="document-card-actions"><button class="btn small" onclick="generateClassInvite('${g.id}')">Generate / renew code</button><button class="btn secondary small" onclick="disableClassInvite('${g.id}')">Disable code</button></div><div id="invite-${g.id}" class="notice hidden" style="margin-top:10px"></div><div style="margin-top:12px"><b>Members</b>${roster || '<p class="muted">No members listed.</p>'}</div>` : ""}</article>`;
-    }));
-    $("classroomList").innerHTML = cards.join("");
-}
-
-$("classroomForm")?.addEventListener("submit", async e => {
-    e.preventDefault();
-    if (!currentProfile || !["teacher", "staff"].includes(currentProfile.role)) return toast("Only approved teachers can create classrooms.");
-    const name = $("classroomName").value.trim();
-    if (!name) return toast("Enter a classroom name.");
-    const { data, error } = await sb.from("docukeep_groups")
-        .insert({ name, created_by: currentProfile.id })
-        .select("id,name,created_by,created_at").single();
-    if (error) return toast("Could not create classroom: " + error.message);
-    const { error: memberError } = await sb.from("docukeep_group_members").insert({ group_id: data.id, user_id: currentProfile.id });
-    if (memberError) console.warn("Teacher membership record was not added:", memberError.message);
-    $("classroomName").value = "";
-    await loadClassrooms();
-    await generateClassInvite(data.id);
-    toast("Classroom created.");
-});
-
-async function generateClassInvite(groupId) {
-    const { data, error } = await sb.rpc("docukeep_create_group_invite", { p_group_id: groupId, p_expires_at: null });
-    if (error) return toast("Could not generate class invitation: " + error.message);
-    const invite = Array.isArray(data) ? data[0] : data;
-    if (!invite?.join_code || !invite?.invite_token) return toast("Invitation created, but no code was returned.");
-    const link = `${SITE_URL}?join=${encodeURIComponent(invite.invite_token)}`;
-    const host = $("invite-" + groupId);
-    if (host) {
-        host.classList.remove("hidden");
-        host.innerHTML = `<b>Class code:</b> <strong>${escapeHTML(invite.join_code)}</strong><br><small>Invitation link: ${escapeHTML(link)}</small><div class="document-card-actions"><button class="btn secondary small" onclick="copyClassInvite('${escapeHTML(invite.join_code)}')">Copy code</button><button class="btn secondary small" onclick="copyClassInvite('${escapeHTML(link)}')">Copy invitation link</button></div><small>Generating a new code disables the previous code and link.</small>`;
-    }
-    toast("New class code and invitation link generated.");
-}
-window.generateClassInvite = generateClassInvite;
-
-async function copyClassInvite(value) {
-    try { await navigator.clipboard.writeText(value); toast("Copied to clipboard."); }
-    catch (_) { prompt("Copy this invitation:", value); }
-}
-window.copyClassInvite = copyClassInvite;
-
-async function disableClassInvite(groupId) {
-    if (!confirm("Disable the current class code and invitation link? Students will no longer be able to join with them.")) return;
-    const { error } = await sb.rpc("docukeep_disable_group_invite", { p_group_id: groupId });
-    if (error) return toast("Could not disable invitation: " + error.message);
-    const host = $("invite-" + groupId);
-    if (host) host.classList.add("hidden");
-    toast("Class invitation disabled.");
-}
-window.disableClassInvite = disableClassInvite;
-
-async function joinClassroom(code, token = null) {
-    const { data, error } = await sb.rpc("docukeep_join_group", { p_code: code || null, p_token: token || null });
-    if (error) throw error;
-    await loadClassrooms();
-    toast("You have joined the classroom. Shared materials are now available.");
-    return data;
-}
-
-$("joinClassroomForm")?.addEventListener("submit", async e => {
-    e.preventDefault();
-    const code = $("classJoinCode").value.trim();
-    if (!code) return toast("Enter a class code.");
-    try { await joinClassroom(code); $("classJoinCode").value = ""; await loadDocuments(); }
-    catch (err) { toast("Could not join classroom: " + err.message); }
-});
-
-async function processClassInviteLink() {
-    const params = new URLSearchParams(window.location.search);
-    let token = params.get("join");
-    try { token = token || sessionStorage.getItem("docukeep_pending_class_invite"); } catch (_) {}
-    if (!token || !currentProfile) return;
-    try {
-        await joinClassroom(null, token);
-        params.delete("join");
-        try { sessionStorage.removeItem("docukeep_pending_class_invite"); } catch (_) {}
-        const next = window.location.pathname + (params.toString() ? "?" + params.toString() : "") + window.location.hash;
-        window.history.replaceState({}, "", next);
-        await loadDocuments();
-        go("classrooms");
-    } catch (err) {
-        toast("Class invitation could not be used: " + err.message);
-    }
-}
-
-async function removeClassroomMember(groupId, userId) {
-    if (!confirm("Remove this member from the classroom? They will lose access to classroom-shared files.")) return;
-    const { error } = await sb.rpc("docukeep_remove_group_member", { p_group_id: groupId, p_user_id: userId });
-    if (error) return toast("Could not remove member: " + error.message);
-    await loadClassrooms();
-    toast("Classroom member removed.");
-}
-window.removeClassroomMember = removeClassroomMember;
-
 async function resolveShareTarget() {
-    const availableGroups = classroomCache.filter(g => g.created_by === currentProfile.id).map(g => g.name).join(", ");
-    const value = prompt(`Enter a classroom name or approved user's email address. Your classrooms: ${availableGroups || "none created"}`);
+    const value = prompt("Enter the approved user's email address.");
     if (value === null || !value.trim()) return null;
-    const group = classroomCache.find(g => g.created_by === currentProfile.id && g.name.toLowerCase() === value.trim().toLowerCase());
-    if (group) return { group_id: group.id };
     const { data, error } = await sb.rpc("docukeep_find_approved_user", { p_email: value.trim() });
     if (error) throw error;
     const user = Array.isArray(data) ? data[0] : data;
@@ -4087,15 +3945,14 @@ async function shareDocument(documentId) {
         if (!target) return;
         const { error } = await sb.from("docukeep_document_access").insert({ document_id: documentId, ...target, permission: "view", granted_by: currentProfile.id });
         if (error) throw error;
-        toast("Document shared with the selected user or classroom.");
+        toast("Document shared with the selected user.");
     } catch (err) { toast("Could not share document: " + err.message); }
 }
 window.shareDocument = shareDocument;
 
 async function revokeGrant(table, key, itemId, target) {
     const query = sb.from(table).delete().eq(key, itemId);
-    if (target.group_id) query.eq("group_id", target.group_id);
-    else query.eq("user_id", target.user_id);
+    query.eq("user_id", target.user_id);
     const { error } = await query;
     if (error) throw error;
 }
@@ -4106,7 +3963,7 @@ async function unshareFolder(folderId) {
         if (!folder || folder.owner_id !== currentProfile.id) return toast("Only the folder owner can revoke sharing.");
         const target = await resolveShareTarget();
         if (!target) return;
-        if (!confirm("Revoke this user's or classroom's access to the folder?")) return;
+        if (!confirm("Revoke this user's access to the folder?")) return;
         await revokeGrant("docukeep_folder_access", "folder_id", folderId, target);
         toast("Folder access revoked.");
     } catch (err) { toast("Could not revoke folder access: " + err.message); }
@@ -4119,7 +3976,7 @@ async function unshareDocument(documentId) {
         if (!item || item.owner_id !== currentProfile.id || !["teacher","staff"].includes(currentProfile.role)) return toast("Only the teacher who owns this file can revoke sharing.");
         const target = await resolveShareTarget();
         if (!target) return;
-        if (!confirm("Revoke this user's or classroom's access to the document?")) return;
+        if (!confirm("Revoke this user's access to the document?")) return;
         await revokeGrant("docukeep_document_access", "document_id", documentId, target);
         toast("Document access revoked.");
     } catch (err) { toast("Could not revoke document access: " + err.message); }
@@ -5006,6 +4863,177 @@ window.reviewUser = reviewUser;
 window.reviewDoc = reviewDoc;
 
 /* =========================================================
+   TUTORIALS + ACCOUNT STORAGE
+========================================================= */
+const TUTORIAL_BUCKET = "docukeep-tutorials";
+let tutorialCache = [];
+let editingTutorialId = null;
+
+function formatQuotaBytes(bytes) {
+    const n = Math.max(0, Number(bytes) || 0);
+    if (n >= 1e9) return (n / 1e9).toFixed(2).replace(/\.00$/, "") + " GB";
+    if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, "") + " MB";
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + " KB";
+    return n + " B";
+}
+
+async function refreshStorageDashboard() {
+    if (!currentProfile) return;
+    const { data, error } = await sb.rpc("docukeep_get_my_storage_usage");
+    if (error) {
+        console.error("Storage usage:", error);
+        const warn = $("storageWarning"); if (warn) warn.textContent = "Storage details unavailable. Apply the tutorial storage migration.";
+        return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return;
+    const used = Number(row.used_bytes || 0), limit = Number(row.limit_bytes || 200000000);
+    const available = Math.max(0, limit - used), percent = limit ? Math.min(100, used / limit * 100) : 0;
+    $("storageUsed").textContent = formatQuotaBytes(used);
+    $("storageAvailable").textContent = formatQuotaBytes(available);
+    $("storageTotal").textContent = formatQuotaBytes(limit);
+    $("storageProgress").style.width = percent.toFixed(1) + "%";
+    $("storagePercent").textContent = percent.toFixed(1) + "% used";
+    $("storagePlanBadge").textContent = row.plan === "premium" ? "✦ PREMIUM ACCOUNT" : "FREE ACCOUNT";
+    $("storageUpgradeHint").textContent = row.plan === "premium" ? "Your Premium account includes 20 GB of storage." : "Free accounts include 200 MB. Upgrade to Premium for 20 GB of storage.";
+    if ($("storageUpgradeButton")) $("storageUpgradeButton").classList.toggle("hidden", row.plan === "premium");
+    const warning = $("storageWarning");
+    warning.textContent = percent >= 90 ? "Almost full — remove unused files or upgrade your plan." : percent >= 75 ? "Storage is running low." : "";
+    if (warning) warning.className = percent >= 75 ? "storage-warning" : "";
+}
+
+function newTutorial() {
+    editingTutorialId = null;
+    resetTutorialForm();
+    $("tutorialEditorPanel")?.scrollIntoView({behavior:"smooth",block:"start"});
+}
+window.newTutorial = newTutorial;
+
+function resetTutorialForm() {
+    $("tutorialForm")?.reset();
+    editingTutorialId = null;
+    if ($("tutorialFormHeading")) $("tutorialFormHeading").textContent = "Create a tutorial";
+    if ($("tutorialSaveButton")) $("tutorialSaveButton").textContent = "Publish tutorial";
+}
+window.resetTutorialForm = resetTutorialForm;
+
+async function tutorialAssetUrl(path) {
+    if (!path) return "";
+    const { data, error } = await sb.storage.from(TUTORIAL_BUCKET).createSignedUrl(path, 1800);
+    if (error) throw error;
+    return data.signedUrl;
+}
+
+async function loadTutorials() {
+    if (!currentProfile) return;
+    $("tutorialBrowseList").innerHTML = '<div class="empty">Loading tutorials…</div>';
+    $("myTutorialList").innerHTML = '<div class="empty">Loading your tutorials…</div>';
+    const { data, error } = await sb.from("docukeep_tutorials").select("id,owner_id,title,description,category,content,cover_path,created_at,updated_at").order("created_at",{ascending:false});
+    if (error) {
+        const msg = 'Tutorials are unavailable. Apply the tutorial storage SQL migration. ' + escapeHTML(error.message);
+        $("tutorialBrowseList").innerHTML = `<div class="empty">${msg}</div>`;
+        $("myTutorialList").innerHTML = `<div class="empty">${msg}</div>`;
+        return;
+    }
+    tutorialCache = data || [];
+    const renderCard = async (t, mine) => {
+        let cover = "";
+        try { cover = t.cover_path ? await tutorialAssetUrl(t.cover_path) : ""; } catch (_) {}
+        const { data: assets } = await sb.from("docukeep_tutorial_assets").select("id,file_name,size_bytes,asset_type,storage_path").eq("tutorial_id",t.id).order("created_at");
+        const fileLinks = await Promise.all((assets || []).filter(a=>a.asset_type!=="cover").map(async a => {
+            try { const url = await tutorialAssetUrl(a.storage_path); return `<div class="muted" style="margin-top:5px"><a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(a.file_name)}</a> · ${formatQuotaBytes(a.size_bytes)}</div>`; } catch (_) { return ""; }
+        }));
+        return `<article class="tutorial-card">${cover ? `<img class="tutorial-cover" src="${escapeHTML(cover)}" alt="${escapeHTML(t.title)} cover">` : `<div class="tutorial-cover" style="display:grid;place-items:center;color:#6e89a8;font-size:38px">▧</div>`}<div class="tutorial-card-body"><small class="muted">${escapeHTML(t.category)} · ${dateText(t.created_at)}</small><h3>${escapeHTML(t.title)}</h3><p>${escapeHTML(t.description)}</p><details><summary>Read tutorial</summary><div class="tutorial-content">${escapeHTML(t.content)}</div>${fileLinks.join("")}</details>${mine ? `<div class="tutorial-card-actions"><button class="btn secondary small" onclick="editTutorial('${t.id}')">Edit</button><button class="btn danger small" onclick="deleteTutorial('${t.id}')">Delete</button></div>` : ""}</div></article>`;
+    };
+    const browse = await Promise.all(tutorialCache.map(t=>renderCard(t,false)));
+    const mine = await Promise.all(tutorialCache.filter(t=>t.owner_id===currentProfile.id).map(t=>renderCard(t,true)));
+    $("tutorialBrowseList").innerHTML = browse.join("") || '<div class="empty">No tutorials published yet. Be the first to create one.</div>';
+    $("myTutorialList").innerHTML = mine.join("") || '<div class="empty">You have not created any tutorials yet.</div>';
+}
+
+$("tutorialForm")?.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!currentProfile) return toast("Please sign in first.");
+    const title = $("tutorialTitle").value.trim(), description = $("tutorialDescription").value.trim(), category = $("tutorialCategory").value, content = $("tutorialContent").value.trim();
+    if (!title || !description || !category || !content) return toast("Complete the title, description, category, and content.");
+    const cover = $("tutorialCover").files?.[0] || null;
+    const files = Array.from($("tutorialFiles").files || []);
+    if (cover && !["image/jpeg","image/png","image/webp"].includes(cover.type)) return toast("Cover image must be JPG, PNG, or WEBP.");
+    const btn = $("tutorialSaveButton"); btn.disabled = true; btn.textContent = "Saving…";
+    let tutorialId = editingTutorialId, created = false, uploadedPaths = [];
+    try {
+        if (tutorialId) {
+            const { error } = await sb.from("docukeep_tutorials").update({title,description,category,content}).eq("id",tutorialId).eq("owner_id",currentProfile.id);
+            if (error) throw error;
+        } else {
+            const { data, error } = await sb.from("docukeep_tutorials").insert({owner_id:currentProfile.id,title,description,category,content}).select("id").single();
+            if (error) throw error;
+            tutorialId = data.id; created = true;
+        }
+        const uploadAsset = async (file, assetType) => {
+            const safe = file.name.replace(/[^a-zA-Z0-9._-]/g,"_").slice(-100) || "upload";
+            const path = `${currentProfile.id}/${tutorialId}/${crypto.randomUUID()}-${safe}`;
+            const { error: uploadError } = await sb.storage.from(TUTORIAL_BUCKET).upload(path,file,{upsert:false,contentType:file.type||"application/octet-stream"});
+            if (uploadError) throw uploadError;
+            uploadedPaths.push(path);
+            const { error: rowError } = await sb.from("docukeep_tutorial_assets").insert({tutorial_id:tutorialId,owner_id:currentProfile.id,storage_path:path,file_name:file.name,mime_type:file.type||"application/octet-stream",size_bytes:file.size,asset_type:assetType});
+            if (rowError) { await sb.storage.from(TUTORIAL_BUCKET).remove([path]); uploadedPaths=uploadedPaths.filter(x=>x!==path); throw rowError; }
+            return path;
+        };
+        if (cover) {
+            const { data: oldCovers } = await sb.from("docukeep_tutorial_assets").select("id,storage_path").eq("tutorial_id",tutorialId).eq("owner_id",currentProfile.id).eq("asset_type","cover");
+            const path = await uploadAsset(cover,"cover");
+            const { error } = await sb.from("docukeep_tutorials").update({cover_path:path}).eq("id",tutorialId).eq("owner_id",currentProfile.id);
+            if (error) throw error;
+            const oldPaths=(oldCovers||[]).map(a=>a.storage_path);
+            if(oldPaths.length){
+                const { error: removeError }=await sb.storage.from(TUTORIAL_BUCKET).remove(oldPaths);
+                if(removeError) console.warn("Previous cover cleanup failed:",removeError.message);
+                else await sb.from("docukeep_tutorial_assets").delete().in("id",(oldCovers||[]).map(a=>a.id)).eq("owner_id",currentProfile.id);
+            }
+        }
+        for (const file of files) await uploadAsset(file,"attachment");
+        toast(editingTutorialId ? "Tutorial updated." : "Tutorial published.","ok");
+        resetTutorialForm();
+        await Promise.all([loadTutorials(),refreshStorageDashboard()]);
+    } catch (err) {
+        if (uploadedPaths.length) {
+            await sb.storage.from(TUTORIAL_BUCKET).remove(uploadedPaths);
+            await sb.from("docukeep_tutorial_assets").delete().in("storage_path",uploadedPaths).eq("owner_id",currentProfile.id);
+        }
+        if (created && tutorialId) await sb.from("docukeep_tutorials").delete().eq("id",tutorialId).eq("owner_id",currentProfile.id);
+        toast("Could not save tutorial: " + (err.message || err));
+    } finally { btn.disabled=false; btn.textContent=editingTutorialId ? "Save changes" : "Publish tutorial"; }
+});
+
+async function editTutorial(id) {
+    const t = tutorialCache.find(x=>x.id===id && x.owner_id===currentProfile?.id);
+    if (!t) return toast("You can only edit your own tutorials.");
+    editingTutorialId=id;
+    $("tutorialTitle").value=t.title; $("tutorialDescription").value=t.description; $("tutorialCategory").value=t.category; $("tutorialContent").value=t.content;
+    $("tutorialFormHeading").textContent="Edit your tutorial"; $("tutorialSaveButton").textContent="Save changes";
+    $("tutorialEditorPanel").scrollIntoView({behavior:"smooth",block:"start"});
+}
+window.editTutorial=editTutorial;
+
+async function deleteTutorial(id) {
+    const t=tutorialCache.find(x=>x.id===id && x.owner_id===currentProfile?.id);
+    if (!t) return toast("You can only delete your own tutorials.");
+    if (!confirm(`Delete “${t.title}” and its uploaded files? This cannot be undone.`)) return;
+    try {
+        const {data:assets,error:assetError}=await sb.from("docukeep_tutorial_assets").select("id,storage_path").eq("tutorial_id",id).eq("owner_id",currentProfile.id);
+        if(assetError)throw assetError;
+        const paths=(assets||[]).map(a=>a.storage_path);
+        if(paths.length){const {error}=await sb.storage.from(TUTORIAL_BUCKET).remove(paths);if(error)throw error;}
+        const {error}=await sb.from("docukeep_tutorials").delete().eq("id",id).eq("owner_id",currentProfile.id);
+        if(error)throw error;
+        toast("Tutorial deleted and storage space restored.","ok");
+        await Promise.all([loadTutorials(),refreshStorageDashboard()]);
+    } catch(err){toast("Could not delete tutorial: "+err.message);}
+}
+window.deleteTutorial=deleteTutorial;
+
+/* =========================================================
    NAVIGATION
 ========================================================= */
 
@@ -5016,7 +5044,7 @@ function go(page) {
         "upload",
         "tracking",
         "folders",
-        "classrooms",
+        "tutorials",
         "notifications",
         "premium",
         "profile",
@@ -5051,7 +5079,7 @@ function go(page) {
         upload: "Upload Document",
         tracking: "Submission Tracking",
         folders: "My Folders",
-        classrooms: "Classrooms",
+        tutorials: "Tutorials",
         notifications: "Notifications",
         premium: "Premium Plan",
         profile: "My Profile",
@@ -5066,7 +5094,8 @@ function go(page) {
     if (page === "settings") renderProfileMenu();
     if (page === "premium") loadMySubscriptionRequests();
     if (page === "folders") loadFolders();
-    if (page === "classrooms") loadClassrooms();
+    if (page === "tutorials") loadTutorials();
+    if (page === "dashboard") refreshStorageDashboard();
     if (page === "notifications") loadNotifications();
 
     window.scrollTo(0, 0);
