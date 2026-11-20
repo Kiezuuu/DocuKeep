@@ -910,7 +910,7 @@
         color: #64758c;
         background: transparent;
         text-align: left;
-        font-size: 0;
+        font-size: 12px;
         font-weight: 600;
     }
     .nav button::before {
@@ -934,7 +934,7 @@
     .nav button { display:flex; align-items:center; gap:12px; text-align:left; }
     .nav-icon { width:20px; height:20px; flex:0 0 20px; display:grid; place-items:center; color:#7f91a8; }
     .nav-icon svg { width:19px; height:19px; display:block; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-    .nav-label { flex:1; min-width:0; display:block; font-size:12px; line-height:1.35; font-weight:600; color:inherit; white-space:normal; overflow-wrap:anywhere; }
+    .nav-label { flex:1; min-width:0; display:block; font-size:12px; line-height:1.35; color:inherit; white-space:normal; }
     .nav button:hover { color: #245d9e; background: #e7effa; }
     .nav button:hover::before { color: #2868bd; background: #dce9fa; }
     .nav button.active {
@@ -1142,8 +1142,7 @@
         .sidebar .brand b { font-size: 15px; }
         .sidebar .brand small { font-size: 9px; }
         .nav { display: flex; gap: 5px; overflow-x: auto; padding: 1px 0 3px; scrollbar-width: thin; }
-        .nav button { min-width: max-content; min-height: 38px; padding: 0 10px; }
-        .nav-label { font-size:11px; white-space:nowrap; }
+        .nav button { min-width: max-content; min-height: 38px; padding: 0 10px; font-size:11px; }
         .nav button::before { width: 18px; height: 18px; flex-basis: 18px; font-size: 13px; }
         .nav button::after { font-size: 11px; }
         .sidebar > div:last-child { display: none; }
@@ -1168,7 +1167,7 @@
     }
     @media (max-width: 390px) {
         .stats { grid-template-columns: 1fr; }
-        .nav button { padding: 0 8px; }
+        .nav button { padding: 0 8px; font-size:10px; }
         .nav button::after { font-size: 10px; }
         .top .btn { padding: 7px 9px; }
     }
