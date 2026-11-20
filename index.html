@@ -930,28 +930,11 @@
         font-size: 12px;
         letter-spacing: .005em;
     }
-    .nav button[data-page="dashboard"]::before { content: "⌂"; }
-    .nav button[data-page="documents"]::before { content: "▤"; }
-    .nav button[data-page="upload"]::before { content: "＋"; }
-    .nav button[data-page="tracking"]::before { content: "◷"; }
-    .nav button[data-page="folders"]::before { content: "▱"; }
-    .nav button[data-page="tutorials"]::before { content: "▧"; }
-    .nav button[data-page="notifications"]::before { content: "♧"; }
-    .nav button[data-page="premium"]::before { content: "✧"; }
-    .nav button[data-page="admin"]::before { content: "⚙"; }
-    .nav button[data-page="profile"]::before { content: "◉"; }
-    .nav button[data-page="people"]::before { content: "♙"; }
-    .nav button[data-page="dashboard"]::after { content: "Dashboard"; }
-    .nav button[data-page="documents"]::after { content: "My Documents"; }
-    .nav button[data-page="upload"]::after { content: "Upload Document"; }
-    .nav button[data-page="tracking"]::after { content: "Submission Tracking"; }
-    .nav button[data-page="folders"]::after { content: "My Folders"; }
-    .nav button[data-page="tutorials"]::after { content: "Tutorials"; }
-    .nav button[data-page="notifications"]::after { content: "Notifications"; }
-    .nav button[data-page="premium"]::after { content: "Premium Plan"; }
-    .nav button[data-page="admin"]::after { content: "Staff Administration"; }
-    .nav button[data-page="profile"]::after { content: "My Profile"; }
-    .nav button[data-page="people"]::after { content: "People"; }
+    .nav button::before, .nav button::after { content: none !important; }
+    .nav button { display:flex; align-items:center; gap:12px; text-align:left; }
+    .nav-icon { width:20px; height:20px; flex:0 0 20px; display:grid; place-items:center; color:#7f91a8; }
+    .nav-icon svg { width:19px; height:19px; display:block; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    .nav-label { flex:1; min-width:0; }
     .nav button:hover { color: #245d9e; background: #e7effa; }
     .nav button:hover::before { color: #2868bd; background: #dce9fa; }
     .nav button.active {
@@ -1388,7 +1371,29 @@
 
 
 /* DocuKeep notification controls */
-.dk-notification-wrap{position:relative;display:flex;align-items:center}.dk-notification-bell{position:relative;width:42px;height:42px;border:1px solid var(--line);border-radius:12px;background:#fff;color:#2862a5;font-size:21px;cursor:pointer}.dk-notification-bell:hover{background:#f2f7fd;border-color:#a9c4e5}.dk-notification-badge{position:absolute;top:-6px;right:-6px;min-width:19px;height:19px;padding:0 5px;border-radius:20px;background:#d83b45;color:#fff;font:700 10px/19px system-ui;text-align:center;border:2px solid #fff}.dk-notification-dropdown{position:absolute;right:0;top:calc(100% + 9px);width:min(360px,calc(100vw - 28px));max-height: min(470px,75vh);background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 44px #172b4d24;z-index:60;overflow:hidden}.dk-notification-head{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid var(--line)}.dk-notification-dropdown-list{overflow:auto;max-height:350px}.dk-notification-item{display:block;width:100%;text-align:left;padding:12px 15px;border:0;border-bottom:1px solid var(--line);background:#fff;cursor:pointer;color:inherit}.dk-notification-item.unread{background:#f1f7ff}.dk-notification-item:hover{background:#f7faff}.dk-notification-item p{margin:4px 0;color:#596b80;font-size:12px}.dk-notification-item small{color:#8794a5;font-size:10px}.dk-notification-footer{width:100%;padding:11px;border:0;background:#f7f9fc;color:#2862a5;font-weight:700;cursor:pointer}.dk-notification-actions{display:flex;justify-content:flex-end;padding:8px 12px}.dk-notification-actions button{font-size:11px}@media(max-width:760px){.profile-menu-wrap{gap:7px}.dk-notification-bell{width:38px;height:38px}.dk-notification-dropdown{right:-48px}.profile-menu>summary{max-width:48vw}}
+.dk-notification-wrap{position:relative;display:flex;align-items:center}.dk-notification-bell{position:relative;width:42px;height:42px;border:1px solid var(--line);border-radius:12px;background:#fff;color:#2862a5;display:grid;place-items:center;cursor:pointer}.dk-notification-bell svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.dk-notification-bell:hover{background:#f2f7fd;border-color:#a9c4e5}.dk-notification-badge{position:absolute;top:-6px;right:-6px;min-width:19px;height:19px;padding:0 5px;border-radius:20px;background:#d83b45;color:#fff;font:700 10px/19px system-ui;text-align:center;border:2px solid #fff}.dk-notification-dropdown{position:absolute;right:0;top:calc(100% + 9px);width:min(360px,calc(100vw - 28px));max-height: min(470px,75vh);background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 44px #172b4d24;z-index:60;overflow:hidden}.dk-notification-head{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid var(--line)}.dk-notification-dropdown-list{overflow:auto;max-height:350px}.dk-notification-item{display:block;width:100%;text-align:left;padding:12px 15px;border:0;border-bottom:1px solid var(--line);background:#fff;cursor:pointer;color:inherit}.dk-notification-item.unread{background:#f1f7ff}.dk-notification-item:hover{background:#f7faff}.dk-notification-item p{margin:4px 0;color:#596b80;font-size:12px}.dk-notification-item small{color:#8794a5;font-size:10px}.dk-notification-footer{width:100%;padding:11px;border:0;background:#f7f9fc;color:#2862a5;font-weight:700;cursor:pointer}.dk-notification-actions{display:flex;justify-content:flex-end;padding:8px 12px}.dk-notification-actions button{font-size:11px}@media(max-width:760px){.profile-menu-wrap{gap:7px}.dk-notification-bell{width:38px;height:38px}.dk-notification-dropdown{right:-48px}.profile-menu>summary{max-width:48vw}}
+
+/* Refined navigation, logo and illustration styling */
+.sidebar .brand .logo{width:42px;height:42px;flex:0 0 42px;border-radius:12px;overflow:hidden;background:#fff;border:1px solid #e8eef6;box-shadow:0 3px 10px rgba(26,62,103,.08)}
+.sidebar .brand .logo img{width:100%;height:100%;object-fit:contain;padding:3px}
+.nav button .nav-icon{transition:color .18s ease,transform .18s ease}
+.nav button:hover .nav-icon{color:#2868bd;transform:translateY(-1px)}
+.nav button.active .nav-icon{color:#2868bd;background:transparent}
+.dk-welcome-banner{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:188px;margin:0 0 18px;padding:22px 26px;border:1px solid #e3ebf5;border-radius:18px;background:linear-gradient(112deg,#f7faff 0%,#eef5ff 58%,#f8fbff 100%);overflow:hidden}
+.dk-welcome-copy{max-width:510px;position:relative;z-index:1}
+.dk-eyebrow{display:inline-block;color:#4e7db2;font-size:10px;font-weight:800;letter-spacing:.13em;margin-bottom:8px}
+.dk-welcome-copy h2{font-size:clamp(19px,2.2vw,26px);line-height:1.2;color:#173b67;margin:0 0 8px;letter-spacing:-.025em}
+.dk-welcome-copy p{max-width:440px;color:#687d96;font-size:12px;line-height:1.65;margin:0 0 14px}
+.dk-welcome-copy .btn{display:inline-flex;align-items:center;gap:10px;box-shadow:0 5px 14px rgba(40,98,165,.12)}
+.dk-welcome-banner img{width:min(35%,300px);height:150px;object-fit:contain;flex:0 0 auto}
+@media(max-width:680px){.dk-welcome-banner{padding:18px;gap:8px;min-height:155px}.dk-welcome-banner img{width:36%;height:115px}.dk-welcome-copy h2{font-size:18px}.dk-welcome-copy p{font-size:11px}}
+@media(max-width:430px){.dk-welcome-banner img{width:31%;height:96px}.dk-welcome-copy .btn{font-size:11px;padding:8px 10px}}
+
+
+.menu-action-icon{width:18px;height:18px;display:inline-grid;place-items:center;color:#7188a4;flex:0 0 18px}
+.menu-action-icon svg,.dashboard-quickstat-icon svg{width:18px;height:18px;display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.dashboard-quickstat-icon svg{width:17px;height:17px}
+
 </style>
 </head>
 
@@ -1460,17 +1465,20 @@
             </div>
             <div class="navlabel">WORKSPACE</div>
             <nav class="nav">
-                <button class="active" data-page="dashboard">▦ Dashboard</button><button data-page="documents">▤ My
-                    Documents</button><button data-page="upload">＋ Upload Document</button><button
-                    data-page="tracking">◷ Submission Tracking</button><button data-page="folders">▣ My
-                    Folders</button><button data-page="tutorials">▧ Tutorials</button><button data-page="notifications">♧ Notifications <span
-                        id="notificationCount"></span></button><button data-page="premium">★ Premium
-                    Plan</button><button data-page="profile">◉ My Profile</button><button data-page="people">♙ People</button><button id="adminNav" class="hidden" data-page="admin">⚙ Staff Administration</button>
+                <button class="active" data-page="dashboard"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg></span><span class="nav-label">Dashboard</span></button>
+                <button data-page="documents"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v5h5M9 13h7M9 17h7"/></svg></span><span class="nav-label">My Documents</span></button>
+                <button data-page="upload"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></span><span class="nav-label">Upload Document</span></button>
+                <button data-page="tracking"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="nav-label">Submission Tracking</span></button>
+                <button data-page="folders"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg></span><span class="nav-label">My Folders</span></button>
+                <button data-page="premium"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m12 3 2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2Z"/><path d="m19 16 .9 2.1L22 19l-2.1.9L19 22l-.9-2.1L16 19l2.1-.9Z"/></svg></span><span class="nav-label">Premium Plan</span></button>
+                <button data-page="profile"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span><span class="nav-label">My Profile</span></button>
+                <button data-page="people"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M16 5.5a3 3 0 0 1 0 5.8M18 14a5 5 0 0 1 3 4.5"/></svg></span><span class="nav-label">People</span></button>
+                <button id="adminNav" class="hidden" data-page="admin"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.1.9-1.1 1.9-1.4-.5a8 8 0 0 1-1.6.9l-.3 1.5h-2.2l-.3-1.5a8 8 0 0 1-1.6-.9l-1.4.5-1.1-1.9 1.1-.9a7 7 0 0 1 0-1.9l-1.1-.9 1.1-1.9 1.4.5a8 8 0 0 1 1.6-.9l.3-1.5h2.2l.3 1.5a8 8 0 0 1 1.6.9l1.4-.5 1.1 1.9-1.1.9a7 7 0 0 1 0 1.9Z"/></svg></span><span class="nav-label">Staff Administration</span></button>
             </nav>
             <div style="margin-top:auto;color:#bdcde0;font-size:11px;padding:12px">Organize. Track. Retrieve.</div>
         </aside>
         <main class="main">
-            <header class="top"><span id="crumb">Dashboard</span><div class="profile-menu-wrap"><div class="dk-notification-wrap"><button type="button" class="dk-notification-bell" id="notificationBell" aria-label="Open notifications" aria-expanded="false" onclick="toggleNotificationDropdown()">♧<span id="notificationBadge" class="dk-notification-badge" hidden>0</span></button><div id="notificationDropdown" class="dk-notification-dropdown" hidden><div class="dk-notification-head"><b>Notifications</b><button type="button" class="link" onclick="markAllNotificationsRead()">Mark all read</button></div><div id="notificationDropdownList" class="dk-notification-dropdown-list"></div><button type="button" class="dk-notification-footer" onclick="go('notifications')">View all notifications</button></div></div><details class="profile-menu" id="profileMenu"><summary aria-label="Open profile menu"><span class="profile-menu-avatar" id="topProfileAvatar">U</span><span class="profile-menu-label"><b id="who">Account</b><small id="topProfileRole">USER</small></span><span aria-hidden="true">⌄</span></summary><div class="profile-menu-panel"><button type="button" onclick="profileMenuAction('view')">◉ View Profile</button><button type="button" onclick="profileMenuAction('edit')">✎ Edit Profile</button><button type="button" onclick="profileMenuAction('settings')">⚙ Account Settings</button><button type="button" class="danger" onclick="signOut()">↪ Log Out</button></div></details></div></header>
+            <header class="top"><span id="crumb">Dashboard</span><div class="profile-menu-wrap"><div class="dk-notification-wrap"><button type="button" class="dk-notification-bell" id="notificationBell" aria-label="Open notifications" aria-expanded="false" onclick="toggleNotificationDropdown()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span id="notificationBadge" class="dk-notification-badge" hidden>0</span></button><div id="notificationDropdown" class="dk-notification-dropdown" hidden><div class="dk-notification-head"><b>Notifications</b><button type="button" class="link" onclick="markAllNotificationsRead()">Mark all read</button></div><div id="notificationDropdownList" class="dk-notification-dropdown-list"></div><button type="button" class="dk-notification-footer" onclick="go('notifications')">View all notifications</button></div></div><details class="profile-menu" id="profileMenu"><summary aria-label="Open profile menu"><span class="profile-menu-avatar" id="topProfileAvatar">U</span><span class="profile-menu-label"><b id="who">Account</b><small id="topProfileRole">USER</small></span><span aria-hidden="true">⌄</span></summary><div class="profile-menu-panel"><button type="button" onclick="profileMenuAction('view')"><span class="menu-action-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>View Profile</button><button type="button" onclick="profileMenuAction('edit')"><span class="menu-action-icon"><svg viewBox="0 0 24 24"><path d="m4 16-.8 4.8L8 20l11-11-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg></span>Edit Profile</button><button type="button" onclick="profileMenuAction('settings')"><span class="menu-action-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 13.5a7 7 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7 7 0 0 0-2.6-1.5L13.5 2h-3l-.5 3.1a7 7 0 0 0-2.6 1.5l-2.4-1-2 3.4 2 1.5a7 7 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 2.6 1.5l.5 3.1h3l.5-3.1a7 7 0 0 0 2.6-1.5l2.4 1 2-3.4-2-1.5Z"/></svg></span>Account Settings</button><button type="button" class="danger" onclick="signOut()"><span class="menu-action-icon"><svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M13 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/></svg></span>Log Out</button></div></details></div></header>
             <div class="syncbar" id="syncbar">Offline mode: files are saved on this device and are NOT yet uploaded.
                 <span id="queueCount">0</span> waiting.</div>
             <div class="content">
@@ -1483,11 +1491,16 @@
                         <button class="btn" onclick="go('upload')">＋ New document</button>
                     </div>
 
+                    <section class="dk-welcome-banner">
+                        <div class="dk-welcome-copy"><span class="dk-eyebrow">YOUR DIGITAL SCHOOL WORKSPACE</span><h2>Everything important, neatly in one place.</h2><p>Keep your school files organized, follow submissions, and stay on top of every update.</p><button class="btn" type="button" onclick="go('documents')">Explore my documents <span aria-hidden="true">→</span></button></div>
+                        <img src="assets/docukeep-workspace-illustration.svg" alt="Illustration of a student organizing school documents" loading="lazy">
+                    </section>
+
                     <div class="dashboard-quickstats">
-                        <div class="dashboard-quickstat"><div class="dashboard-quickstat-icon">▤</div><div><span>Total documents</span><strong id="dashTotal">0</strong></div></div>
-                        <div class="dashboard-quickstat"><div class="dashboard-quickstat-icon">◷</div><div><span>Pending review</span><strong id="dashPending">0</strong></div></div>
-                        <div class="dashboard-quickstat"><div class="dashboard-quickstat-icon">✓</div><div><span>Approved</span><strong id="dashApproved">0</strong></div></div>
-                        <div class="dashboard-quickstat"><div class="dashboard-quickstat-icon">▣</div><div><span>My folders</span><strong id="dashFolders">0</strong></div></div>
+                        <div class="dashboard-quickstat"><div class="dashboard-quickstat-icon"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v5h5M9 13h7M9 17h7"/></svg></div><div><span>Total documents</span><strong id="dashTotal">0</strong></div></div>
+                        <div class="dashboard-quickstat"><div class="dashboard-quickstat-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div><span>Pending review</span><strong id="dashPending">0</strong></div></div>
+                        <div class="dashboard-quickstat"><div class="dashboard-quickstat-icon"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></div><div><span>Approved</span><strong id="dashApproved">0</strong></div></div>
+                        <div class="dashboard-quickstat"><div class="dashboard-quickstat-icon"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg></div><div><span>My folders</span><strong id="dashFolders">0</strong></div></div>
                     </div>
 
                     <div class="dashboard-main-grid">
@@ -1830,7 +1843,6 @@
                 </section>
                 <section class="page" id="page-settings">
                     <div class="heading"><div><h1>Account Settings</h1><p>Manage your DocuKeep sign-in and account preferences.</p></div></div>
-                    <div class="panel"><h2>Getting Started</h2><p class="muted">Review the guided tour of your DocuKeep workspace.</p><button class="btn secondary" type="button" onclick="replayWebsiteTutorial()">Replay Website Tutorial</button></div>
                     <div class="panel"><h2>Sign-in & Security</h2><p class="muted">Your email address is used to sign in and cannot be changed here.</p><button class="btn secondary" type="button" onclick="sendPasswordReset()">Send password reset email</button></div>
                 </section>
                 <section class="page" id="page-people">
