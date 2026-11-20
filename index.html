@@ -1371,6 +1371,24 @@
 .profile-cover-edit{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .profile-hidden{display:none!important}
 @media(max-width:760px){.profile-menu>summary{max-width:52vw;padding:6px}.profile-menu-label b{max-width:125px}.profile-menu-avatar{width:32px;height:32px;flex-basis:32px}.profile-hero{border-radius:12px}.profile-cover{height:135px}.profile-hero-body{padding:0 13px 14px;gap:12px}.profile-hero-avatar{width:82px;height:82px;font-size:25px}.profile-section-grid,.profile-info-grid,.profile-upload-row,.profile-cover-edit{grid-template-columns:1fr}.profile-menu-panel{right:0;width:210px}}
+
+/* First-time guided onboarding */
+.dk-onboard-backdrop{position:fixed;inset:0;background:rgba(8,20,38,.66);z-index:9998;display:none}
+.dk-onboard-backdrop.open{display:block}
+.dk-onboard-card{position:fixed;z-index:10000;left:50%;bottom:24px;transform:translateX(-50%);width:min(560px,calc(100vw - 28px));background:#fff;color:#18324f;border:1px solid #dbe5f0;border-radius:16px;padding:20px;box-shadow:0 22px 70px rgba(0,0,0,.28)}
+.dk-onboard-card h2{margin:0 0 8px;font-size:20px;color:#173b67}
+.dk-onboard-card p{margin:0 0 14px;line-height:1.55;color:#52677f}
+.dk-onboard-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.dk-onboard-progress{height:6px;background:#e8eef6;border-radius:20px;overflow:hidden;margin:0 0 15px}
+.dk-onboard-progress span{display:block;height:100%;background:#2862a5;transition:width .2s}
+.dk-onboard-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.dk-onboard-actions-right{display:flex;gap:8px}
+.dk-onboard-focus{position:relative!important;z-index:9999!important;outline:4px solid #f5c943!important;outline-offset:5px!important;border-radius:8px!important;box-shadow:0 0 0 9999px rgba(8,20,38,.52)!important}
+@media(max-width:600px){.dk-onboard-card{bottom:10px;padding:16px}.dk-onboard-card h2{font-size:18px}}
+
+
+/* DocuKeep notification controls */
+.dk-notification-wrap{position:relative;display:flex;align-items:center}.dk-notification-bell{position:relative;width:42px;height:42px;border:1px solid var(--line);border-radius:12px;background:#fff;color:#2862a5;font-size:21px;cursor:pointer}.dk-notification-bell:hover{background:#f2f7fd;border-color:#a9c4e5}.dk-notification-badge{position:absolute;top:-6px;right:-6px;min-width:19px;height:19px;padding:0 5px;border-radius:20px;background:#d83b45;color:#fff;font:700 10px/19px system-ui;text-align:center;border:2px solid #fff}.dk-notification-dropdown{position:absolute;right:0;top:calc(100% + 9px);width:min(360px,calc(100vw - 28px));max-height: min(470px,75vh);background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 44px #172b4d24;z-index:60;overflow:hidden}.dk-notification-head{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid var(--line)}.dk-notification-dropdown-list{overflow:auto;max-height:350px}.dk-notification-item{display:block;width:100%;text-align:left;padding:12px 15px;border:0;border-bottom:1px solid var(--line);background:#fff;cursor:pointer;color:inherit}.dk-notification-item.unread{background:#f1f7ff}.dk-notification-item:hover{background:#f7faff}.dk-notification-item p{margin:4px 0;color:#596b80;font-size:12px}.dk-notification-item small{color:#8794a5;font-size:10px}.dk-notification-footer{width:100%;padding:11px;border:0;background:#f7f9fc;color:#2862a5;font-weight:700;cursor:pointer}.dk-notification-actions{display:flex;justify-content:flex-end;padding:8px 12px}.dk-notification-actions button{font-size:11px}@media(max-width:760px){.profile-menu-wrap{gap:7px}.dk-notification-bell{width:38px;height:38px}.dk-notification-dropdown{right:-48px}.profile-menu>summary{max-width:48vw}}
 </style>
 </head>
 
@@ -1392,7 +1410,7 @@
                 </div>
                 <button type="button" class="btn secondary" style="width:100%" id="staffType"
                     onclick="selectType('staff')">Staff / Administrator sign in</button>
-                <div class="notice">Students use personal Gmail. Teachers use official DepEd email (@deped.gov.ph).
+                <div class="notice">Students and teachers may register using a personal Gmail address. All new accounts require staff approval.
                     Staff accounts are created by the administrator.</div>
             </div>
             <div id="authform" class="hidden"><button type="button" class="link" onclick="backChoice()">← Change account
@@ -1452,7 +1470,7 @@
             <div style="margin-top:auto;color:#bdcde0;font-size:11px;padding:12px">Organize. Track. Retrieve.</div>
         </aside>
         <main class="main">
-            <header class="top"><span id="crumb">Dashboard</span><div class="profile-menu-wrap"><details class="profile-menu" id="profileMenu"><summary aria-label="Open profile menu"><span class="profile-menu-avatar" id="topProfileAvatar">U</span><span class="profile-menu-label"><b id="who">Account</b><small id="topProfileRole">USER</small></span><span aria-hidden="true">⌄</span></summary><div class="profile-menu-panel"><button type="button" onclick="profileMenuAction('view')">◉ View Profile</button><button type="button" onclick="profileMenuAction('edit')">✎ Edit Profile</button><button type="button" onclick="profileMenuAction('settings')">⚙ Account Settings</button><button type="button" class="danger" onclick="signOut()">↪ Log Out</button></div></details></div></header>
+            <header class="top"><span id="crumb">Dashboard</span><div class="profile-menu-wrap"><div class="dk-notification-wrap"><button type="button" class="dk-notification-bell" id="notificationBell" aria-label="Open notifications" aria-expanded="false" onclick="toggleNotificationDropdown()">♧<span id="notificationBadge" class="dk-notification-badge" hidden>0</span></button><div id="notificationDropdown" class="dk-notification-dropdown" hidden><div class="dk-notification-head"><b>Notifications</b><button type="button" class="link" onclick="markAllNotificationsRead()">Mark all read</button></div><div id="notificationDropdownList" class="dk-notification-dropdown-list"></div><button type="button" class="dk-notification-footer" onclick="go('notifications')">View all notifications</button></div></div><details class="profile-menu" id="profileMenu"><summary aria-label="Open profile menu"><span class="profile-menu-avatar" id="topProfileAvatar">U</span><span class="profile-menu-label"><b id="who">Account</b><small id="topProfileRole">USER</small></span><span aria-hidden="true">⌄</span></summary><div class="profile-menu-panel"><button type="button" onclick="profileMenuAction('view')">◉ View Profile</button><button type="button" onclick="profileMenuAction('edit')">✎ Edit Profile</button><button type="button" onclick="profileMenuAction('settings')">⚙ Account Settings</button><button type="button" class="danger" onclick="signOut()">↪ Log Out</button></div></details></div></header>
             <div class="syncbar" id="syncbar">Offline mode: files are saved on this device and are NOT yet uploaded.
                 <span id="queueCount">0</span> waiting.</div>
             <div class="content">
@@ -1663,7 +1681,7 @@
                         </div><button class="btn secondary small" onclick="markAllNotificationsRead()">Mark all as
                             read</button>
                     </div>
-                    <div class="panel">
+                    <div class="panel"><div class="actions" style="justify-content:space-between;align-items:center;margin-bottom:12px"><div><b>Mobile notifications</b><p class="muted" style="margin:3px 0">Receive alerts when DocuKeep is not open, where your browser supports web push.</p><small id="pushStatus" class="muted">Push notifications are not configured.</small></div><button type="button" class="btn secondary small" onclick="enablePushNotifications()">Enable push</button></div>
                         <div id="notificationList">
                             <div class="empty">Loading notifications…</div>
                         </div>
@@ -1812,6 +1830,7 @@
                 </section>
                 <section class="page" id="page-settings">
                     <div class="heading"><div><h1>Account Settings</h1><p>Manage your DocuKeep sign-in and account preferences.</p></div></div>
+                    <div class="panel"><h2>Getting Started</h2><p class="muted">Review the guided tour of your DocuKeep workspace.</p><button class="btn secondary" type="button" onclick="replayWebsiteTutorial()">Replay Website Tutorial</button></div>
                     <div class="panel"><h2>Sign-in & Security</h2><p class="muted">Your email address is used to sign in and cannot be changed here.</p><button class="btn secondary" type="button" onclick="sendPasswordReset()">Send password reset email</button></div>
                 </section>
                 <section class="page" id="page-people">
@@ -1931,6 +1950,14 @@
     <div class="avatar-crop-actions" style="margin-top:15px"><button class="btn secondary" type="button" onclick="closeAvatarCrop()">Cancel</button><button class="btn" id="avatarCropSave" type="button" onclick="saveCroppedAvatar()">Use This Picture</button></div>
   </div>
 </div>
+<div class="dk-onboard-backdrop" id="onboardingBackdrop" aria-hidden="true"></div>
+<section class="dk-onboard-card" id="onboardingCard" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle" style="display:none">
+ <div class="dk-onboard-top"><span class="muted" id="onboardingStep">WELCOME</span><button class="btn secondary small" type="button" onclick="skipWebsiteTutorial()">Skip tutorial</button></div>
+ <div class="dk-onboard-progress"><span id="onboardingProgress" style="width:0%"></span></div>
+ <h2 id="onboardingTitle">Welcome to DocuKeep!</h2><p id="onboardingText">Your smart school file workspace.</p>
+ <div class="dk-onboard-actions"><button class="btn secondary" id="onboardingBack" type="button" onclick="onboardingBack()" style="visibility:hidden">Back</button><div class="dk-onboard-actions-right"><button class="btn secondary" id="onboardingSkip" type="button" onclick="skipWebsiteTutorial()">Skip</button><button class="btn" id="onboardingNext" type="button" onclick="onboardingNext()">Get Started</button></div></div>
+</section>
+
 <script>
 /* =========================================================
    DOCUKEEP CLIENT
@@ -1940,7 +1967,6 @@
 const SUPABASE_URL = "https://ihvvmmaudbkddwevialb.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_yfLj3YnmOh9PiwVV-HDpgA__Hc5ymr4";
 
-const TEACHER_EMAIL_DOMAIN = "deped.gov.ph";
 const BUCKET = "docukeep-files";
 const SITE_URL = "https://kiezuuu.github.io/DocuKeep/";
 
@@ -2015,7 +2041,7 @@ function validEmail(email, type) {
     if (p.length !== 2 || !p[0]) return false;
 
     if (type === "student") return p[1] === "gmail.com";
-    if (type === "teacher") return p[1] === TEACHER_EMAIL_DOMAIN;
+    if (type === "teacher") return p[1] === "gmail.com";
     if (type === "staff") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
     return false;
@@ -2139,7 +2165,7 @@ function selectType(type) {
         type === "student"
             ? "Use your personal Gmail account."
             : type === "teacher"
-                ? "Use your official DepEd email (@deped.gov.ph)."
+                ? "Use a personal @gmail.com address."
                 : "Use the staff account provided by your administrator.";
 
     $("signupSwitch").classList.toggle("hidden", type === "staff");
@@ -2568,7 +2594,7 @@ async function loadProfile(user, expectedType = null) {
     }
 
     if (role === "teacher" && !validEmail(user.email, "teacher")) {
-        throw Error("Teacher accounts must use an official DepEd email.");
+        throw Error("Teacher accounts must use a personal Gmail address.");
     }
 
     currentProfile = { ...p, role };
@@ -2585,6 +2611,8 @@ async function loadProfile(user, expectedType = null) {
 
     await loadPremiumStatus();
     await loadDocuments();
+    await loadNotifications();
+    startNotificationRealtime();
     await refreshStorageDashboard();
     await loadTutorials();
     await updateOfflineStatus();
@@ -2594,7 +2622,12 @@ async function loadProfile(user, expectedType = null) {
         syncOfflineUploads();
     }
 
-    go("dashboard");
+    const requestedPage = new URLSearchParams(window.location.search).get("page");
+    const allowedPages = ["dashboard","documents","upload","tracking","folders","tutorials","notifications","premium","profile","people","admin"];
+    go(allowedPages.includes(requestedPage) && (requestedPage !== "admin" || role === "staff") ? requestedPage : "dashboard");
+    const requestedDocument = new URLSearchParams(window.location.search).get("document");
+    if(requestedDocument && requestedPage === "documents") setTimeout(()=>{const node=document.querySelector(`[data-document-id="${CSS.escape(requestedDocument)}"]`);node?.scrollIntoView({behavior:"smooth",block:"center"});},350);
+    await maybeStartFirstTimeTutorial();
 }
 
 /* =========================================================
@@ -2617,7 +2650,7 @@ $("loginForm").addEventListener("submit", async e => {
             type === "student"
                 ? "Use a personal @gmail.com address."
                 : type === "teacher"
-                    ? "Use an official @deped.gov.ph address."
+                    ? "Use a personal @gmail.com address."
                     : "Enter a valid staff email."
         );
     }
@@ -2677,7 +2710,7 @@ $("signupForm").addEventListener("submit", async e => {
         return toast(
             accountType === "student"
                 ? "Use a personal Gmail address."
-                : "Use an official @deped.gov.ph address."
+                : "Use a personal @gmail.com address."
         );
     }
 
@@ -2726,11 +2759,11 @@ $("signupForm").addEventListener("submit", async e => {
         toggleForm(false);
 
         setAuthMessage(
-            "Registration submitted. Confirm your email if required, then wait for staff approval.",
+            "Registration received. Confirm your email if requested. Your account is PENDING until an administrator or authorized staff member approves it. You cannot access the workspace yet.",
             "ok"
         );
 
-        toast("Registration request submitted.");
+        toast("Registration submitted. Waiting for staff approval.");
 
     } catch (err) {
         setAuthMessage(
@@ -2975,7 +3008,7 @@ function renderDocumentCards(items) {
         const kind = documentFileKind(d);
         const active = d.id === selectedDocumentId ? " selected" : "";
         return `
-            <article class="document-card${active}" onclick="previewDoc('${d.id}')" tabindex="0"
+            <article class="document-card${active}" data-document-id="${d.id}" onclick="previewDoc('${d.id}')" tabindex="0"
                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();previewDoc('${d.id}')}" >
                 <div class="document-card-top">
                     <span class="file-type-icon file-${kind.toLowerCase()}">${kind}</span>
@@ -3272,20 +3305,31 @@ async function syncOfflineUploads() {
     await loadDocuments();
 }
 
+async function uploadBlobWithProgress(path,file,mimeType,onProgress){
+    const {data:{session},error:sessionError}=await sb.auth.getSession();
+    if(sessionError)throw sessionError;
+    if(!session?.access_token)throw Error("Your session expired. Sign in again before uploading.");
+    const encodedPath=path.split("/").map(encodeURIComponent).join("/");
+    const url=`${SUPABASE_URL}/storage/v1/object/${encodeURIComponent(BUCKET)}/${encodedPath}`;
+    await new Promise((resolve,reject)=>{
+        const xhr=new XMLHttpRequest();xhr.open("POST",url,true);
+        xhr.setRequestHeader("apikey",SUPABASE_ANON_KEY);xhr.setRequestHeader("Authorization",`Bearer ${session.access_token}`);xhr.setRequestHeader("Content-Type",mimeType||"application/octet-stream");xhr.setRequestHeader("x-upsert","false");
+        xhr.upload.onprogress=e=>{if(e.lengthComputable&&onProgress)onProgress(Math.min(99,Math.round(e.loaded/e.total*100)));};
+        xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300){if(onProgress)onProgress(100);resolve();}else{let message=`Storage upload failed (${xhr.status}).`;try{const body=JSON.parse(xhr.responseText);message=body.message||body.error||message;}catch{}reject(Error(message));}};
+        xhr.onerror=()=>reject(Error("Network error while uploading. Check your connection and try again."));
+        xhr.onabort=()=>reject(Error("Upload was interrupted."));xhr.send(file);
+    });
+}
+
 async function uploadJob(j) {
     if (!currentProfile || j.ownerId !== currentProfile.id) {
         throw Error("This queued upload does not belong to the current account.");
     }
 
-    const { error: upErr } = await sb
-        .storage
-        .from(BUCKET)
-        .upload(j.path, j.file, {
-            upsert: false,
-            contentType: j.mimeType || "application/octet-stream"
-        });
-
-    if (upErr) throw upErr;
+    await uploadBlobWithProgress(j.path,j.file,j.mimeType||"application/octet-stream",percent=>{
+        const prog=$("uploadProgress");
+        if(prog)prog.innerHTML=`<div class="upload-progress-label">Uploading ${escapeHTML(j.fileName||j.file?.name||"file")} · ${percent}%</div><progress max="100" value="${percent}"></progress><button type="button" class="btn danger small" onclick="cancelCurrentUpload()">Cancel remaining</button>`;
+    });
 
     const row = {
         id: j.id,
@@ -3304,7 +3348,7 @@ async function uploadJob(j) {
         file_name: j.fileName,
         mime_type: j.mimeType || "application/octet-stream",
         size_bytes: j.sizeBytes,
-        status: "approved"
+        status: (j.ownerRole || currentProfile.role) === "teacher" ? "pending" : "approved"
     };
 
     const { error: dbErr } = await sb
@@ -3463,7 +3507,7 @@ $("uploadForm").addEventListener("submit", async e => {
             if (cancelUploadRequested) break;
             const f = files[i];
 
-            prog.innerHTML = `Processing ${i + 1} of ${files.length}: ${escapeHTML(f.name)} <button type="button" class="btn danger small" onclick="cancelCurrentUpload()">Cancel remaining</button>`;
+            prog.innerHTML = `<div class="upload-progress-label">Uploading ${i + 1} of ${files.length}: ${escapeHTML(f.name)}</div><progress max="${files.length}" value="${i}"></progress><button type="button" class="btn danger small" onclick="cancelCurrentUpload()">Cancel remaining</button>`;
 
             if (f.size > 25 * 1024 * 1024) {
                 failed++;
@@ -3504,6 +3548,7 @@ $("uploadForm").addEventListener("submit", async e => {
                 description: $("description").value,
                 folderId: $("uploadFolder").value || null,
                 ownerId: currentProfile.id,
+                ownerRole: currentProfile.role,
                 ownerName: currentProfile.full_name,
                 fileName: f.name,
                 mimeType: f.type,
@@ -4000,79 +4045,19 @@ window.moveDocument = moveDocument;
    NOTIFICATIONS
 ========================================================= */
 
-async function loadNotifications() {
-    if (!currentProfile) return;
-
-    const { data, error } = await sb
-        .from("docukeep_notifications")
-        .select("id,title,message,created_at,is_read")
-        .eq("user_id", currentProfile.id)
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-    if (error) {
-        $("notificationList").innerHTML =
-            '<div class="empty">Notifications unavailable. Check table and RLS policies.</div>';
-        return;
-    }
-
-    const rows = data || [];
-    const unread = rows.filter(n => !n.is_read).length;
-
-    $("notificationCount").textContent =
-        unread ? `(${unread})` : "";
-
-    $("notificationList").innerHTML = rows.map(n => `
-        <div style="padding:12px;border-bottom:1px solid var(--line);${n.is_read ? "opacity:.65" : ""}">
-            <b>${escapeHTML(n.title)}</b>
-
-            <p>${escapeHTML(n.message)}</p>
-
-            <small class="muted">
-                ${dateText(n.created_at)} ·
-                ${n.is_read ? "Read" : "Unread"}
-            </small>
-
-            ${n.is_read ? "" : `
-                <button class="btn secondary small"
-                    onclick="markNotificationRead('${n.id}')">
-                    Mark read
-                </button>
-            `}
-        </div>
-    `).join("") || '<div class="empty">You have no notifications.</div>';
-}
-
-async function markNotificationRead(id) {
-    const { error } = await sb
-        .from("docukeep_notifications")
-        .update({ is_read: true })
-        .eq("id", id)
-        .eq("user_id", currentProfile.id);
-
-    if (error) return toast(error.message);
-
-    loadNotifications();
-}
-
-async function markAllNotificationsRead() {
-    if (!currentProfile) return;
-
-    const { error } = await sb
-        .from("docukeep_notifications")
-        .update({ is_read: true })
-        .eq("user_id", currentProfile.id)
-        .eq("is_read", false);
-
-    if (error) return toast(error.message);
-
-    await loadNotifications();
-
-    toast("Notifications marked as read");
-}
-
-window.markNotificationRead = markNotificationRead;
-window.markAllNotificationsRead = markAllNotificationsRead;
+let notificationRowsCache = [];
+let notificationRealtimeChannel = null;
+function notificationDate(v){return v?new Date(v).toLocaleString():"Just now";}
+function renderNotificationBadge(rows){const unread=(rows||[]).filter(n=>!n.is_read).length;const badge=$("notificationBadge");if(badge){badge.hidden=!unread;badge.textContent=unread>99?"99+":String(unread);}const nav=$("notificationCount");if(nav)nav.textContent=unread?`(${unread})`:"";}
+function notificationItemHTML(n){return `<button type="button" class="dk-notification-item ${n.is_read?"":"unread"}" onclick="openNotification('${n.id}')"><b>${escapeHTML(n.title||"Notification")}</b><p>${escapeHTML(n.message||"")}</p><small>${notificationDate(n.created_at)} · ${n.is_read?"Read":"Unread"}</small></button>`;}
+function renderNotificationViews(){renderNotificationBadge(notificationRowsCache);const full=$("notificationList");if(full)full.innerHTML=notificationRowsCache.map(n=>`${notificationItemHTML(n)}${!n.is_read?`<div class="dk-notification-actions"><button class="btn secondary small" onclick="markNotificationRead('${n.id}')">Mark read</button></div>`:""}`).join("")||'<div class="empty">You have no notifications.</div>';const mini=$("notificationDropdownList");if(mini)mini.innerHTML=notificationRowsCache.slice(0,8).map(notificationItemHTML).join("")||'<div class="empty" style="padding:18px">No notifications yet.</div>';}
+async function loadNotifications(){if(!currentProfile)return;const {data,error}=await sb.from("docukeep_notifications").select("id,title,message,notification_type,related_document_id,created_at,is_read").eq("user_id",currentProfile.id).order("created_at",{ascending:false}).limit(100);if(error){console.error("Notification load failed",error);const host=$("notificationList");if(host)host.innerHTML=`<div class="empty">Notifications unavailable: ${escapeHTML(error.message)}</div>`;return;}notificationRowsCache=data||[];renderNotificationViews();}
+function toggleNotificationDropdown(){const box=$("notificationDropdown"),bell=$("notificationBell");if(!box)return;box.hidden=!box.hidden;bell?.setAttribute("aria-expanded",String(!box.hidden));if(!box.hidden)loadNotifications();}
+async function openNotification(id){const n=notificationRowsCache.find(x=>x.id===id);if(!n)return;if(!n.is_read)await markNotificationRead(id,false);$("notificationDropdown").hidden=true;$("notificationBell")?.setAttribute("aria-expanded","false");if(n.related_document_id){go("documents");setTimeout(()=>{const el=document.querySelector(`[data-document-id="${CSS.escape(n.related_document_id)}"]`);el?.scrollIntoView({behavior:"smooth",block:"center"});},100);}else if(n.notification_type?.includes("account")){go("profile");}else{go("notifications");}}
+async function markNotificationRead(id,refresh=true){if(!currentProfile)return;const {error}=await sb.from("docukeep_notifications").update({is_read:true}).eq("id",id).eq("user_id",currentProfile.id);if(error)return toast("Could not update notification: "+error.message);const n=notificationRowsCache.find(x=>x.id===id);if(n)n.is_read=true;renderNotificationViews();if(refresh)toast("Notification marked as read.");}
+async function markAllNotificationsRead(){if(!currentProfile)return;const {error}=await sb.from("docukeep_notifications").update({is_read:true}).eq("user_id",currentProfile.id).eq("is_read",false);if(error)return toast("Could not update notifications: "+error.message);notificationRowsCache.forEach(n=>n.is_read=true);renderNotificationViews();toast("All notifications marked as read.");}
+function startNotificationRealtime(){if(!currentProfile)return;if(notificationRealtimeChannel)sb.removeChannel(notificationRealtimeChannel);notificationRealtimeChannel=sb.channel("docukeep-notifications-"+currentProfile.id).on("postgres_changes",{event:"*",schema:"public",table:"docukeep_notifications",filter:"user_id=eq."+currentProfile.id},()=>loadNotifications()).subscribe();}
+window.toggleNotificationDropdown=toggleNotificationDropdown;window.openNotification=openNotification;window.markNotificationRead=markNotificationRead;window.markAllNotificationsRead=markAllNotificationsRead;
 
 /* =========================================================
    STAFF ADMINISTRATION
@@ -4114,6 +4099,7 @@ async function renderAdmin() {
                 ${escapeHTML(u.department || "No department")} ·
                 ${dateText(u.created_at)}
             </small>
+            <div style="margin-top:7px"><span class="pill pending">Pending</span></div>
 
             <div class="actions" style="margin-top:8px">
                 <button class="btn green small"
@@ -4793,13 +4779,12 @@ async function reviewUser(id, status) {
 
     if (!["approved", "rejected"].includes(status)) return;
 
-    const { error } = await sb.rpc(
-        "approve_docukeep_profile",
-        {
-            p_user_id: id,
-            p_status: status
-        }
-    );
+    const target = managedUsersCache.find(u=>u.id===id) || null;
+    const verb = status === "approved" ? "approve" : "reject";
+    if(!confirm(`Are you sure you want to ${verb} ${target?.full_name || "this account"}?`)) return;
+    const reason = status === "rejected" ? prompt("Enter the reason for rejecting this registration:", "") : "";
+    if(status === "rejected" && (reason===null || !reason.trim())) return toast("A rejection reason is required.");
+    const { error } = await sb.rpc("docukeep_review_profile",{p_user_id:id,p_status:status,p_reason:reason?.trim()||null});
 
     if (error) {
         return toast("Account update failed: " + error.message);
@@ -4838,15 +4823,7 @@ async function reviewDoc(id, status) {
         return toast("Please provide a review comment.");
     }
 
-    const { error } = await sb
-        .from("documents")
-        .update({
-            status,
-            review_comment: reviewComment || null,
-            reviewed_at: new Date().toISOString(),
-            reviewed_by: currentProfile.id
-        })
-        .eq("id", id);
+    const { error } = await sb.rpc("docukeep_review_document",{p_document_id:id,p_status:status,p_comment:reviewComment||null});
 
     if (error) {
         return toast("Document update failed: " + error.message);
@@ -5032,6 +5009,31 @@ async function deleteTutorial(id) {
     } catch(err){toast("Could not delete tutorial: "+err.message);}
 }
 window.deleteTutorial=deleteTutorial;
+
+
+/* FIRST-TIME USER ONBOARDING */
+const DOCUKEEP_ONBOARDING_STEPS = [
+ {page:"dashboard",selector:"#page-dashboard .dashboard-heading",title:"Your Dashboard",text:"This is your home base. Check document activity, pending reviews, recent files, and quick statistics here."},
+ {page:"tutorials",selector:"#page-tutorials .heading",title:"Create Tutorials",text:"Open Tutorials to write and publish step-by-step guides. Add a title, category, cover image, content, and optional files."},
+ {page:"upload",selector:"#page-upload",title:"Upload Files",text:"Use Upload Document to add supported files to your workspace. Complete the details and submit your file."},
+ {page:"tutorials",selector:"#myTutorialList",title:"Manage Your Tutorials",text:"Your own tutorials appear in My Tutorials. You can edit or delete the tutorials you created."},
+ {page:"profile",selector:"#page-profile",title:"Profile and Settings",text:"Your profile contains your personal and school information. Account Settings includes security options and lets you replay this guide."},
+ {page:"dashboard",selector:".storage-card",title:"Monitor Your Storage",text:"My Storage shows used space, remaining space, total quota, and plan. Free includes 200 MB; Premium includes 20 GB."}
+];
+let onboardingIndex=-1,onboardingActive=false,onboardingFocus=null;
+function clearOnboardingFocus(){if(onboardingFocus){onboardingFocus.classList.remove("dk-onboard-focus");onboardingFocus=null;}}
+function showOnboardingCard(){const c=$("onboardingCard"),b=$("onboardingBackdrop");if(c)c.style.display="block";if(b){b.classList.add("open");b.setAttribute("aria-hidden","false");}}
+function hideOnboardingCard(){const c=$("onboardingCard"),b=$("onboardingBackdrop");if(c)c.style.display="none";if(b){b.classList.remove("open");b.setAttribute("aria-hidden","true");}clearOnboardingFocus();}
+function renderOnboardingStep(){const welcome=onboardingIndex===-1,complete=onboardingIndex>=DOCUKEEP_ONBOARDING_STEPS.length,step=welcome||complete?null:DOCUKEEP_ONBOARDING_STEPS[onboardingIndex];clearOnboardingFocus();showOnboardingCard();if(step){go(step.page);const target=document.querySelector(step.selector);if(target){onboardingFocus=target;target.classList.add("dk-onboard-focus");setTimeout(()=>target.scrollIntoView({behavior:"smooth",block:"center"}),80);}}$("onboardingStep").textContent=welcome?"WELCOME":complete?"COMPLETED":`STEP ${onboardingIndex+1} OF ${DOCUKEEP_ONBOARDING_STEPS.length}`;$("onboardingTitle").textContent=welcome?"Welcome to DocuKeep!":complete?"You're all set!":step.title;$("onboardingText").textContent=welcome?"Your smart school file workspace helps you organize documents, submit files, track reviews, and share learning tutorials. This quick tour will show you around.":complete?"Congratulations! You have completed the DocuKeep walkthrough. You can replay it anytime from Account Settings.":step.text;$("onboardingProgress").style.width=complete?"100%":welcome?"0%":`${((onboardingIndex+1)/DOCUKEEP_ONBOARDING_STEPS.length)*100}%`;$("onboardingBack").style.visibility=welcome?"hidden":"visible";$("onboardingSkip").style.display=complete?"none":"inline-flex";$("onboardingNext").textContent=welcome?"Get Started":complete?"Start Exploring":"Next";}
+async function saveOnboardingCompletion(){if(!currentProfile?.id)return;const {error}=await sb.from("docukeep_onboarding_progress").upsert({user_id:currentProfile.id,completed_at:new Date().toISOString(),updated_at:new Date().toISOString()},{onConflict:"user_id"});if(error)console.warn("Could not save onboarding status:",error.message);}
+async function finishWebsiteTutorial(){await saveOnboardingCompletion();onboardingActive=false;hideOnboardingCard();go("dashboard");}
+function onboardingNext(){if(onboardingIndex>=DOCUKEEP_ONBOARDING_STEPS.length){finishWebsiteTutorial();return;}onboardingIndex++;renderOnboardingStep();}
+function onboardingBack(){if(onboardingIndex>0)onboardingIndex--;else if(onboardingIndex===0)onboardingIndex=-1;renderOnboardingStep();}
+async function skipWebsiteTutorial(){await finishWebsiteTutorial();}
+function startWebsiteTutorial(){onboardingActive=true;onboardingIndex=-1;renderOnboardingStep();}
+async function replayWebsiteTutorial(){if(!currentProfile)return toast("Please sign in first.");go("dashboard");startWebsiteTutorial();}
+async function maybeStartFirstTimeTutorial(){if(!currentProfile?.id)return;const {data,error}=await sb.from("docukeep_onboarding_progress").select("completed_at").eq("user_id",currentProfile.id).maybeSingle();if(error){console.warn("Onboarding status unavailable. Apply the onboarding migration:",error.message);return;}if(!data?.completed_at)startWebsiteTutorial();}
+window.onboardingNext=onboardingNext;window.onboardingBack=onboardingBack;window.skipWebsiteTutorial=skipWebsiteTutorial;window.replayWebsiteTutorial=replayWebsiteTutorial;
 
 /* =========================================================
    NAVIGATION
@@ -5377,6 +5379,18 @@ async function removeProfilePicture() {
     }
 }
 window.removeProfilePicture = removeProfilePicture;
+
+document.addEventListener("click",e=>{const wrap=document.querySelector(".dk-notification-wrap");if(wrap&&!wrap.contains(e.target)){const box=$("notificationDropdown");if(box)box.hidden=true;$("notificationBell")?.setAttribute("aria-expanded","false");}});
+
+/* =========================================================
+   WEB PUSH SUBSCRIPTIONS
+   Configure VAPID_PUBLIC_KEY in this file and the matching private key
+   as a Supabase Edge Function secret before enabling push delivery.
+========================================================= */
+const DOCUKEEP_VAPID_PUBLIC_KEY = "REPLACE_WITH_VAPID_PUBLIC_KEY";
+function urlBase64ToUint8Array(value){const padding="=".repeat((4-value.length%4)%4);const base=(value+padding).replace(/-/g,"+").replace(/_/g,"/");const raw=atob(base);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
+async function enablePushNotifications(){try{if(!currentProfile)return toast("Sign in to enable notifications.");if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window))return toast("This browser does not support web push notifications.");if(DOCUKEEP_VAPID_PUBLIC_KEY.startsWith("REPLACE_"))return toast("Web push needs VAPID keys and the Supabase push function configured first.");const permission=await Notification.requestPermission();if(permission!=="granted")return toast("Notification permission was not granted.");const registration=await navigator.serviceWorker.ready;let subscription=await registration.pushManager.getSubscription();if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(DOCUKEEP_VAPID_PUBLIC_KEY)});const payload=subscription.toJSON();const {error}=await sb.from("docukeep_push_subscriptions").upsert({user_id:currentProfile.id,endpoint:payload.endpoint,subscription:payload,updated_at:new Date().toISOString()},{onConflict:"endpoint"});if(error)throw error;const status=$("pushStatus");if(status)status.textContent="Push notifications enabled on this device.";toast("Push notifications enabled on this device.");}catch(e){console.error("Push setup failed",e);toast("Could not enable push notifications: "+(e.message||e));}}
+window.enablePushNotifications=enablePushNotifications;
 
 /* =========================================================
    SERVICE WORKER
