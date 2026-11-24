@@ -11,11 +11,8 @@ begin
   requested_role := coalesce(new.raw_user_meta_data->>'requested_role','');
   if requested_role not in ('student','teacher') then return new; end if;
   mail_domain := lower(split_part(coalesce(new.email,''),'@',2));
-  if requested_role='student' and mail_domain <> 'gmail.com' then
-    raise exception 'Students must register with a personal Gmail address.';
-  end if;
-  if requested_role='teacher' and mail_domain <> 'deped.gov.ph' then
-    raise exception 'Teachers must use their official DepEd email address.';
+  if mail_domain <> 'gmail.com' then
+    raise exception 'Students and teachers must register with a personal Gmail address.';
   end if;
   insert into public.profiles(id,full_name,email,role,department,status)
   values(new.id,coalesce(nullif(new.raw_user_meta_data->>'full_name',''),'New user'),lower(new.email),requested_role,nullif(new.raw_user_meta_data->>'department',''),'pending')

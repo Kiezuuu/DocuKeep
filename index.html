@@ -1947,7 +1947,7 @@
 const SUPABASE_URL = "https://ihvvmmaudbkddwevialb.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_yfLj3YnmOh9PiwVV-HDpgA__Hc5ymr4";
 
-const TEACHER_EMAIL_DOMAIN = "deped.gov.ph";
+const TEACHER_EMAIL_DOMAIN = "gmail.com";
 const BUCKET = "docukeep-files";
 const SITE_URL = "https://kiezuuu.github.io/DocuKeep/";
 
@@ -2625,7 +2625,7 @@ $("loginForm").addEventListener("submit", async e => {
             type === "student"
                 ? "Use a personal @gmail.com address."
                 : type === "teacher"
-                    ? "Use an official @deped.gov.ph address."
+                    ? "Use your personal Gmail address (@gmail.com)."
                     : "Enter a valid staff email."
         );
     }
@@ -2685,7 +2685,7 @@ $("signupForm").addEventListener("submit", async e => {
         return toast(
             accountType === "student"
                 ? "Use a personal Gmail address."
-                : "Use an official @deped.gov.ph address."
+                : "Use your personal Gmail address (@gmail.com)."
         );
     }
 
@@ -2741,12 +2741,15 @@ $("signupForm").addEventListener("submit", async e => {
         toast("Registration request submitted.");
 
     } catch (err) {
+        console.error("DocuKeep signup/database trigger error:", err);
+
+        const signupError = err?.message || friendlyAuthError(err);
         setAuthMessage(
-            "Registration failed: " + friendlyAuthError(err),
+            "Registration failed: " + signupError,
             "warn"
         );
 
-        toast("Signup failed: " + friendlyAuthError(err));
+        toast("Signup failed: " + signupError);
 
     } finally {
         b.disabled = false;
