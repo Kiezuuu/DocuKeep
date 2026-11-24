@@ -1431,9 +1431,8 @@
                         onclick="toggleForm(true)">Create an account</button></div>
                 <div class="switch hidden" id="loginSwitch">Already registered? <button type="button" class="link"
                         onclick="toggleForm(false)">Sign in</button></div>
-                <div class="switch" id="resendSwitch">Didn't receive a confirmation email? <button type="button"
-                        class="link" onclick="resendConfirmation()">Resend confirmation</button></div>
-                <div id="authMsg" class="notice">Your account must be approved by staff before using DocuKeep.</div>
+                <div class="switch hidden" id="resendSwitch">Email confirmation is disabled. Account access is controlled by staff approval.</div>
+                <div id="authMsg" class="notice">Create your account, then wait for staff approval. No email confirmation link is required once Supabase email confirmation is disabled.</div>
             </div>
         </div>
     </section>
@@ -2061,7 +2060,7 @@ function friendlyAuthError(e) {
         c === "email_not_confirmed" ||
         m.toLowerCase().includes("email not confirmed")
     ) {
-        return "Your email is not confirmed. Check your inbox or confirm the account in this same Supabase project.";
+        return "This account still needs Supabase email confirmation. Ask the administrator to confirm this existing account once in Supabase Authentication, or disable Confirm email for future registrations. Staff approval alone cannot confirm an Auth email.";
     }
 
     if (m.toLowerCase().includes("invalid login credentials")) {
@@ -2151,7 +2150,7 @@ function selectType(type) {
                 : "Use the staff account provided by your administrator.";
 
     $("signupSwitch").classList.toggle("hidden", type === "staff");
-    $("resendSwitch").classList.toggle("hidden", type === "staff");
+    $("resendSwitch").classList.add("hidden");
 
     setAuthMessage(
         type === "staff"
@@ -2188,7 +2187,7 @@ function toggleForm(signup) {
     $("forgotSwitch").classList.toggle("hidden", signup || accountType === "staff");
     $("signupSwitch").classList.toggle("hidden", signup || accountType === "staff");
     $("loginSwitch").classList.toggle("hidden", !signup);
-    $("resendSwitch").classList.toggle("hidden", signup || accountType === "staff");
+    $("resendSwitch").classList.add("hidden");
 
     $("formTitle").textContent =
         (accountType === "student"
@@ -2734,7 +2733,7 @@ $("signupForm").addEventListener("submit", async e => {
         toggleForm(false);
 
         setAuthMessage(
-            "Registration submitted. Confirm your email if required, then wait for staff approval.",
+            "Registration submitted successfully. You can sign in after staff approves your account.",
             "ok"
         );
 
