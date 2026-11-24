@@ -1,7 +1,7 @@
 DOCUKEEP — CURRENT LIBRARY ZIP UPDATE
 
 SOURCE
-- Based on the latest Library archive DocuKeep(1).zip (modified 24 Nov 2026).
+- Based on the latest previously delivered DocuKeep_UI_Fixes_2026-11-25.zip, preserving the prior onboarding and UI corrections.
 - Existing single-page application, Supabase project configuration, logo, private storage buckets, database tables, and account approval workflow are retained.
 
 CHANGES IN THIS UPDATE
@@ -47,3 +47,19 @@ UI VERIFICATION
 - HTML parsing found no duplicate element IDs.
 - Static checks confirmed no tutorial management UI/CRUD, no sidebar My Profile/Notifications/Tutorials entries, one header notification bell, and all four onboarding controls.
 - Desktop/mobile layout rules were reviewed statically; live browser interaction and live Supabase notification/onboarding behavior still require deployment testing.
+
+
+UPLOAD QUEUE + BUTTON ICON CORRECTIONS (25 NOV 2026)
+- Updated the existing IndexedDB upload queue in place to version 3. Existing pendingUploads records are retained; queued files remain tied to their creator UUID.
+- Added automatic serial queue processing after reconnect, focus/visibility return, and successful sign-in. The queue checks the authenticated Supabase user before processing and pauses the queue for re-authentication if the session is missing or belongs to another user.
+- Added per-file real upload progress, status, Pause, Resume, and Cancel controls. Pause aborts the current standard Storage upload request while preserving the local file and last displayed progress. Resume retries the standard Storage POST from the beginning because this endpoint is not a resumable/TUS upload.
+- Added bounded exponential retry for temporary network/server errors. Permanent quota, permission, and validation errors are retained as Upload Failed and are not automatically retried.
+- Successful uploads are confirmed against the documents table before the local file blob is discarded. The Completed state is displayed briefly; stale completion markers are cleaned up. Failed metadata inserts trigger a best-effort cleanup of the exact Storage path when no document row exists. Stable document UUIDs and Storage paths keep retries idempotent.
+- Fixed the sidebar hover rule that used the CSS background shorthand on the icon pseudo-element, which could clear the existing SVG data-URI background image. Button SVGs now use currentColor and remain visible across hover/focus/active/disabled states.
+- Bumped the service-worker cache to v6 so deployed clients fetch the updated app shell.
+
+DATABASE DIAGNOSTIC LIMITATION
+- No database trigger/function/RLS migration was changed because this workspace does not contain a live Supabase schema snapshot or the actual Postgres exception detail. Bundled migrations contain several possible P0001 sources, including the document storage-quota trigger and document-folder ownership validation. Run docukeep_upload_diagnostics.sql and inspect the matching failed INSERT in Supabase Dashboard > Logs > Postgres before changing any database function. This preserves the current quota and security rules instead of guessing which validation raised the error.
+
+TEST STATUS
+- Local static validation covers JavaScript syntax, HTML parsing, duplicate IDs, queue action wiring, upload state handling, SQL diagnostic presence, and ZIP integrity. Live network interruptions, pause/resume/cancel timing, teacher/student/staff Supabase permissions, database trigger execution, Storage cleanup, and visual hover behavior require a deployed browser and Supabase project; they were not represented as manually tested here.
