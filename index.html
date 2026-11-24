@@ -3367,20 +3367,32 @@ function humanBytes(n) {
 }
 
 async function verifyServerConnection() {
-    if (!navigator.onLine) return false;
+    // Browser online state does not prove that the Supabase API is reachable.
+    if (!navigator.onLine) {
+        serverReachable = false;
+        window.__docukeepConnectionState = "offline";
+        return false;
+    }
+    window.__docukeepConnectionState = "connecting";
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 7000);
+    const timeout = setTimeout(() => controller.abort(), 10000);
     try {
-        const response = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
             method: "GET",
-            headers: { apikey: SUPABASE_ANON_KEY },
+            headers: { apikey: SUPABASE_ANON_KEY, Accept: "application/openapi+json" },
             cache: "no-store",
             signal: controller.signal
         });
-        serverReachable = response.ok;
-        return response.ok;
+        // HTTP 4xx still proves the host is reachable. Let the real Auth,
+        // Storage or database operation report its own authorization/API error.
+        serverReachable = response.status < 500;
+        window.__docukeepConnectionState = serverReachable ? "reachable" : "unavailable";
+        if (!serverReachable) console.warn("[DocuKeep upload] Supabase API server error:", response.status);
+        return serverReachable;
     } catch (error) {
         serverReachable = false;
+        window.__docukeepConnectionState = "unavailable";
+        console.warn("[DocuKeep upload] Supabase connectivity probe failed:", error?.name || "NetworkError");
         return false;
     } finally {
         clearTimeout(timeout);
@@ -3419,7 +3431,9 @@ function classifyUploadError(error) {
     if (/folder.*owned|permission|not allowed|row-level security|rls|approved account|owner mismatch/i.test(message) || status === 401 || status === 403)
         return { permanent: true, userMessage: "You do not have permission to upload this file. Check your approved account and folder access." };
     if (String(error?.code || "") === "P0001" || /P0001/i.test(message))
-        return { permanent: true, userMessage: /quota/i.test(message) ? "File exceeds your storage limit." : "Unable to save file information. Please contact DocuKeep support with the error reference." };
+        return { permanent: true, userMessage: /quota|storage limit/i.test(message)
+            ? "File exceeds your storage limit."
+            : `Database rejected the document record (P0001): ${message.slice(0, 220)}` };
     if (status >= 400 && status < 500 && status !== 408 && status !== 429)
         return { permanent: true, userMessage: "This file could not be accepted. Check the file details and your account permissions." };
     return { permanent: false, userMessage: "Upload interrupted. Please try again when your connection is stable." };
@@ -3468,7 +3482,11 @@ async function syncOfflineUploads() {
             toast("Sign in again with this account to upload your saved files. Your offline queue is preserved.");
             return;
         }
-        if (!(await verifyServerConnection())) { await updateOfflineStatus(); return; }
+        if (!(await verifyServerConnection())) {
+            await updateOfflineStatus();
+            await scheduleQueueRetry(20000);
+            return;
+        }
 
         const allJobs = (await getQueuedUploads())
             .filter(job => job.ownerId === ownerAtStart)
@@ -3622,6 +3640,12 @@ async function uploadJob(job, onProgress = () => {}) {
         if (cancelledUploadIds.has(job.id)) throw Object.assign(new Error("Upload cancelled."), { uploadControlReason: "cancel" });
         if (pausedUploadIds.has(job.id)) throw Object.assign(new Error("Upload paused."), { uploadControlReason: "pause" });
 
+        job.status = "Processing";
+        job.lastError = "";
+        job.updatedAt = new Date().toISOString();
+        await queueOfflineUpload(job);
+        await renderQueuedUploadManager();
+
         const row = {
             id: job.id, title: job.title, category: job.category,
             school_year: job.schoolYear || null, department: job.department || null,
@@ -3652,8 +3676,11 @@ async function uploadJob(job, onProgress = () => {}) {
             }
         }
         const classification = classifyUploadError(error);
-        const friendly = new Error(classification.userMessage);
-        friendly.statusCode = error.statusCode;
+        const detail = error?.message ? ` ${String(error.message).slice(0, 240)}` : "";
+        const friendly = new Error(classification.permanent
+            ? `${classification.userMessage}${error?.code ? ` (code: ${error.code})` : ""}${detail}`
+            : classification.userMessage);
+        friendly.statusCode = error.statusCode || error.status;
         friendly.code = error.code;
         friendly.permanent = classification.permanent;
         friendly.originalError = error;
@@ -3669,7 +3696,11 @@ async function updateOfflineStatus() {
     const bar = $("syncbar");
     if (bar) {
         bar.classList.toggle("show", !navigator.onLine || pending > 0);
-        const label = (!navigator.onLine || !serverReachable) ? "Offline / server unavailable" : pending ? "Sync pending" : "Online";
+        const connectionState = !navigator.onLine ? "offline" : (!serverReachable ? (window.__docukeepConnectionState || "unknown") : "reachable");
+        const label = connectionState === "offline" ? "No internet connection"
+            : connectionState === "connecting" ? "Connecting to Supabase"
+            : connectionState === "unavailable" ? "Supabase unavailable"
+            : pending ? "Upload sync pending" : "Online";
         bar.dataset.connection = label;
         bar.firstChild.textContent = `${label}: ${pending ? "your saved files are waiting to sync." : "server connection available."} `;
     }
@@ -3856,6 +3887,7 @@ $("uploadForm").addEventListener("submit", async e => {
     cancelUploadRequested = false;
 
     try {
+        window.__docukeepConnectionState = navigator.onLine ? "connecting" : "offline";
         const onlineToServer = await verifyServerConnection();
         for (let index = 0; index < files.length; index++) {
             if (cancelUploadRequested) break;
@@ -3899,16 +3931,27 @@ $("uploadForm").addEventListener("submit", async e => {
                 fileName: file.name,
                 mimeType: file.type || "application/octet-stream",
                 sizeBytes: file.size,
-                status: navigator.onLine ? "Queued" : "Waiting for Connection",
+                status: !navigator.onLine ? "Waiting for Internet" : onlineToServer ? "Queued" : "Connecting",
                 progressPercent: 0,
                 createdAt: new Date().toISOString(),
                 retryCount: 0
             };
 
             try {
-                if (!navigator.onLine || !onlineToServer || !(await verifyServerConnection())) {
+                if (!navigator.onLine) {
+                    job.status = "Waiting for Internet";
+                    job.lastError = "Your device is offline. This file is saved on this device and will sync after reconnection.";
                     await queueOfflineUpload(job);
                     queued++;
+                    continue;
+                }
+                if (!onlineToServer || !(await verifyServerConnection())) {
+                    job.status = "Waiting for Retry";
+                    job.lastError = "Supabase is currently unavailable. The file is saved locally and will be retried.";
+                    job.nextRetryAt = Date.now() + 15000;
+                    await queueOfflineUpload(job);
+                    queued++;
+                    await scheduleQueueRetry(15000);
                     continue;
                 }
                 await setQueuedJobStatus(job, "Uploading");
@@ -3930,7 +3973,7 @@ $("uploadForm").addEventListener("submit", async e => {
                 if (cancelledUploadIds.has(job.id) || error.uploadControlReason === "cancel") { await removeQueuedUpload(job.id); continue; }
                 if (pausedUploadIds.has(job.id) || error.uploadControlReason === "pause") { job.status = "Paused"; job.lastError = ""; await queueOfflineUpload(job); queued++; continue; }
                 const classification = classifyUploadError(error);
-                job.status = classification.permanent ? "Upload Failed" : (!navigator.onLine ? "Waiting for Connection" : "Waiting for Retry");
+                job.status = classification.permanent ? "Upload Failed" : (!navigator.onLine ? "Waiting for Internet" : "Waiting for Retry");
                 job.lastError = classification.userMessage;
                 job.nextRetryAt = classification.permanent || !navigator.onLine ? 0 : Date.now() + 15000;
                 await queueOfflineUpload(job);
