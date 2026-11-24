@@ -7,6 +7,9 @@
     <title>DocuKeep | Smart School File & Tutorial Hub</title>
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#172b4d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="DocuKeep">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -1563,8 +1566,7 @@
                     <div class="panel">
                         <form id="uploadForm">
                             <div class="grid">
-                                <div class="field"><label>Document file(s) *</label><input id="file" type="file"
-                                        multiple required><div id="selectedUploadFiles" class="selected-upload-files"></div></div>
+                                <div class="field"><label>Document file(s) *</label><input id="file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.csv,.zip" multiple required><div id="selectedUploadFiles" class="selected-upload-files"></div></div>
                                 <div class="field"><label>Document title *</label><input id="title" required
                                         placeholder="e.g. Quarterly report"></div>
                                 <div class="field"><label>Category *</label><select id="category" required>
@@ -1945,7 +1947,7 @@
 const SUPABASE_URL = "https://ihvvmmaudbkddwevialb.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_yfLj3YnmOh9PiwVV-HDpgA__Hc5ymr4";
 
-const TEACHER_EMAIL_DOMAIN = "deped.gov.ph";
+const TEACHER_EMAIL_DOMAIN = "gmail.com";
 const BUCKET = "docukeep-files";
 const SITE_URL = "https://kiezuuu.github.io/DocuKeep/";
 
@@ -2623,7 +2625,7 @@ $("loginForm").addEventListener("submit", async e => {
             type === "student"
                 ? "Use a personal @gmail.com address."
                 : type === "teacher"
-                    ? "Use an official @deped.gov.ph address."
+                    ? "Use your personal Gmail address (@gmail.com)."
                     : "Enter a valid staff email."
         );
     }
@@ -2683,7 +2685,7 @@ $("signupForm").addEventListener("submit", async e => {
         return toast(
             accountType === "student"
                 ? "Use a personal Gmail address."
-                : "Use an official @deped.gov.ph address."
+                : "Use your personal Gmail address (@gmail.com)."
         );
     }
 
@@ -2739,12 +2741,15 @@ $("signupForm").addEventListener("submit", async e => {
         toast("Registration request submitted.");
 
     } catch (err) {
+        console.error("DocuKeep signup/database trigger error:", err);
+
+        const signupError = err?.message || friendlyAuthError(err);
         setAuthMessage(
-            "Registration failed: " + friendlyAuthError(err),
+            "Registration failed: " + signupError,
             "warn"
         );
 
-        toast("Signup failed: " + friendlyAuthError(err));
+        toast("Signup failed: " + signupError);
 
     } finally {
         b.disabled = false;
@@ -3198,187 +3203,290 @@ function renderDocuments() {
 
 const DB_NAME = "docukeep-offline-v1";
 const STORE = "pendingUploads";
+let offlineSyncRunning = false;
+let uploadSubmitRunning = false;
+let serverReachable = false;
 
 function openOfflineDB() {
-    return new Promise((res, rej) => {
-        const r = indexedDB.open(DB_NAME, 1);
-
-        r.onupgradeneeded = () => {
-            if (!r.result.objectStoreNames.contains(STORE)) {
-                r.result.createObjectStore(STORE, {
-                    keyPath: "id"
-                });
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 2);
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(STORE)) {
+                db.createObjectStore(STORE, { keyPath: "id" });
             }
         };
-
-        r.onsuccess = () => res(r.result);
-        r.onerror = () => rej(r.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
     });
 }
 
 async function queueOfflineUpload(job) {
     const db = await openOfflineDB();
-
-    return new Promise((res, rej) => {
+    const saved = {
+        ...job,
+        status: job.status || "Waiting for Internet",
+        createdAt: job.createdAt || new Date().toISOString(),
+        retryCount: Number(job.retryCount || 0),
+        lastError: job.lastError || ""
+    };
+    return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE, "readwrite");
-
-        tx.objectStore(STORE).put(job);
-
-        tx.oncomplete = res;
-        tx.onerror = () => rej(tx.error);
+        tx.objectStore(STORE).put(saved);
+        tx.oncomplete = () => {
+            db.close();
+            if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.ready.then(registration => {
+                    if (registration.sync) registration.sync.register("docukeep-upload-sync").catch(() => {});
+                }).catch(() => {});
+            }
+            resolve(saved);
+        };
+        tx.onerror = () => { db.close(); reject(tx.error); };
     });
 }
 
 async function getQueuedUploads() {
     const db = await openOfflineDB();
-
-    return new Promise((res, rej) => {
-        const r = db.transaction(STORE).objectStore(STORE).getAll();
-
-        r.onsuccess = () => res(r.result || []);
-        r.onerror = () => rej(r.error);
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readonly");
+        const request = tx.objectStore(STORE).getAll();
+        request.onsuccess = () => { db.close(); resolve(request.result || []); };
+        request.onerror = () => { db.close(); reject(request.error); };
     });
 }
 
 async function removeQueuedUpload(id) {
     const db = await openOfflineDB();
-
-    return new Promise((res, rej) => {
+    return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE, "readwrite");
-
         tx.objectStore(STORE).delete(id);
-
-        tx.oncomplete = res;
-        tx.onerror = () => rej(tx.error);
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => { db.close(); reject(tx.error); };
     });
 }
 
 function humanBytes(n) {
     if (!n) return "0 B";
-
-    const u = ["B", "KB", "MB", "GB", "TB"];
+    const units = ["B", "KB", "MB", "GB", "TB"];
     let i = 0;
-
-    while (n >= 1024 && i < u.length - 1) {
-        n /= 1024;
-        i++;
-    }
-
-    return n.toFixed(i ? 1 : 0) + " " + u[i];
+    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return n.toFixed(i ? 1 : 0) + " " + units[i];
 }
 
-/* =========================================================
-   OFFLINE SYNC
-========================================================= */
+async function verifyServerConnection() {
+    if (!navigator.onLine) return false;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+    try {
+        const response = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
+            method: "GET",
+            headers: { apikey: SUPABASE_ANON_KEY },
+            cache: "no-store",
+            signal: controller.signal
+        });
+        serverReachable = response.ok;
+        return response.ok;
+    } catch (error) {
+        serverReachable = false;
+        return false;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function setQueuedJobStatus(job, status, errorMessage = "") {
+    job.status = status;
+    job.lastError = errorMessage;
+    job.updatedAt = new Date().toISOString();
+    await queueOfflineUpload(job);
+    await updateOfflineStatus();
+    await renderQueuedUploadManager();
+}
 
 async function syncOfflineUploads() {
-    if (!navigator.onLine || !currentProfile) return;
-
-    let jobs = [];
-
+    if (offlineSyncRunning || !navigator.onLine || !currentProfile) return;
+    offlineSyncRunning = true;
     try {
-        jobs = await getQueuedUploads();
-    } catch (e) {
-        console.warn(e);
-        return;
-    }
-
-    /* Only sync files belonging to the currently signed-in user. */
-    jobs = jobs.filter(j => j.ownerId === currentProfile.id);
-
-    for (const j of jobs) {
-        try {
-            await uploadJob(j);
-            await removeQueuedUpload(j.id);
-
-        } catch (e) {
-            console.error("Offline sync stopped", e);
-
-            j.lastError = e.message;
-            await queueOfflineUpload(j);
-
-            break;
+        const sessionResult = await sb.auth.getSession();
+        const session = sessionResult.data?.session;
+        if (sessionResult.error || !session || session.user.id !== currentProfile.id) {
+            toast("Sign in again to upload your saved files. Your offline queue is saved.");
+            return;
         }
-    }
+        if (!(await verifyServerConnection())) {
+            await updateOfflineStatus();
+            return;
+        }
+        await updateOfflineStatus();
 
-    await updateOfflineStatus();
-    await loadDocuments();
+        let jobs = await getQueuedUploads();
+        jobs = jobs.filter(job => job.ownerId === currentProfile.id);
+        if (!jobs.length) return;
+
+        toast("Internet connection restored. Uploading your pending files...");
+        for (const job of jobs) {
+            if (!navigator.onLine || !(await verifyServerConnection())) {
+                await setQueuedJobStatus(job, "Waiting for Internet");
+                break;
+            }
+            try {
+                await setQueuedJobStatus(job, "Preparing Upload");
+                await uploadJob(job, percent => {
+                    progress.textContent = `Uploading ${index + 1} of ${files.length}: ${file.name} · ${percent}%`;
+                });
+                await removeQueuedUpload(job.id);
+                toast(`${job.fileName} uploaded successfully.`);
+            } catch (error) {
+                console.error("Queued upload failed:", error);
+                job.retryCount = Number(job.retryCount || 0) + 1;
+                job.nextRetryAt = Date.now() + Math.min(300000, 5000 * Math.pow(2, Math.min(job.retryCount, 6)));
+                const authError = /jwt|token|session|unauthorized|not authenticated/i.test(error.message || "");
+                await setQueuedJobStatus(job, authError ? "Waiting for Retry" : "Upload Failed", error.message || "Upload failed");
+                if (authError) {
+                    toast("Your session needs attention. Sign in again; queued files are preserved.");
+                    break;
+                }
+                if (job.retryCount < 5) {
+                    const retryDelay = Math.min(300000, 10000 * Math.pow(2, job.retryCount));
+                    setTimeout(() => syncOfflineUploads(), retryDelay);
+                }
+            }
+        }
+        await updateOfflineStatus();
+        await renderQueuedUploadManager();
+        if (typeof loadDocuments === "function") await loadDocuments();
+    } catch (error) {
+        console.error("Offline synchronization failed:", error);
+    } finally {
+        offlineSyncRunning = false;
+    }
 }
 
-async function uploadJob(j) {
-    if (!currentProfile || j.ownerId !== currentProfile.id) {
-        throw Error("This queued upload does not belong to the current account.");
+function uploadStorageObject(job, onProgress = () => {}) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const { data, error } = await sb.auth.getSession();
+            const session = data?.session;
+            if (error || !session?.access_token) throw new Error("Your session expired. Sign in again to continue uploading.");
+
+            const encodedPath = job.path.split("/").map(encodeURIComponent).join("/");
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${encodedPath}`);
+            xhr.setRequestHeader("apikey", SUPABASE_ANON_KEY);
+            xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
+            xhr.setRequestHeader("Content-Type", job.mimeType || "application/octet-stream");
+            xhr.setRequestHeader("x-upsert", "false");
+            xhr.setRequestHeader("cache-control", "3600");
+            xhr.upload.onprogress = event => {
+                if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
+            };
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) return resolve();
+                let body = {};
+                try { body = JSON.parse(xhr.responseText || "{}"); } catch (error) {}
+                const failure = new Error(body.message || body.error || `Storage upload failed (${xhr.status}).`);
+                failure.statusCode = String(xhr.status);
+                reject(failure);
+            };
+            xhr.onerror = () => reject(new Error("Network error while uploading the file."));
+            xhr.ontimeout = () => reject(new Error("Upload timed out. The file remains available for retry."));
+            xhr.timeout = 120000;
+            xhr.send(job.file);
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+async function uploadJob(job, onProgress = () => {}) {
+    if (!currentProfile || job.ownerId !== currentProfile.id) {
+        throw new Error("This queued upload does not belong to the signed-in account.");
+    }
+    const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+    if (sessionError || !sessionData?.session || sessionData.session.user.id !== job.ownerId) {
+        throw new Error("Your session expired. Sign in again to continue uploading.");
     }
 
-    const { error: upErr } = await sb
-        .storage
-        .from(BUCKET)
-        .upload(j.path, j.file, {
-            upsert: false,
-            contentType: j.mimeType || "application/octet-stream"
-        });
+    // A previous attempt may have inserted the document before the browser lost its response.
+    const { data: existing, error: lookupError } = await sb
+        .from("documents").select("id").eq("id", job.id).maybeSingle();
+    if (lookupError) throw lookupError;
+    if (existing) return;
 
-    if (upErr) throw upErr;
+    // Stable UUID path makes a retry safe. If Storage reports that this exact
+    // object already exists, continue to the idempotent document-row upsert.
+    try {
+        await uploadStorageObject(job, onProgress);
+    } catch (uploadError) {
+        const duplicateObject =
+            String(uploadError.statusCode || "") === "409" ||
+            /already exists|duplicate/i.test(uploadError.message || "");
+        if (!duplicateObject) throw uploadError;
+    }
 
     const row = {
-        id: j.id,
-        title: j.title,
-        category: j.category,
-        school_year: j.schoolYear,
-        department: j.department,
-        due_date: j.dueDate || null,
-        submission_type: j.submissionType,
-        description: j.description,
-        folder_id: j.folderId || null,
-        sha256: j.sha256 || null,
+        id: job.id,
+        title: job.title,
+        category: job.category,
+        school_year: job.schoolYear || null,
+        department: job.department || null,
+        due_date: job.dueDate || null,
+        submission_type: job.submissionType || null,
+        description: job.description || null,
+        folder_id: job.folderId || null,
+        sha256: job.sha256 || null,
         is_public: false,
-        owner_id: j.ownerId,
-        owner_name: j.ownerName,
-        storage_path: j.path,
-        file_name: j.fileName,
-        mime_type: j.mimeType || "application/octet-stream",
-        size_bytes: j.sizeBytes,
+        owner_id: job.ownerId,
+        owner_name: job.ownerName || currentProfile.full_name || "DocuKeep User",
+        storage_path: job.path,
+        file_name: job.fileName,
+        mime_type: job.mimeType || "application/octet-stream",
+        size_bytes: job.sizeBytes,
         status: "approved"
     };
 
-    const { error: dbErr } = await sb
-        .from("documents")
-        .insert(row);
+    const { error: insertError } = await sb.from("documents").upsert(row, {
+        onConflict: "id",
+        ignoreDuplicates: true
+    });
+    if (insertError) throw insertError;
 
-    if (dbErr) {
-        await sb.storage.from(BUCKET).remove([j.path]);
-        throw dbErr;
-    }
+    // Confirm server-side metadata exists before the local blob can be removed.
+    const { data: confirmed, error: confirmError } = await sb
+        .from("documents").select("id").eq("id", job.id).maybeSingle();
+    if (confirmError) throw confirmError;
+    if (!confirmed) throw new Error("The server did not confirm the saved document.");
 }
 
 async function updateOfflineStatus() {
-    let n = 0;
-
-    try {
-        const jobs = await getQueuedUploads();
-
-        n = currentProfile
-            ? jobs.filter(j => j.ownerId === currentProfile.id).length
-            : jobs.length;
-
-    } catch (e) {
-        console.warn(e);
+    let jobs = [];
+    try { jobs = await getQueuedUploads(); } catch (error) { console.warn(error); }
+    const ownJobs = currentProfile ? jobs.filter(job => job.ownerId === currentProfile.id) : [];
+    const pending = ownJobs.length;
+    const bar = $("syncbar");
+    if (bar) {
+        bar.classList.toggle("show", !navigator.onLine || pending > 0);
+        const label = (!navigator.onLine || !serverReachable) ? "Offline / server unavailable" : pending ? "Sync pending" : "Online";
+        bar.dataset.connection = label;
+        bar.firstChild.textContent = `${label}: ${pending ? "your saved files are waiting to sync." : "server connection available."} `;
     }
-
-    $("syncbar").classList.toggle(
-        "show",
-        !navigator.onLine || n > 0
-    );
-
-    $("queueCount").textContent = n;
+    if ($("queueCount")) $("queueCount").textContent = pending;
+    if (typeof renderQueuedUploadManager === "function") await renderQueuedUploadManager();
 }
 
-window.addEventListener("online", () => {
-    updateOfflineStatus();
+window.addEventListener("online", async () => {
+    await updateOfflineStatus();
     syncOfflineUploads();
 });
-
 window.addEventListener("offline", updateOfflineStatus);
+
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && navigator.onLine) syncOfflineUploads();
+});
+window.addEventListener("focus", () => {
+    if (navigator.onLine) syncOfflineUploads();
+});
 
 /* =========================================================
    FILE HASH
@@ -3426,17 +3534,18 @@ async function renderQueuedUploadManager() {
     const host = $("queuedUploadManager");
     if (!host || !currentProfile) return;
     try {
-        const jobs = (await getQueuedUploads()).filter(j => j.ownerId === currentProfile.id);
+        const jobs = (await getQueuedUploads()).filter(job => job.ownerId === currentProfile.id);
+        const statusText = job => job.status || "Waiting for Internet";
         host.innerHTML = jobs.length ? `
-            <div class="queued-upload-heading">Waiting for internet · ${jobs.length}</div>
-            ${jobs.map(j => `
+            <div class="queued-upload-heading">Upload queue · ${jobs.length}</div>
+            ${jobs.map(job => `
                 <div class="queued-upload-item">
-                    <span class="file-type-icon file-${documentFileKind({file_name:j.fileName,mime_type:j.mimeType}).toLowerCase()}">${documentFileKind({file_name:j.fileName,mime_type:j.mimeType})}</span>
-                    <span class="selected-upload-name">${escapeHTML(j.fileName)} <small>${humanBytes(j.sizeBytes)}</small></span>
-                    <button type="button" class="btn danger small" onclick="cancelQueuedUpload('${j.id}')">Cancel upload</button>
+                    <span class="file-type-icon file-${documentFileKind({file_name:job.fileName,mime_type:job.mimeType}).toLowerCase()}">${documentFileKind({file_name:job.fileName,mime_type:job.mimeType})}</span>
+                    <span class="selected-upload-name">${escapeHTML(job.fileName)} <small>${humanBytes(job.sizeBytes)} · ${escapeHTML(statusText(job))}${job.lastError ? " · " + escapeHTML(job.lastError) : ""}</small></span>
+                    <button type="button" class="btn danger small" onclick="cancelQueuedUpload('${job.id}')">Cancel upload</button>
                 </div>`).join("")}` : "";
-    } catch (err) {
-        console.warn("Could not load offline queue", err);
+    } catch (error) {
+        console.warn("Could not load offline queue", error);
     }
 }
 async function cancelQueuedUpload(id) {
@@ -3460,76 +3569,57 @@ window.cancelCurrentUpload = cancelCurrentUpload;
 
 $("uploadForm").addEventListener("submit", async e => {
     e.preventDefault();
-
-    if (!currentProfile) {
-        return toast("Please sign in first.");
-    }
+    if (uploadSubmitRunning) return;
+    if (!currentProfile) return toast("Please sign in first.");
 
     const files = [...selectedUploadFiles];
-
-    if (!files.length) {
-        return toast("Choose at least one file.");
-    }
-
+    if (!files.length) return toast("Choose at least one file.");
     const title = $("title").value.trim();
     const category = $("category").value;
+    if (!title || !category) return toast("Enter a title and category.");
 
-    if (!title || !category) {
-        return toast("Enter a title and category.");
-    }
+    const button = e.target.querySelector("button[type=submit]");
+    const progress = $("uploadProgress");
+    uploadSubmitRunning = true;
+    button.disabled = true;
+    button.textContent = "Processing files…";
+    progress.style.display = "block";
 
-    const b = e.target.querySelector("button[type=submit]");
-    const prog = $("uploadProgress");
-
-    b.disabled = true;
-    b.textContent = "Processing files…";
-
-    prog.style.display = "block";
-
-    let ok = 0;
-    let queued = 0;
-    let failed = 0;
+    let uploaded = 0, queued = 0, failed = 0;
     cancelUploadRequested = false;
-    prog.innerHTML = `Preparing upload… <button type="button" class="btn danger small" onclick="cancelCurrentUpload()">Cancel remaining</button>`;
 
     try {
-        for (let i = 0; i < files.length; i++) {
+        const onlineToServer = await verifyServerConnection();
+        for (let index = 0; index < files.length; index++) {
             if (cancelUploadRequested) break;
-            const f = files[i];
+            const file = files[index];
+            progress.innerHTML = `Preparing ${index + 1} of ${files.length}: ${escapeHTML(file.name)} <button type="button" class="btn danger small" onclick="cancelCurrentUpload()">Cancel remaining</button>`;
 
-            prog.innerHTML = `Processing ${i + 1} of ${files.length}: ${escapeHTML(f.name)} <button type="button" class="btn danger small" onclick="cancelCurrentUpload()">Cancel remaining</button>`;
-
-            if (f.size > 25 * 1024 * 1024) {
+            if (!file.size) {
                 failed++;
-                toast(f.name + " exceeds 25 MB.");
+                toast(`${file.name}: This file is empty.`);
+                continue;
+            }
+            if (file.size > 25 * 1024 * 1024) {
+                failed++;
+                toast(`${file.name} exceeds the current 25 MB per-file limit.`);
                 continue;
             }
 
             const id = crypto.randomUUID();
-            const safe = f.name.replace(/[^\w.\-]/g, "_");
-
-            const hash = await sha256File(f);
-
-            const dup = hash && documents.find(d =>
-                d.owner_id === currentProfile.id &&
-                d.sha256 === hash
+            const safeName = file.name.replace(/[^\w.\-]/g, "_");
+            const hash = await sha256File(file);
+            const duplicate = hash && documents.find(doc =>
+                doc.owner_id === currentProfile.id && doc.sha256 === hash
             );
+            if (duplicate && !confirm(`This file may duplicate "${duplicate.file_name || duplicate.title}". Upload anyway?`)) continue;
 
-            if (
-                dup &&
-                !confirm(`This file may duplicate "${dup.file_name || dup.title}". Upload anyway?`)
-            ) {
-                continue;
-            }
-
-            const j = {
+            const job = {
                 id,
-                path: `${currentProfile.id}/${id}/${safe}`,
-                file: f,
+                path: `${currentProfile.id}/${id}/${safeName}`,
+                file,
                 sha256: hash,
-                title: files.length === 1
-                    ? title
-                    : `${title} - ${f.name}`,
+                title: files.length === 1 ? title : `${title} - ${file.name}`,
                 category,
                 schoolYear: $("year").value,
                 department: $("subject").value,
@@ -3539,62 +3629,61 @@ $("uploadForm").addEventListener("submit", async e => {
                 folderId: $("uploadFolder").value || null,
                 ownerId: currentProfile.id,
                 ownerName: currentProfile.full_name,
-                fileName: f.name,
-                mimeType: f.type,
-                sizeBytes: f.size
+                fileName: file.name,
+                mimeType: file.type || "application/octet-stream",
+                sizeBytes: file.size,
+                status: "Waiting for Internet",
+                createdAt: new Date().toISOString(),
+                retryCount: 0
             };
 
-            if (cancelUploadRequested) break;
-            if (!navigator.onLine) {
-                await queueOfflineUpload(j);
-                queued++;
-                continue;
-            }
-
             try {
-                await uploadJob(j);
-                ok++;
-
-            } catch (err) {
-                if (!navigator.onLine) {
-                    await queueOfflineUpload(j);
+                if (!navigator.onLine || !onlineToServer || !(await verifyServerConnection())) {
+                    await queueOfflineUpload(job);
                     queued++;
-
-                } else {
-                    failed++;
-                    console.error(err);
-                    toast(f.name + ": " + err.message);
+                    continue;
                 }
+                await setQueuedJobStatus(job, "Uploading");
+                progress.textContent = `Uploading ${index + 1} of ${files.length}: ${file.name}`;
+                await uploadJob(job, percent => {
+                    progress.textContent = `Uploading ${index + 1} of ${files.length}: ${file.name} · ${percent}%`;
+                });
+                await removeQueuedUpload(job.id);
+                uploaded++;
+                progress.textContent = `Uploaded ${index + 1} of ${files.length}: ${file.name}`;
+            } catch (error) {
+                console.error("File upload failed:", error);
+                job.status = "Upload Failed";
+                job.lastError = error.message || "Upload failed";
+                await queueOfflineUpload(job);
+                queued++;
             }
         }
 
-        if (cancelUploadRequested) toast("Upload cancelled. Any completed uploads remain saved.");
-
-        if (ok || queued) {
+        if (cancelUploadRequested) toast("Upload cancelled. Completed and queued files are preserved.");
+        if (uploaded || queued) {
             selectedUploadFiles = [];
             e.target.reset();
             renderSelectedUploadFiles();
             $("year").value = "2026–2027";
-
-            await loadDocuments();
-
-            toast(`${ok} uploaded, ${queued} queued, ${failed} failed.`);
-
+            if (navigator.onLine && uploaded) await loadDocuments();
+            toast(`${uploaded} uploaded, ${queued} saved in queue, ${failed} failed validation.`);
         } else if (failed) {
-            toast(`${failed} file(s) failed.`);
+            toast(`${failed} file(s) could not be uploaded.`);
         }
-
         await updateOfflineStatus();
         await renderQueuedUploadManager();
-
-    } catch (err) {
-        console.error(err);
-        toast("Upload error: " + err.message);
-
+        if (navigator.onLine && queued) {
+            setTimeout(() => syncOfflineUploads(), 12000);
+        }
+    } catch (error) {
+        console.error(error);
+        toast("Upload error: " + (error.message || "Unknown error"));
     } finally {
-        b.disabled = false;
-        b.textContent = "Upload document";
-        prog.style.display = "none";
+        uploadSubmitRunning = false;
+        button.disabled = false;
+        button.textContent = "Upload document";
+        progress.style.display = "none";
     }
 });
 
@@ -5417,6 +5506,9 @@ window.removeProfilePicture = removeProfilePicture;
 ========================================================= */
 
 if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", event => {
+        if (event.data?.type === "DOCUKEEP_SYNC_REQUEST") syncOfflineUploads();
+    });
     window.addEventListener("load", () => {
         navigator.serviceWorker
             .register("./sw.js")
