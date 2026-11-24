@@ -32,3 +32,18 @@ VERIFICATION
 - Static checks confirmed the old DepEd-only teacher email restriction is absent, the onboarding contains 9 steps, and there is one notification realtime subscription function and one queue retry handler.
 - Live Supabase registration, account approval, file uploads, RLS, Realtime, push delivery, and offline synchronization were not executable in this environment and must be tested against the user's deployed Supabase project and GitHub Pages site.
 - Real push notifications still require the VAPID secrets, deployed docukeep-push Edge Function, and database webhook described in README_ACCOUNT_NOTIFICATIONS_UPDATE.txt.
+
+UI CORRECTIONS (25 NOV 2026)
+- Removed the community tutorial publishing/management page and its Create Tutorials navigation item. The first-login onboarding walkthrough and Replay Tutorial action remain.
+- Rebuilt the 9-step walkthrough navigation with independent Back, Skip Tutorial, Next, and Finish controls; safe handling for missing page targets; page-aware step navigation; progress updates; and persisted completion in docukeep_onboarding_progress.
+- Removed Notifications and My Profile from the sidebar. Notifications now have one header bell beside the profile menu; the dropdown renders the complete user-scoped notification list, unread count, mark-read actions, and mark-all-read action.
+- Updated notification sizing, text wrapping, scroll behavior, mobile positioning, and viewport-height limits.
+- Refined sidebar icon sizing, hover/active behavior, focus outlines, and transitions without changing the existing destinations or branding.
+- No database schema or RLS changes were made for these UI corrections. The existing docukeep_onboarding_migration.sql remains required for first-login completion tracking.
+
+UI VERIFICATION
+- Inline JavaScript syntax check passed with Node.js.
+- Service worker JavaScript syntax check passed with Node.js.
+- HTML parsing found no duplicate element IDs.
+- Static checks confirmed no tutorial management UI/CRUD, no sidebar My Profile/Notifications/Tutorials entries, one header notification bell, and all four onboarding controls.
+- Desktop/mobile layout rules were reviewed statically; live browser interaction and live Supabase notification/onboarding behavior still require deployment testing.
