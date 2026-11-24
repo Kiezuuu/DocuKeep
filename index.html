@@ -1431,8 +1431,8 @@
                         onclick="toggleForm(true)">Create an account</button></div>
                 <div class="switch hidden" id="loginSwitch">Already registered? <button type="button" class="link"
                         onclick="toggleForm(false)">Sign in</button></div>
-                <div class="switch hidden" id="resendSwitch">Email confirmation is disabled. Account access is controlled by staff approval.</div>
-                <div id="authMsg" class="notice">Create your account, then wait for staff approval. No email confirmation link is required once Supabase email confirmation is disabled.</div>
+                <div class="switch hidden" id="resendSwitch">Did not receive the confirmation email? Check your Gmail Spam/Junk folder, or <button type="button" class="link" onclick="resendConfirmation()">resend confirmation email</button>.</div>
+                <div id="authMsg" class="notice warn">Email verification is required. After registering, check your Gmail inbox and Spam/Junk folder for the confirmation link. Your account must also be approved by staff before you can sign in.</div>
             </div>
         </div>
     </section>
@@ -2060,7 +2060,8 @@ function friendlyAuthError(e) {
         c === "email_not_confirmed" ||
         m.toLowerCase().includes("email not confirmed")
     ) {
-        return "This account still needs Supabase email confirmation. Ask the administrator to confirm this existing account once in Supabase Authentication, or disable Confirm email for future registrations. Staff approval alone cannot confirm an Auth email.";
+        $("resendSwitch")?.classList.remove("hidden");
+        return "Please verify your email before signing in. Check your Gmail inbox, Spam, Junk, or Promotions folder for the Supabase confirmation link. After verifying, your account must still be approved by staff.";
     }
 
     if (m.toLowerCase().includes("invalid login credentials")) {
@@ -2155,7 +2156,8 @@ function selectType(type) {
     setAuthMessage(
         type === "staff"
             ? "Staff accounts cannot be registered here."
-            : "New registrations remain pending until approved by staff."
+            : "Email verification is required. After registering, check your Gmail inbox and Spam/Junk folder for the confirmation link. Your account must also be approved by staff before you can sign in.",
+        type === "staff" ? "" : "warn"
     );
 
     toggleForm(false);
@@ -2183,6 +2185,10 @@ function toggleForm(signup) {
     hideAllAuthForms();
 
     $(signup ? "signupForm" : "loginForm").classList.remove("hidden");
+
+    if (signup && accountType !== "staff") {
+        setAuthMessage("Important: After creating your account, open the confirmation email sent to your Gmail. If it is missing, check Spam/Junk or Promotions. You must verify your email and wait for staff approval before signing in.", "warn");
+    }
 
     $("forgotSwitch").classList.toggle("hidden", signup || accountType === "staff");
     $("signupSwitch").classList.toggle("hidden", signup || accountType === "staff");
@@ -2732,12 +2738,14 @@ $("signupForm").addEventListener("submit", async e => {
         e.target.reset();
         toggleForm(false);
 
+        $("email").value = email;
+        $("resendSwitch").classList.remove("hidden");
         setAuthMessage(
-            "Registration submitted successfully. You can sign in after staff approves your account.",
-            "ok"
+            "Registration submitted. Check your Gmail inbox for the Supabase email confirmation link. If you cannot find it, check Spam, Junk, or Promotions. After confirming your email, wait for staff to approve your account before signing in.",
+            "warn"
         );
 
-        toast("Registration request submitted.");
+        toast("Registration submitted. Check your Gmail for the confirmation link.");
 
     } catch (err) {
         console.error("DocuKeep signup/database trigger error:", err);
@@ -2853,7 +2861,7 @@ $("resetForm").addEventListener("submit", async e => {
 ========================================================= */
 
 async function resendConfirmation() {
-    const email = $("email").value.trim().toLowerCase();
+    const email = ($("email").value || $("signupEmail").value).trim().toLowerCase();
 
     if (!email) {
         return toast("Enter your email in the sign-in field first.");
@@ -2872,8 +2880,8 @@ async function resendConfirmation() {
         if (error) throw error;
 
         setAuthMessage(
-            "If confirmation is required, a new email has been requested. Check inbox and spam.",
-            "ok"
+            "A new confirmation email has been requested. Check your Gmail inbox, Spam, Junk, or Promotions folder for the link. You must verify your email and still wait for staff approval.",
+            "warn"
         );
 
     } catch (e) {
