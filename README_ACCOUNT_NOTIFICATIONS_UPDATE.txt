@@ -6,8 +6,8 @@ SOURCE
 - Static assets omitted from the latest minimal ZIP were restored from the preceding DocuKeep_Updated.zip without replacing the newer index.html.
 
 FRONTEND CHANGES
-- Teacher registration/login now accepts personal @gmail.com addresses.
-- Public registration still permits only student/teacher roles. New profiles remain pending until staff approval.
+- Teacher registration/login now accepts any syntactically valid email address; student registration remains Gmail-only.
+- Public registration still permits only student/teacher roles. New profiles remain pending until staff approval. Teacher email addresses are no longer restricted to a school-issued domain or Gmail.
 - Uploads use the authenticated Supabase Storage endpoint with per-file transfer progress; file metadata is inserted only after the storage upload succeeds. Teacher uploads are recorded as pending review; student uploads retain their existing approved behavior.
 - Notification bell is positioned beside the profile menu, displays an unread count, opens a responsive dropdown, supports mark-read/mark-all-read, and refreshes through Supabase Realtime.
 - Staff account review now asks for confirmation and requires a rejection reason.

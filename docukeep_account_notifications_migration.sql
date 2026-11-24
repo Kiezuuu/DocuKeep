@@ -4,7 +4,7 @@
 
 create extension if not exists pgcrypto;
 
--- Personal Gmail registration for both student and teacher public signups.
+-- Student signups require Gmail; teacher signups accept any syntactically valid email.
 -- Staff accounts must continue to be provisioned only by authorized staff.
 create or replace function public.handle_docukeep_signup()
 returns trigger
@@ -17,8 +17,11 @@ begin
   requested_role := lower(coalesce(new.raw_user_meta_data->>'requested_role',''));
   if requested_role not in ('student','teacher') then return new; end if;
   mail_domain := lower(split_part(coalesce(new.email,''),'@',2));
-  if mail_domain <> 'gmail.com' then
-    raise exception 'Students and teachers must register with a personal Gmail address.';
+  if requested_role = 'student' and mail_domain <> 'gmail.com' then
+    raise exception 'Students must register with a personal Gmail address.';
+  end if;
+  if coalesce(new.email,'') !~* '^[A-Z0-9.!#$%&''*+/=?^_`{|}~-]+@[A-Z0-9-]+(\.[A-Z0-9-]+)+$' then
+    raise exception 'Please register with a valid email address.';
   end if;
   insert into public.profiles(id,full_name,email,role,department,status)
   values(new.id,coalesce(nullif(trim(new.raw_user_meta_data->>'full_name'),''),'New user'),lower(new.email),requested_role,nullif(trim(new.raw_user_meta_data->>'department'),''),'pending')
@@ -175,7 +178,7 @@ exception when undefined_object then null; end $$;
 
 notify pgrst,'reload schema';
 
--- Keep staff role management aligned with the new personal-Gmail teacher policy.
+-- Keep staff role management aligned with student-Gmail and flexible teacher-email registration.
 create or replace function public.manage_docukeep_user_role(p_user_id uuid,p_new_role text)
 returns void language plpgsql security definer set search_path=public as $$
 declare target_email text; target_role text; approved_staff_count integer;
@@ -185,7 +188,7 @@ begin
   if p_new_role not in ('student','teacher','staff') then raise exception 'Invalid role. Choose student, teacher, or staff.'; end if;
   select lower(email),role into target_email,target_role from public.profiles where id=p_user_id;
   if not found then raise exception 'User profile was not found.'; end if;
-  if p_new_role in ('student','teacher') and split_part(target_email,'@',2)<>'gmail.com' then raise exception 'Student and teacher accounts must use a personal Gmail address.'; end if;
+  if p_new_role='student' and split_part(target_email,'@',2)<>'gmail.com' then raise exception 'Student accounts must use a personal Gmail address.'; end if;
   if target_role='staff' and p_new_role<>'staff' then
     select count(*) into approved_staff_count from public.profiles where role='staff' and status='approved';
     if approved_staff_count<=1 then raise exception 'You cannot remove the last approved staff administrator.'; end if;
