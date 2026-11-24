@@ -1,28 +1,39 @@
-const CACHE_PREFIX = "docukeep-shell-";
-const CACHE_NAME = "docukeep-shell-v4";
-const APP_SHELL = [
+
+const CACHE_NAME = "docukeep-shell-v3";
+
+const SHELL_FILES = [
   "./",
   "./index.html",
-  "./offline.html",
-  "./manifest.webmanifest",
-  "./Logo.png",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./assets/docukeep-workspace-illustration.svg",
+  "./manifest.webmanifest"
+];
+
+const CDN_FILES = [
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
 ];
 
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
-    for (const resource of APP_SHELL) {
+
+    for (const file of SHELL_FILES) {
       try {
-        const response = await fetch(resource, { cache: "reload" });
-        if (response.ok) await cache.put(resource, response);
+        await cache.add(file);
       } catch (error) {
-        console.warn("DocuKeep shell resource not cached:", resource, error);
+        console.warn("Could not cache:", file, error);
       }
     }
+
+    for (const file of CDN_FILES) {
+      try {
+        const response = await fetch(file);
+        if (response.ok) {
+          await cache.put(file, response);
+        }
+      } catch (error) {
+        console.warn("Could not cache Supabase SDK:", error);
+      }
+    }
+
     await self.skipWaiting();
   })());
 });
@@ -30,73 +41,110 @@ self.addEventListener("install", event => {
 self.addEventListener("activate", event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(key => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME).map(key => caches.delete(key)));
+
+    await Promise.all(
+      keys
+        .filter(key => key.startsWith("docukeep-shell-") && key !== CACHE_NAME)
+        .map(key => caches.delete(key))
+    );
+
     await self.clients.claim();
   })());
 });
 
 self.addEventListener("fetch", event => {
   const request = event.request;
+
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-  // Authenticated API, database and private Storage responses must never enter Cache Storage.
+
+  // Never cache private Supabase database, authentication,
+  // or storage requests.
   if (url.hostname.endsWith(".supabase.co")) return;
 
+  // Supabase JavaScript SDK: network first, cached fallback.
+  if (
+    url.hostname === "cdn.jsdelivr.net" &&
+    url.pathname.includes("/npm/@supabase/supabase-js")
+  ) {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(request);
+
+        if (response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(request, response.clone());
+        }
+
+        return response;
+      } catch (error) {
+        const cached = await caches.match(request);
+
+        if (cached) return cached;
+
+        return new Response(
+          "Supabase SDK is unavailable offline. Open DocuKeep while connected to the internet first.",
+          {
+            status: 503,
+            headers: { "Content-Type": "text/plain" }
+          }
+        );
+      }
+    })());
+
+    return;
+  }
+
+  // App navigation: network first, offline app-shell fallback.
   if (request.mode === "navigate") {
     event.respondWith((async () => {
       try {
         const response = await fetch(request);
+
         if (response.ok) {
           const cache = await caches.open(CACHE_NAME);
           await cache.put("./index.html", response.clone());
         }
+
         return response;
       } catch (error) {
-        return (await caches.match("./index.html")) ||
-          (await caches.match("./offline.html")) ||
-          new Response("DocuKeep is not available offline yet. Open it once while connected to the internet.", {
-            status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" }
-          });
+        return (
+          await caches.match("./index.html") ||
+          await caches.match("./") ||
+          new Response("DocuKeep is not available offline yet.", {
+            status: 503,
+            headers: { "Content-Type": "text/plain" }
+          })
+        );
       }
     })());
+
     return;
   }
 
-  if (url.origin === self.location.origin || url.hostname === "cdn.jsdelivr.net") {
-    const networkPromise = fetch(request).then(async response => {
-      if (response.ok && response.type !== "opaque") {
-        const cache = await caches.open(CACHE_NAME);
-        await cache.put(request, response.clone());
-      }
-      return response;
-    });
-    // Extend the worker lifetime for the background cache refresh.
-    event.waitUntil(networkPromise.catch(() => {}));
+  // Cache-first for same-origin static app files only.
+  if (url.origin === self.location.origin) {
     event.respondWith((async () => {
       const cached = await caches.match(request);
+
       if (cached) return cached;
-      try { return await networkPromise; }
-      catch (error) {
+
+      try {
+        const response = await fetch(request);
+
+        if (response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(request, response.clone());
+        }
+
+        return response;
+      } catch (error) {
         return new Response("This resource is unavailable offline.", {
-          status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" }
+          status: 503,
+          headers: { "Content-Type": "text/plain" }
         });
       }
     })());
   }
-});
-
-// Background Sync cannot upload private files by itself because the user's authenticated
-// Supabase session belongs to the page. Ask an open DocuKeep page to process its IndexedDB queue.
-self.addEventListener("sync", event => {
-  if (event.tag === "docukeep-upload-sync") {
-    event.waitUntil((async () => {
-      const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      for (const client of clientsList) client.postMessage({ type: "DOCUKEEP_SYNC_REQUEST" });
-    })());
-  }
-});
-
-self.addEventListener("message", event => {
-  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
