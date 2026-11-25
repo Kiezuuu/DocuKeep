@@ -47,3 +47,19 @@ Static checks performed
 - JavaScript syntax check passed for sw.js.
 - Reviewed existing IndexedDB queue, upload controls, XHR Storage upload,
   document upsert/confirmation and service-worker sync messaging.
+
+
+STORAGE QUOTA METADATA TIMING FIX (2026-11-25)
+------------------------------------------------
+If uploads fail with “The uploaded file size could not be verified.”, apply
+docukeep_storage_quota_metadata_fix.sql in the Supabase SQL Editor. Supabase
+Storage can create an initial authorization/probe row before final size metadata
+is available, then update the row after the object upload completes. The previous
+BEFORE INSERT trigger rejected that initial row. The corrected function defers
+quota evaluation until size metadata is available and still enforces the quota
+on the completed metadata update. It retains account-folder ownership checks,
+advisory locking, and the 200 MB Free / 20 GB active Premium limits.
+
+For new installations, docukeep_tutorial_storage_migration.sql has also been
+updated with the corrected function. Existing installations should run the
+standalone docukeep_storage_quota_metadata_fix.sql migration once.
