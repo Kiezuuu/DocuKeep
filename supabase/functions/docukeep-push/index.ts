@@ -25,8 +25,10 @@ Deno.serve(async (req) => {
       body: row.message || "You have a new notification.",
       notification_id: row.id,
       tag: `docukeep-${row.id}`,
-      url: row.related_document_id ? `https://kiezuuu.github.io/DocuKeep/?page=documents&document=${row.related_document_id}` : "https://kiezuuu.github.io/DocuKeep/?page=notifications"
-    });
+      url: row.related_document_id
+          ? `https://kiezuuu.github.io/DocuKeep/?page=documents&document=${row.related_document_id}`
+          : "https://kiezuuu.github.io/DocuKeep/?page=notifications"
+  });
     const expired: string[] = [];
     let sent = 0;
     for (const sub of subscriptions || []) {
