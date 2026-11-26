@@ -20,15 +20,17 @@ Deno.serve(async (req) => {
     if (!row?.id || !row?.user_id) return new Response("Missing notification record", { status: 400 });
     const { data: subscriptions, error } = await supabase.from("docukeep_push_subscriptions").select("id,endpoint,subscription").eq("user_id", row.user_id);
     if (error) throw error;
+    const SITE_URL = "https://docukeep.pages.dev/";
+
     const message = JSON.stringify({
-      title: row.title || "DocuKeep update",
-      body: row.message || "You have a new notification.",
-      notification_id: row.id,
-      tag: `docukeep-${row.id}`,
-      url: row.related_document_id
-          ? `https://kiezuuu.github.io/DocuKeep/?page=documents&document=${row.related_document_id}`
-          : "https://kiezuuu.github.io/DocuKeep/?page=notifications"
-  });
+        title: row.title || "DocuKeep update",
+        body: row.message || "You have a new notification.",
+        notification_id: row.id,
+        tag: `docukeep-${row.id}`,
+        url: row.related_document_id
+            ? `${SITE_URL}?page=documents&document=${row.related_document_id}`
+            : `${SITE_URL}?page=notifications`
+    });
     const expired: string[] = [];
     let sent = 0;
     for (const sub of subscriptions || []) {
