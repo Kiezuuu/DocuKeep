@@ -1480,7 +1480,113 @@ body.dk-tour-open { overflow:hidden; }
  .top-notification-head { padding:12px; }
 }
 
-</style>
+
+        /* Registration success confirmation */
+        .registration-success-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 10050;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            background: rgba(15, 29, 49, .48);
+            -webkit-backdrop-filter: blur(5px);
+            backdrop-filter: blur(5px);
+            opacity: 0;
+            animation: regBackdropIn .2s ease forwards;
+        }
+        .registration-success-backdrop.hidden { display: none !important; }
+        .registration-success-card {
+            width: min(440px, 100%);
+            padding: 32px 30px 28px;
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 24px 80px rgba(15, 35, 62, .24);
+            text-align: center;
+            transform: translateY(10px) scale(.985);
+            animation: regCardIn .24s ease .04s forwards;
+        }
+        .registration-success-icon {
+            width: 66px;
+            height: 66px;
+            margin: 0 auto 18px;
+            color: var(--green);
+        }
+        .registration-success-icon circle {
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2.5;
+            stroke-dasharray: 190;
+            stroke-dashoffset: 190;
+            animation: regCircleDraw .38s ease-out forwards;
+        }
+        .registration-success-icon path {
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 42;
+            stroke-dashoffset: 42;
+            animation: regCheckDraw .3s ease-out .38s forwards;
+        }
+        .registration-success-copy {
+            opacity: 0;
+            animation: regCopyIn .2s ease .65s forwards;
+        }
+        .registration-success-copy h2 {
+            margin: 0 0 9px;
+            color: var(--navy);
+            font-size: 23px;
+            line-height: 1.25;
+        }
+        .registration-success-copy p {
+            margin: 0 0 12px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+        .registration-success-copy .reg-email-help {
+            margin: 15px 0 20px;
+            padding: 13px 14px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #f7f9fc;
+            color: var(--ink);
+            font-size: 13px;
+            text-align: left;
+        }
+        .registration-success-copy .reg-email-help strong { color: var(--navy); }
+        .registration-success-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .registration-success-actions .btn { width: 100%; }
+        .registration-success-resend {
+            border: 0;
+            background: transparent;
+            color: var(--blue);
+            font-weight: 600;
+            padding: 8px;
+        }
+        .registration-success-resend:hover { text-decoration: underline; }
+        @keyframes regBackdropIn { to { opacity: 1; } }
+        @keyframes regCardIn { to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes regCircleDraw { to { stroke-dashoffset: 0; } }
+        @keyframes regCheckDraw { to { stroke-dashoffset: 0; } }
+        @keyframes regCopyIn { to { opacity: 1; } }
+        @media (max-width: 520px) {
+            .registration-success-card { padding: 27px 20px 22px; border-radius: 17px; }
+            .registration-success-copy h2 { font-size: 21px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .registration-success-backdrop, .registration-success-card,
+            .registration-success-icon circle, .registration-success-icon path,
+            .registration-success-copy { animation-duration: .01ms !important; animation-delay: 0ms !important; }
+        }
+
+    </style>
 </head>
 
 <body>
@@ -1542,6 +1648,31 @@ body.dk-tour-open { overflow:hidden; }
             </div>
         </div>
     </section>
+
+    <div class="registration-success-backdrop hidden" id="registrationSuccessModal"
+        role="dialog" aria-modal="true" aria-labelledby="registrationSuccessTitle"
+        aria-describedby="registrationSuccessDescription">
+        <div class="registration-success-card">
+            <svg class="registration-success-icon" viewBox="0 0 68 68" aria-hidden="true">
+                <circle cx="34" cy="34" r="30"></circle>
+                <path d="M19 35.5 29 45l20-22"></path>
+            </svg>
+            <div class="registration-success-copy">
+                <h2 id="registrationSuccessTitle">Registration Successful!</h2>
+                <p id="registrationSuccessDescription">Your account has been successfully registered.</p>
+                <p>A verification or confirmation email has been sent to your registered email address.</p>
+                <div class="reg-email-help">
+                    <strong>Can't find the email?</strong><br>
+                    Please check your Junk or Spam folder. If you still haven't received it, you can request another email using the existing resend verification feature.
+                </div>
+                <div class="registration-success-actions">
+                    <button type="button" class="btn" onclick="closeRegistrationSuccess()">Continue</button>
+                    <button type="button" class="registration-success-resend" onclick="resendRegistrationConfirmation()">Resend Email</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="app hidden" id="app">
         <aside class="sidebar">
             <div class="brand">
@@ -2741,6 +2872,34 @@ $("loginForm").addEventListener("submit", async e => {
    REGISTRATION
 ========================================================= */
 
+
+function showRegistrationSuccess(email) {
+    // Preserve the existing resend flow's expected email field.
+    $("email").value = email;
+    $("signupEmail").value = email;
+    const modal = $("registrationSuccessModal");
+    modal.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    const continueButton = modal.querySelector("button");
+    window.setTimeout(() => continueButton?.focus(), 700);
+}
+
+function closeRegistrationSuccess() {
+    $("registrationSuccessModal").classList.add("hidden");
+    document.body.style.overflow = "";
+    // Keep the existing post-registration sign-in and resend workflow.
+    toggleForm(false);
+    $("resendSwitch").classList.remove("hidden");
+    $("email").focus();
+}
+
+function resendRegistrationConfirmation() {
+    // Return to the existing sign-in screen so the original resend feedback is visible.
+    closeRegistrationSuccess();
+    // Reuse the existing Supabase resend handler; do not create another email flow.
+    resendConfirmation();
+}
+
 $("signupForm").addEventListener("submit", async e => {
     e.preventDefault();
 
@@ -2807,16 +2966,10 @@ $("signupForm").addEventListener("submit", async e => {
         }
 
         e.target.reset();
-        toggleForm(false);
 
-        $("email").value = email;
-        $("resendSwitch").classList.remove("hidden");
-        setAuthMessage(
-            "Registration submitted. Check your email inbox (including Spam/Junk) for the Supabase confirmation link. After confirming your email, wait for staff to approve your account before signing in.",
-            "warn"
-        );
-
-        toast("Registration submitted. Check your email for the confirmation link.");
+        // Show confirmation only after Supabase has returned a successful signup response.
+        // Continue returns the user to the existing sign-in screen and resend flow.
+        showRegistrationSuccess(email);
 
     } catch (err) {
         console.error("DocuKeep signup/database trigger error:", err);
