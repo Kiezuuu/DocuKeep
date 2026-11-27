@@ -6012,9 +6012,6 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&docuKeepTourElement
 /* =========================================================
    SECURE OFFLINE ACCESS — additive to existing Supabase Auth
 ========================================================= */
-/* =========================================================
-   SECURE OFFLINE ACCESS — additive to existing Supabase Auth
-========================================================= */
 const OFFLINE_ED25519_PUBLIC_KEY = "iiZPcjRJGyJIqdiNEgIo+PmHmfLucvyqOGHRw4Nvh7Y=";
 const OFFLINE_KDF_ITERATIONS = 310000;
 let offlineSessionKey = null;
@@ -6043,9 +6040,13 @@ async function verifyOfflineEnvelope(envelope){
   if(!valid)throw Error("Offline package signature is invalid or has been modified.");
   const claims=JSON.parse(new TextDecoder().decode(payload));
   const now=Math.floor(Date.now()/1000);
-  if(claims.iss!=="docukeep-offline-access"||claims.aud!=="docukeep-browser"||claims.version!==1||claims.status!=="approved"||!["student","teacher","staff"].includes(claims.role)||!Array.isArray(claims.permissions)||!claims.permissions.includes("cached_documents:read"))throw Error("Offline authorization claims are invalid.");
-  if(!claims.exp||claims.exp<=now)throw Error("This offline access package has expired. Reconnect and prepare a new package.");
-  if(claims.iat>now+300||claims.exp-claims.iat>7*86400+60)throw Error("Offline package validity period is invalid.");
+  const validAccountId=typeof claims.sub==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(claims.sub);
+  const validEmail=typeof claims.email==="string"&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(claims.email);
+  const validRole=["student","teacher","staff"].includes(String(claims.role||"").toLowerCase());
+  const permissions=Array.isArray(claims.permissions)?claims.permissions:[];
+  if(claims.iss!=="docukeep-offline-access"||claims.aud!=="docukeep-browser"||claims.version!==1||claims.status!=="approved"||!validAccountId||!validEmail||typeof claims.full_name!=="string"||!claims.full_name.trim()||!validRole||permissions.length!==1||permissions[0]!=="cached_documents:read")throw Error("Offline authorization claims are invalid.");
+  if(!Number.isSafeInteger(claims.iat)||!Number.isSafeInteger(claims.exp)||claims.exp<=now)throw Error("This offline access package has expired or has an invalid time claim. Reconnect and prepare a new package.");
+  if(claims.iat>now+300||claims.exp<=claims.iat||claims.exp-claims.iat>7*86400)throw Error("Offline package validity period is invalid.");
   return {claims,key};
 }
 async function encryptOfflinePackage(signed,passphrase){
@@ -6062,7 +6063,7 @@ async function offlineGetAll(storeName){const db=await openOfflineDB();return ne
 async function saveEncryptedPackage(envelope,claims=null){await offlineStore("offlineAccess","readwrite",store=>store.put({id:"current",envelope,expiresAt:claims?.exp||null,accountId:claims?.sub||null,savedAt:new Date().toISOString()}));}
 async function readOfflinePackage(passphrase){const row=await offlineGet("offlineAccess","current");if(!row)throw Error("No offline access package is saved on this device.");const envelope={...row.envelope,passphrase};return verifyOfflineEnvelope(envelope);}
 function setOfflineStatusUI(){const online=navigator.onLine;const chip=$("dkConnectionStatus");if(chip){chip.textContent=online?"Browser reports online":"Browser reports offline";chip.className="pill "+(online?"approved":"pending");}const b=$("dkContinueOffline");if(b)b.disabled=false;}
-window.addEventListener("online",()=>{setOfflineStatusUI();if(offlineMode){signOutOffline();setAuthMessage("Internet connection restored. Please sign in with Supabase to revalidate your account and refresh permissions.","warn");}else if(currentProfile){revalidateOfflineAccessOnReconnect().catch(e=>console.warn("Offline revalidation:",e));}});
+window.addEventListener("online",()=>{setOfflineStatusUI();if(offlineMode){signOutOffline().then(()=>setAuthMessage("Internet connection restored. Sign in with Supabase to revalidate your account and refresh permissions. Offline access does not create an online session.","warn"));}else if(currentProfile){revalidateOfflineAccessOnReconnect().catch(e=>console.warn("Offline revalidation:",e));}});
 window.addEventListener("offline",setOfflineStatusUI);
 setOfflineStatusUI();
 
@@ -6169,11 +6170,39 @@ async function openOfflineDocument(id){
   }catch(e){toast("Could not open cached document: "+e.message);}
 }
 window.openOfflineDocument=openOfflineDocument;
+async function requireFreshOnlineLogin(reason){
+  // Fail closed: never leave a stale cached profile in the normal online interface.
+  currentProfile=null;documents=[];accountType=null;offlineMode=false;offlineSessionKey=null;offlineClaims=null;
+  try{await sb.auth.signOut({scope:"local"});}catch(e){console.warn("Could not clear stale local Supabase session:",e);}
+  $("dkOfflineModeBanner")?.classList.remove("visible");
+  $("app")?.classList.add("hidden");$("auth")?.classList.remove("hidden");
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("hidden"));
+  document.querySelector(".sidebar")?.classList.remove("hidden");
+  $("profileMenu")?.classList.remove("hidden");$("topNotificationMenu")?.classList.remove("hidden");
+  backChoice();
+  setAuthMessage(reason||"Your account could not be revalidated. Sign in again to continue online.","warn");
+}
 async function revalidateOfflineAccessOnReconnect(){
   if(!navigator.onLine||offlineMode||!currentProfile)return;
-  // Existing Supabase session remains the source of truth. Never silently elevate from a cached package.
-  const {data,error}=await sb.auth.getSession();if(error||!data.session)return;
-  try{await loadProfile(data.session.user,null);await renderOfflineAccessSettings();}catch(e){console.warn("Account revalidation failed after reconnect",e);}
+  // Browser connectivity is only a hint. Ask Supabase Auth to validate the existing token,
+  // then re-read the authoritative profile row and its current approval/role before keeping access.
+  try{
+    const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+    if(sessionError||!sessionData?.session)throw Error("Your online session is unavailable. Sign in again.");
+    const {data:userData,error:userError}=await sb.auth.getUser(sessionData.session.access_token);
+    if(userError||!userData?.user)throw Error("Supabase could not verify your online session. Sign in again.");
+    const {data:profile,error:profileError}=await sb.from("profiles").select("id,full_name,email,role,status").eq("id",userData.user.id).maybeSingle();
+    if(profileError)throw profileError;
+    if(!profile||profile.id!==currentProfile.id||String(profile.status||"").toLowerCase()!=="approved"||!["student","teacher","staff"].includes(String(profile.role||"").toLowerCase())){
+      throw Error("Your account is suspended, revoked, or no longer approved. Contact DocuKeep staff.");
+    }
+    await loadProfile(userData.user,null);
+    await renderOfflineAccessSettings();
+    toast("Online account and current approval successfully revalidated.","ok");
+  }catch(e){
+    console.warn("Account revalidation failed after reconnect",e);
+    await requireFreshOnlineLogin(e?.message||"Account revalidation failed. Sign in again.");
+  }
 }
 
 /* =========================================================
