@@ -3686,18 +3686,21 @@ async function setQueuedJobStatus(job, status, errorMessage = "") {
 }
 
 async function markQueuedJobCompleted(job) {
+    // uploadJob resolves only after the Storage object upload is accepted and the
+    // documents row is confirmed by a read-back. Do not use 100% progress alone.
     job.status = "Completed";
     job.progressPercent = 100;
     job.lastError = "";
-    job.file = null;
     job.updatedAt = new Date().toISOString();
-    await queueOfflineUpload(job);
-    await renderQueuedUploadManager();
-    setTimeout(async () => {
+    try {
         await removeQueuedUpload(job.id);
-        cancelledUploadIds.delete(job.id); pausedUploadIds.delete(job.id);
+    } finally {
+        cancelledUploadIds.delete(job.id);
+        pausedUploadIds.delete(job.id);
+        activeUploadRequests.delete(job.id);
+        await renderQueuedUploadManager();
         await updateOfflineStatus();
-    }, 10000);
+    }
 }
 
 function classifyUploadError(error) {
@@ -3900,9 +3903,15 @@ async function uploadJob(job, onProgress = () => {}) {
     const { data: sessionData, error: sessionError } = await sb.auth.getSession();
     if (sessionError || !sessionData?.session || sessionData.session.user.id !== job.ownerId) throw new Error("Your session expired. Sign in again to continue uploading.");
 
-    const { data: existing, error: lookupError } = await sb.from("documents").select("id").eq("id", job.id).maybeSingle();
+    const { data: existing, error: lookupError } = await sb.from("documents").select("id,storage_path").eq("id", job.id).maybeSingle();
     if (lookupError) throw lookupError;
-    if (existing) return;
+    if (existing) {
+        // Idempotent retry: an existing metadata row is not enough by itself.
+        // Confirm that its corresponding Storage object is still accessible.
+        const { error: objectCheckError } = await sb.storage.from(BUCKET).createSignedUrl(existing.storage_path || job.path, 60);
+        if (objectCheckError) throw objectCheckError;
+        return;
+    }
 
     let storageMayExist = false;
     try {
@@ -4367,80 +4376,94 @@ async function signedUrl(d) {
     return data.signedUrl;
 }
 
+async function getOnlineCachedDocumentBlob(id) {
+    if (!currentProfile) throw Error("Sign in to access this document.");
+    let record = await offlineGet("offlineAccess", "current").catch(() => null);
+    if (!record || record.accountId !== currentProfile.id) throw Error("No authorized local document cache is available.");
+    const claims = await verifyDeviceAuthorization(record);
+    if (claims.sub !== currentProfile.id) throw Error("The local cache belongs to another account.");
+    offlineClaims = claims;
+    offlineSessionKey = record.dataKey;
+    const saved = await offlineGet("offlineDocuments", id);
+    if (!saved || saved.accountId !== currentProfile.id || !saved.fileIv || !saved.fileCiphertext) throw Error("This document's contents have not been cached on this device.");
+    return getCachedDocumentBlobForCurrentAccount(id);
+}
+
+async function getCachedDocumentBlobForCurrentAccount(id) {
+    const d = await offlineGet("offlineDocuments", id);
+    if (!d || d.accountId !== currentProfile?.id || !offlineSessionKey || offlineClaims?.sub !== currentProfile.id)
+        throw Error("Cached document not found for this account.");
+    const metadata = await decryptOfflineDocumentMetadata(d);
+    if (!d.fileIv || !d.fileCiphertext) throw Error("The document details are cached, but its file contents are not available offline.");
+    const aad = utf8(`docukeep-offline-file:${currentProfile.id}:${d.id}`);
+    const plain = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64ToBytes(d.fileIv), additionalData:aad}, offlineSessionKey, b64ToBytes(d.fileCiphertext));
+    return {metadata, blob:new Blob([plain], {type:metadata.mime_type || "application/octet-stream"})};
+}
+
+async function showDocumentPreviewContent(metadata, blob, sourceLabel = "") {
+    if (offlinePreviewObjectUrl) { URL.revokeObjectURL(offlinePreviewObjectUrl); offlinePreviewObjectUrl = null; }
+    offlinePreviewObjectUrl = URL.createObjectURL(blob);
+    const title = $("previewTitle"), body = $("previewBody");
+    if (!title || !body) throw Error("The document preview panel is not available in this view.");
+    title.textContent = (metadata.file_name || metadata.title || "Document") + (sourceLabel ? ` · ${sourceLabel}` : "");
+    body.innerHTML = "";
+    const mime = (metadata.mime_type || blob.type || "").toLowerCase();
+    const name = (metadata.file_name || "").toLowerCase();
+    if (mime === "application/pdf" || name.endsWith(".pdf")) {
+        const frame = document.createElement("iframe"); frame.src = offlinePreviewObjectUrl; frame.title = "Document PDF preview"; body.appendChild(frame);
+    } else if (mime.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(name)) {
+        const image = document.createElement("img"); image.src = offlinePreviewObjectUrl; image.alt = metadata.file_name || "Document image"; body.appendChild(image);
+    } else if (mime.startsWith("text/") || /\.(txt|md|csv|json|log|xml|html)$/i.test(name)) {
+        const pre = document.createElement("pre"); pre.style.cssText = "white-space:pre-wrap;overflow:auto;max-height:65vh;padding:16px"; pre.textContent = await blob.text(); body.appendChild(pre);
+    } else {
+        const note = document.createElement("div"); note.className = "empty"; note.style.padding = "28px";
+        note.textContent = "This file is available locally, but this format is not supported by the browser preview. Use Download to open it with a compatible application."; body.appendChild(note);
+    }
+    const downloadButton = $("previewDownload"); if (downloadButton) downloadButton.onclick = () => downloadDoc(metadata.document_id || metadata.id);
+    $("previewModal")?.classList.add("open");
+}
+
 async function downloadDoc(id) {
     const d = documents.find(x => x.id === id);
     if (!d) return;
-    if (offlineMode) return openOfflineDocument(id);
-
     try {
-        const url = await signedUrl(d);
-        const a = document.createElement("a");
-
-        a.href = url;
-        a.target = "_blank";
-        a.rel = "noopener";
-        a.download = d.file_name || d.title;
-
-        a.click();
-        // Preserve a local encrypted copy of documents the user successfully accesses.
-        cacheDocumentForOffline(id, { silent: true }).catch(() => {});
-
-    } catch (e) {
-        toast("Download failed: " + e.message);
-    }
+        let cached;
+        try { cached = offlineMode ? await getCachedDocumentBlob(id) : await getOnlineCachedDocumentBlob(id); } catch (_) {}
+        if (cached?.blob) {
+            const url = URL.createObjectURL(cached.blob), a = document.createElement("a");
+            a.href = url; a.download = cached.metadata.file_name || d.file_name || d.title || "DocuKeep-document"; a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 30000); return;
+        }
+        if (offlineMode || !navigator.onLine) throw Error("This document's contents have not been cached on this device, so it cannot be downloaded offline.");
+        const url = await signedUrl(d), a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; a.download = d.file_name || d.title; a.click();
+        cacheDocumentForOffline(id, {silent:true}).catch(() => {});
+    } catch (e) { toast("Download failed: " + e.message); }
 }
 
 async function previewDoc(id) {
     const d = documents.find(x => x.id === id);
     if (!d) return;
-    if (offlineMode) return openCachedDocumentPreview(id);
-
+    // Prefer a verified, account-bound local copy in both modes. This avoids
+    // remote Storage URL requests when a usable cache is already present.
+    try {
+        const cached = offlineMode ? await getCachedDocumentBlob(id) : await getOnlineCachedDocumentBlob(id);
+        await showDocumentPreviewContent({...cached.metadata, document_id:id}, cached.blob, offlineMode ? "Offline copy" : "Cached copy");
+        return;
+    } catch (cacheError) {
+        if (offlineMode || !navigator.onLine) {
+            toast("Preview unavailable offline: " + cacheError.message);
+            return;
+        }
+    }
     try {
         const url = await signedUrl(d);
-        // The current RLS-authorized document is cached on this device for later offline use.
-        cacheDocumentForOffline(id, { silent: true }).catch(() => {});
-
-        $("previewTitle").textContent = d.file_name || d.title;
-        $("previewBody").innerHTML = "";
-
-        const mime = (d.mime_type || "").toLowerCase();
-        const name = (d.file_name || "").toLowerCase();
-
-        if (mime === "application/pdf" || name.endsWith(".pdf")) {
-            const f = document.createElement("iframe");
-
-            f.src = url;
-            f.title = "PDF preview";
-
-            $("previewBody").appendChild(f);
-
-        } else if (
-            mime.startsWith("image/") ||
-            /\.(png|jpe?g|webp)$/i.test(name)
-        ) {
-            const im = document.createElement("img");
-
-            im.src = url;
-            im.alt = d.file_name || "Document image";
-
-            $("previewBody").appendChild(im);
-
-        } else {
-            $("previewBody").innerHTML = `
-                <div class="empty" style="padding:28px">
-                    <h3>Full document view</h3>
-                    <p>This file type cannot be displayed inside the browser. Open the original file or download it.</p>
-                    <p><a href="${url}" target="_blank" rel="noopener" class="btn">Open original file</a></p>
-                </div>
-            `;
-        }
-
-        $("previewDownload").onclick = () => downloadDoc(id);
-        $("previewModal").classList.add("open");
-
-    } catch (e) {
-        toast("Preview failed: " + e.message);
-    }
+        const response = await fetch(url);
+        if (!response.ok) throw Error("Could not retrieve the document preview.");
+        const blob = await response.blob();
+        await showDocumentPreviewContent({...d, document_id:id}, blob, "Online");
+        // Hydrate the encrypted local cache without delaying the current preview.
+        cacheDocumentForOffline(id, {silent:true}).catch(error => console.warn("Preview cache hydration failed:", error));
+    } catch (e) { toast("Preview failed: " + e.message); }
 }
 
 function closePreview() {
@@ -5623,29 +5646,65 @@ function formatQuotaBytes(bytes) {
     return n + " B";
 }
 
+function storageSnapshotKey() {
+    return currentProfile?.id ? `docukeep_storage_snapshot_${currentProfile.id}` : null;
+}
+
+function renderStorageSnapshot(row, label = "") {
+    if (!row) return false;
+    const used = Math.max(0, Number(row.used_bytes || 0));
+    const limit = Math.max(0, Number(row.limit_bytes || 200000000));
+    const available = Math.max(0, limit - used);
+    const percent = limit ? Math.min(100, used / limit * 100) : 0;
+    const setText = (id, value) => { const node = $(id); if (node) node.textContent = String(value); };
+    setText("storageUsed", formatQuotaBytes(used));
+    setText("storageAvailable", formatQuotaBytes(available));
+    setText("storageTotal", formatQuotaBytes(limit));
+    setText("storagePercent", `${percent.toFixed(1)}% used${label ? ` · ${label}` : ""}`);
+    const progress = $("storageProgress"); if (progress) progress.style.width = `${percent.toFixed(1)}%`;
+    setText("storagePlanBadge", row.plan === "premium" ? "✦ PREMIUM ACCOUNT" : "FREE ACCOUNT");
+    setText("storageUpgradeHint", row.plan === "premium" ? "Your Premium account includes 20 GB of storage." : "Free accounts include 200 MB. Upgrade to Premium for 20 GB of storage.");
+    const upgrade = $("storageUpgradeButton"); if (upgrade) upgrade.classList.toggle("hidden", row.plan === "premium");
+    const warning = $("storageWarning");
+    if (warning) {
+        warning.textContent = label ? `Showing saved storage information (${label}).` : percent >= 90 ? "Almost full — remove unused files or upgrade your plan." : percent >= 75 ? "Storage is running low." : "";
+        warning.className = percent >= 75 ? "storage-warning" : "";
+    }
+    return true;
+}
+
 async function refreshStorageDashboard() {
-    if (!currentProfile || offlineMode || !navigator.onLine) return;
-    const { data, error } = await sb.rpc("docukeep_get_my_storage_usage");
-    if (error) {
-        console.error("Storage usage:", error);
-        const warn = $("storageWarning"); if (warn) warn.textContent = "Storage details unavailable. Apply the tutorial storage migration.";
+    if (!currentProfile) return;
+    const snapshotKey = storageSnapshotKey();
+    const readSnapshot = () => {
+        try { return snapshotKey ? JSON.parse(localStorage.getItem(snapshotKey) || "null") : null; }
+        catch (_) { return null; }
+    };
+    if (offlineMode || !navigator.onLine) {
+        const cached = readSnapshot();
+        if (cached) renderStorageSnapshot(cached, "offline cache");
+        else {
+            const warning = $("storageWarning"); if (warning) warning.textContent = "Storage information is unavailable offline; it will refresh after reconnection.";
+        }
         return;
     }
-    const row = Array.isArray(data) ? data[0] : data;
-    if (!row) return;
-    const used = Number(row.used_bytes || 0), limit = Number(row.limit_bytes || 200000000);
-    const available = Math.max(0, limit - used), percent = limit ? Math.min(100, used / limit * 100) : 0;
-    $("storageUsed").textContent = formatQuotaBytes(used);
-    $("storageAvailable").textContent = formatQuotaBytes(available);
-    $("storageTotal").textContent = formatQuotaBytes(limit);
-    $("storageProgress").style.width = percent.toFixed(1) + "%";
-    $("storagePercent").textContent = percent.toFixed(1) + "% used";
-    $("storagePlanBadge").textContent = row.plan === "premium" ? "✦ PREMIUM ACCOUNT" : "FREE ACCOUNT";
-    $("storageUpgradeHint").textContent = row.plan === "premium" ? "Your Premium account includes 20 GB of storage." : "Free accounts include 200 MB. Upgrade to Premium for 20 GB of storage.";
-    if ($("storageUpgradeButton")) $("storageUpgradeButton").classList.toggle("hidden", row.plan === "premium");
-    const warning = $("storageWarning");
-    warning.textContent = percent >= 90 ? "Almost full — remove unused files or upgrade your plan." : percent >= 75 ? "Storage is running low." : "";
-    if (warning) warning.className = percent >= 75 ? "storage-warning" : "";
+    try {
+        const { data, error } = await sb.rpc("docukeep_get_my_storage_usage");
+        if (error) throw error;
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row) throw Error("The storage usage service returned no data.");
+        const normalized = {used_bytes:Number(row.used_bytes || 0),limit_bytes:Number(row.limit_bytes || 200000000),plan:row.plan || "free",savedAt:new Date().toISOString()};
+        renderStorageSnapshot(normalized);
+        try { if (snapshotKey) localStorage.setItem(snapshotKey, JSON.stringify(normalized)); } catch (storageError) { console.warn("Could not save storage dashboard snapshot:", storageError); }
+    } catch (error) {
+        console.error("Storage usage:", error);
+        const cached = readSnapshot();
+        if (cached) renderStorageSnapshot(cached, "last saved");
+        else {
+            const warning = $("storageWarning");
+            if (warning) warning.textContent = "Storage details are currently unavailable. Please try again when the service is reachable.";
+        }
+    }
 }
 
 /* =========================================================
@@ -6333,7 +6392,7 @@ async function continueOfflineLogin(expectedType=null, expectedEmail=null, optio
     const logout=$("profileMenu")?.querySelector("button.danger");if(logout){logout.setAttribute("onclick","signOutOffline()");logout.textContent="↪ Exit Offline Mode";}
     $("topNotificationMenu")?.classList.add("hidden");
     $("dkOfflineModeBanner").classList.add("visible");
-    const storageCard=document.querySelector(".storage-card");if(storageCard){storageCard.querySelector(".dashboard-panel-head h2").textContent="Offline availability";storageCard.querySelector(".storage-meta").innerHTML=`<span>Cached documents: <b>${documents.length}</b></span><span>Account: <b>Locally verified</b></span>`;storageCard.querySelector(".storage-track").classList.add("hidden");storageCard.querySelector("#storageUpgradeHint").textContent="Only documents previously cached on this device are available. Cloud storage details require an internet connection.";storageCard.querySelector("#storageUpgradeButton")?.classList.add("hidden");}
+    const storageCard=document.querySelector(".storage-card");if(storageCard){const heading=storageCard.querySelector(".dashboard-panel-head h2");if(heading)heading.textContent="Offline availability";const meta=storageCard.querySelector(".storage-meta");if(meta)meta.innerHTML=`<span>Cached documents: <b>${documents.length}</b></span><span>Account: <b>Locally verified</b></span>`;storageCard.querySelector(".storage-track")?.classList.add("hidden");const hint=storageCard.querySelector("#storageUpgradeHint");if(hint)hint.textContent="Only documents previously cached on this device are available. Cloud storage details require an internet connection.";storageCard.querySelector("#storageUpgradeButton")?.classList.add("hidden");}
     go("dashboard");renderDashboard(documents);renderDocumentCards(documents);
     if(!options.silent)toast(`Offline login successful. ${documents.length} cached document(s) available.`);
   }catch(e){console.error("Offline login rejected",e);const msg=$("dkAuthOfflineMessage");if(msg)msg.textContent=e.message;if(!options.silent)toast("Offline login unavailable: "+e.message);}
@@ -6449,26 +6508,12 @@ async function getCachedDocumentBlob(id){
 }
 let offlinePreviewObjectUrl=null;
 async function openCachedDocumentPreview(id){
-  try{
+  try {
     const {metadata,blob}=await getCachedDocumentBlob(id);
-    if(offlinePreviewObjectUrl)URL.revokeObjectURL(offlinePreviewObjectUrl);
-    offlinePreviewObjectUrl=URL.createObjectURL(blob);
-    $("previewTitle").textContent=metadata.file_name||metadata.title||"Cached document";
-    $("previewBody").innerHTML="";
-    const mime=(metadata.mime_type||"").toLowerCase(),name=(metadata.file_name||"").toLowerCase();
-    if(mime==="application/pdf"||name.endsWith(".pdf")){
-      const frame=document.createElement("iframe");frame.src=offlinePreviewObjectUrl;frame.title="Cached PDF preview";$("previewBody").appendChild(frame);
-    }else if(mime.startsWith("image/")||/\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(name)){
-      const image=document.createElement("img");image.src=offlinePreviewObjectUrl;image.alt=metadata.file_name||"Cached document";$("previewBody").appendChild(image);
-    }else if(mime.startsWith("text/")||/\.(txt|md|csv|json|log)$/i.test(name)){
-      const pre=document.createElement("pre");pre.style.cssText="white-space:pre-wrap;overflow:auto;max-height:65vh;padding:16px";pre.textContent=await blob.text();$("previewBody").appendChild(pre);
-    }else{
-      const note=document.createElement("div");note.className="empty";note.style.padding="28px";note.textContent="This file is cached and can be downloaded, but this format cannot be previewed in the browser.";$("previewBody").appendChild(note);
-    }
-    $("previewDownload").onclick=()=>openOfflineDocument(id);
-    $("previewModal").classList.add("open");
-  }catch(error){toast("Could not preview cached document: "+error.message);}
+    await showDocumentPreviewContent({...metadata,document_id:id},blob,"Offline copy");
+  } catch(error) { toast("Could not preview cached document: "+error.message); }
 }
+
 async function openOfflineDocument(id){
   try{
     const {metadata,blob}=await getCachedDocumentBlob(id);
