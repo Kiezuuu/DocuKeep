@@ -1490,6 +1490,16 @@ body.dk-tour-open { overflow:hidden; }
 }
 
 
+/* Interactive onboarding spotlight: keep the selected live control visible. */
+.dk-tour-backdrop{position:fixed!important;inset:0!important;z-index:10000!important;display:block!important;padding:0!important;background:transparent!important;backdrop-filter:none!important;pointer-events:none!important}
+.dk-tour-backdrop.hidden{display:none!important}
+.dk-tour-card{position:fixed!important;right:22px!important;bottom:22px!important;top:auto!important;left:auto!important;width:min(440px,calc(100vw - 32px))!important;max-height:min(430px,calc(100vh - 32px))!important;overflow:auto!important;pointer-events:auto!important;z-index:10004!important;padding:0!important;border:1px solid #e5ecf4!important;border-radius:16px!important;background:#fff!important;box-shadow:0 18px 55px rgba(10,29,54,.28)!important}
+.dk-tour-focus{position:relative!important;z-index:10002!important;outline:3px solid #e5ad35!important;outline-offset:4px!important;border-radius:9px!important;box-shadow:0 0 0 6px rgba(229,173,53,.22),0 0 0 9999px rgba(12,28,49,.48)!important;isolation:isolate!important}
+.dk-tour-card .dk-tour-actions{flex-wrap:wrap}
+@media(max-width:760px){.dk-tour-card{right:10px!important;left:10px!important;bottom:10px!important;width:auto!important;max-height:min(48vh,390px)!important}.dk-tour-card h2{font-size:19px!important}.dk-tour-card p{font-size:12px!important}.dk-tour-actions{gap:7px!important;padding:0 13px 14px!important}.dk-tour-left,.dk-tour-right{gap:6px!important}.dk-tour-actions .btn{font-size:11px!important;padding:8px 10px!important}}
+@media(max-width:390px){.dk-tour-card{max-height:52vh!important}.dk-tour-actions .btn{padding:7px 8px!important;font-size:10px!important}}
+
+
         /* Registration success confirmation */
         .registration-success-backdrop {
             position: fixed;
@@ -6070,85 +6080,86 @@ async function removeProfilePicture() {
 window.removeProfilePicture = removeProfilePicture;
 
 /* =========================================================
-   FIRST-LOGIN ONBOARDING
+   FIRST-LOGIN ONBOARDING — SIGNUP-ENROLLED, ACCOUNT-SCOPED
 ========================================================= */
 const DOCUKEEP_TOUR_STEPS = [
-  {title:"Welcome to DocuKeep",text:"DocuKeep is your document workspace. Store, organize, submit, and keep track of important files in one place.",target:"#page-dashboard",navigate:"dashboard",tip:"This short guide introduces the main tools in your workspace."},
-  {title:"Your Dashboard",text:"The dashboard summarizes your documents, review status, recent activity, and available storage.",target:".dashboard-quickstats",navigate:"dashboard",tip:"Use this page as your starting point whenever you sign in."},
-  {title:"Navigation Menu",text:"Use the sidebar to open your documents, upload page, submission tracking, folders, premium plan, and People directory. Your profile and notifications are in the top header.",target:".nav",navigate:"dashboard",tip:"The selected page is marked in the sidebar."},
-  {title:"Find Your Documents",text:"Open My Documents to browse your private documents and documents that other users have made public. Search and filters help you find a file.",target:".documents-toolbar",navigate:"documents",tip:"Private documents remain associated with your account."},
-  {title:"Uploading Files",text:"Open Upload Document, complete the required details, choose your files, and submit. File size and storage limits still apply.",target:"#page-upload .panel",navigate:"upload",tip:"Wait for the upload confirmation before closing the page."},
-  {title:"Organizing Documents",text:"Use My Folders to create folders and organize documents. You can also move your own documents into a folder.",target:"#page-folders .panel",navigate:"folders",tip:"A clear folder structure makes documents easier to find later."},
-  {title:"Notifications",text:"The single bell beside your profile shows unread updates. Check it for account decisions, file review results, and other activity.",target:"#topNotificationMenu",navigate:"dashboard",tip:"Open the bell to read notifications and mark them as read."},
-  {title:"Offline Upload Queue",text:"If the connection drops, selected uploads can be saved on this device. They wait in the upload queue and sync when the connection returns. Server features still need internet.",target:"#queuedUploadManager",navigate:"upload",tip:"Queued files stay on this device until the server confirms the upload."},
-  {title:"Profile and Settings",text:"Open your profile menu to view or edit your profile, manage account settings, replay this guide, or sign out.",target:"#profileMenu",navigate:"dashboard",tip:"Your profile and account settings remain available from the top header."}
+  {title:"Welcome to DocuKeep",text:"Welcome! DocuKeep is your Smart School File System. Use it to organize, upload, manage, and access your school documents.",target:null,navigate:"dashboard",tip:"This quick tour introduces the tools available to your approved account."},
+  {title:"Your Dashboard",text:"Your dashboard brings together document totals, review status, recent files, activity, and storage information.",target:".dashboard-quickstats",navigate:"dashboard",tip:"Return here anytime for a quick overview of your workspace."},
+  {title:"My Documents",text:"Open My Documents to browse your private files and documents other users have made public. Search by name, filter the visible documents, and select a file to preview it.",target:".documents-toolbar",navigate:"documents",tip:"Your private documents remain associated with your account. The Upload shortcut is also available here."},
+  {title:"Upload Document",text:"Choose one or more files, enter a title, select a category, and add any helpful details before submitting. Existing review and approval rules still apply.",target:"#page-upload .panel",navigate:"upload",tip:"Wait for the upload result. If offline, supported files can wait in the existing upload queue."},
+  {title:"Submission Tracking",text:"Use Submission Tracking to check the review status of documents you submitted and see whether they are still pending or have been reviewed.",target:"#tracking",navigate:"tracking",tip:"The page may be empty until you submit a document."},
+  {title:"My Folders",text:"Create folders and organize your documents so related school files are easier to find.",target:"#folderForm",navigate:"folders",tip:"You can optionally place a folder inside another folder."},
+  {title:"People",text:"The People directory lets you find DocuKeep users and view the public profile information available to your account. Sharing options depend on your permissions.",target:"#page-people .panel",navigate:"people",tip:"Only information and actions permitted for your account are available."},
+  {title:"Notifications and Profile",text:"Use the bell to check notifications and your profile menu to view or edit your profile and account settings.",target:".profile-menu-wrap",navigate:"dashboard",tip:"The profile menu also contains Replay Tutorial."},
+  {title:"Offline Mode",text:"Previously cached documents can be accessed without internet. New uploads can wait in the existing offline queue and synchronize when the connection returns. DocuKeep also attempts to reconnect automatically when backend connectivity is restored.",target:"#queuedUploadManager",navigate:"upload",tip:"Only files already cached on this device are available offline. Cloud actions still require a valid online session."},
+  {title:"You're Ready to Go!",text:"You have explored the main DocuKeep tools. You can replay this guide later from your profile menu whenever you need a refresher.",target:null,navigate:"dashboard",tip:"Select Finish Tutorial to save this guide as completed."}
 ];
 let docuKeepTourIndex=0;
 let docuKeepTourElement=null;
 let docuKeepTourTarget=null;
 let docuKeepTourSaving=false;
+let docuKeepTourCompletedSteps=new Set();
+let docuKeepTourStartedAt=null;
+let docuKeepTourEnrolled=false;
 function clearDocuKeepTourFocus(){
   if(docuKeepTourTarget)docuKeepTourTarget.classList.remove("dk-tour-focus");
   docuKeepTourTarget=null;
   document.querySelectorAll(".dk-tour-focus").forEach(el=>el.classList.remove("dk-tour-focus"));
 }
+function positionDocuKeepTourCard(target){
+  if(!docuKeepTourElement)return;
+  const card=docuKeepTourElement.querySelector(".dk-tour-card");if(!card)return;
+  const mobile=window.matchMedia("(max-width:760px)").matches;
+  if(!target){card.style.top="auto";card.style.bottom="22px";card.style.left="auto";card.style.right="22px";return;}
+  const r=target.getBoundingClientRect();
+  if(mobile){card.style.left="10px";card.style.right="10px";if(r.top>window.innerHeight/2){card.style.top="10px";card.style.bottom="auto";}else{card.style.top="auto";card.style.bottom="10px";}}
+  else{card.style.top="auto";card.style.bottom="22px";if(r.left>window.innerWidth/2){card.style.left="22px";card.style.right="auto";}else{card.style.left="auto";card.style.right="22px";}}
+}
 function ensureTourElement(){
   if(docuKeepTourElement)return docuKeepTourElement;
   const wrap=document.createElement("div");
   wrap.className="dk-tour-backdrop hidden";wrap.id="docuKeepTour";
-  wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
+  wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","false");
   wrap.setAttribute("aria-labelledby","dkTourTitle");wrap.setAttribute("aria-describedby","dkTourText");
-  wrap.innerHTML=`<section class="dk-tour-card"><div class="dk-tour-top"><div class="dk-tour-brand"><span class="dk-tour-brand-mark">✦</span> DocuKeep guide</div><div class="dk-tour-kicker" id="dkTourCount">Step 1 of 9</div></div><div class="dk-tour-icon" id="dkTourIcon" aria-hidden="true"></div><div class="dk-tour-progress"><span id="dkTourProgress"></span></div><h2 id="dkTourTitle"></h2><p id="dkTourText"></p><div class="dk-tour-tip" id="dkTourTip"></div><div class="dk-tour-actions"><div class="dk-tour-left"><button class="btn secondary" type="button" id="dkTourBack">Back</button><button class="btn secondary" type="button" id="dkTourSkip">Skip Tutorial</button></div><div class="dk-tour-right"><button class="btn" type="button" id="dkTourNext">Next</button><button class="btn hidden" type="button" id="dkTourFinish">Finish</button></div></div></section>`;
+  wrap.innerHTML=`<section class="dk-tour-card"><div class="dk-tour-top"><div class="dk-tour-brand"><span class="dk-tour-brand-mark">✦</span> DocuKeep guide</div><div class="dk-tour-kicker" id="dkTourCount">Step 1 of 10</div></div><div class="dk-tour-progress"><span id="dkTourProgress"></span></div><h2 id="dkTourTitle"></h2><p id="dkTourText"></p><div class="dk-tour-tip" id="dkTourTip"></div><div class="dk-tour-actions"><div class="dk-tour-left"><button class="btn secondary" type="button" id="dkTourBack">Previous</button><button class="btn secondary" type="button" id="dkTourSkip">Skip</button></div><div class="dk-tour-right"><button class="btn" type="button" id="dkTourNext">Next</button><button class="btn hidden" type="button" id="dkTourFinish">Finish Tutorial</button></div></div></section>`;
   document.body.appendChild(wrap);docuKeepTourElement=wrap;
   wrap.querySelector("#dkTourBack").addEventListener("click",()=>showDocuKeepTourStep(docuKeepTourIndex-1));
   wrap.querySelector("#dkTourSkip").addEventListener("click",()=>finishDocuKeepTour(true,true));
-  wrap.querySelector("#dkTourNext").addEventListener("click",()=>{if(docuKeepTourIndex<DOCUKEEP_TOUR_STEPS.length-1)showDocuKeepTourStep(docuKeepTourIndex+1);});
+  wrap.querySelector("#dkTourNext").addEventListener("click",()=>{if(docuKeepTourIndex<DOCUKEEP_TOUR_STEPS.length-1){docuKeepTourCompletedSteps.add(docuKeepTourIndex);showDocuKeepTourStep(docuKeepTourIndex+1);}});
   wrap.querySelector("#dkTourFinish").addEventListener("click",()=>finishDocuKeepTour(true));
   return wrap;
 }
 function showDocuKeepTourStep(index){
-  if(!currentProfile)return;
+  if(!currentProfile||!docuKeepTourEnrolled)return;
   docuKeepTourIndex=Math.max(0,Math.min(Number(index)||0,DOCUKEEP_TOUR_STEPS.length-1));
   const step=DOCUKEEP_TOUR_STEPS[docuKeepTourIndex];
-  if(step.navigate && document.getElementById("page-"+step.navigate) && !document.getElementById("page-"+step.navigate).classList.contains("active"))go(step.navigate);
+  if(step.navigate&&document.getElementById("page-"+step.navigate)&&!document.getElementById("page-"+step.navigate).classList.contains("active"))go(step.navigate);
   clearDocuKeepTourFocus();
   let target=null;
   try{target=step.target?document.querySelector(step.target):null;}catch(err){console.warn("Invalid onboarding target:",step.target,err);}
-  if(target){docuKeepTourTarget=target;target.classList.add("dk-tour-focus");try{target.scrollIntoView({behavior:"smooth",block:"nearest",inline:"nearest"});}catch(_){}}
+  if(target){docuKeepTourTarget=target;target.classList.add("dk-tour-focus");try{target.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center",inline:"nearest"});}catch(_){}}
   const el=ensureTourElement();el.classList.remove("hidden");document.body.classList.add("dk-tour-open");
-  const icons=[
-   '<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21H3z"/><path d="M9 21v-7h6v7"/></svg>',
-   '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/></svg>',
-   '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
-   '<svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6"/></svg>',
-   '<svg viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/></svg>',
-   '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
-   '<svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>',
-   '<svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M5.5 15a7 7 0 0 0 12 2M18.5 9a7 7 0 0 0-12-2"/></svg>',
-   '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>'
-  ];
-  $("dkTourIcon").innerHTML=icons[docuKeepTourIndex]||icons[0];
+  positionDocuKeepTourCard(target);requestAnimationFrame(()=>positionDocuKeepTourCard(target));
   $("dkTourCount").textContent=`Step ${docuKeepTourIndex+1} of ${DOCUKEEP_TOUR_STEPS.length}`;
   $("dkTourTitle").textContent=step.title;$("dkTourText").textContent=step.text;$("dkTourTip").textContent=step.tip||"";
   $("dkTourProgress").style.width=`${((docuKeepTourIndex+1)/DOCUKEEP_TOUR_STEPS.length)*100}%`;
-  $("dkTourBack").disabled=docuKeepTourIndex===0;
-  $("dkTourBack").classList.toggle("hidden",docuKeepTourIndex===0);
+  $("dkTourBack").disabled=docuKeepTourIndex===0;$("dkTourBack").classList.toggle("hidden",docuKeepTourIndex===0);
   const last=docuKeepTourIndex===DOCUKEEP_TOUR_STEPS.length-1;
-  $("dkTourNext").classList.toggle("hidden",last);
-  $("dkTourFinish").classList.toggle("hidden",!last);
-  $("dkTourFinish").disabled=false;$("dkTourFinish").textContent="Finish";
-  const focusControl=last?$("dkTourFinish"):$("dkTourNext");if(focusControl)focusControl.focus({preventScroll:true});
+  $("dkTourNext").classList.toggle("hidden",last);$("dkTourFinish").classList.toggle("hidden",!last);
+  $("dkTourFinish").disabled=false;$("dkTourFinish").textContent="Finish Tutorial";
   persistOnboardingProgress("in_progress");ensureOnboardingReminder("in_progress");
 }
 function onboardingLocalKey(userId){return `docukeep:onboarding:${userId}`;}
 function readLocalOnboarding(){try{return JSON.parse(localStorage.getItem(onboardingLocalKey(currentProfile?.id))||"{}");}catch(_){return {};}}
 async function persistOnboardingProgress(status="in_progress",extra={}){
-  if(!currentProfile)return;
-  const record={status,current_step:docuKeepTourIndex,updated_at:new Date().toISOString(),...extra};
+  if(!currentProfile||!docuKeepTourEnrolled)return;
+  const now=new Date().toISOString();
+  if(status==="in_progress"&&!docuKeepTourStartedAt)docuKeepTourStartedAt=now;
+  const record={status,current_step:docuKeepTourIndex,completed_steps:[...docuKeepTourCompletedSteps].sort((a,b)=>a-b),date_started:docuKeepTourStartedAt,date_completed:status==="completed"?now:null,updated_at:now,...extra};
   try{localStorage.setItem(onboardingLocalKey(currentProfile.id),JSON.stringify(record));}catch(e){console.warn("Local onboarding progress could not be saved:",e);}
   if(offlineMode||!navigator.onLine)return;
   try{
-    const {error}=await sb.from("docukeep_onboarding_progress").upsert({user_id:currentProfile.id,status,current_step:docuKeepTourIndex,skipped_at:status==="skipped"?new Date().toISOString():null,completed_at:status==="completed"?new Date().toISOString():null,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+    const {error}=await sb.from("docukeep_onboarding_progress").upsert({user_id:currentProfile.id,status,current_step:docuKeepTourIndex,completed_steps:record.completed_steps,date_started:docuKeepTourStartedAt,date_completed:status==="completed"?now:null,completed_at:status==="completed"?now:null,skipped_at:status==="skipped"?now:null,updated_at:now},{onConflict:"user_id"});
     if(error)throw error;
   }catch(error){console.warn("Server onboarding progress sync deferred:",error);}
 }
@@ -6157,51 +6168,50 @@ function ensureOnboardingReminder(status="not_started"){
   let card=$("dkOnboardingReminder");
   if(!card){card=document.createElement("section");card.id="dkOnboardingReminder";card.className="panel";card.style.cssText="margin:0 0 18px;padding:16px 18px;border:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap";const anchor=page.querySelector(".dashboard-quickstats")||page.firstElementChild;page.insertBefore(card,anchor);}
   const labels={not_started:"Not Started",in_progress:"In Progress",skipped:"Skipped"};
-  card.innerHTML=`<div><strong>Finish setting up DocuKeep</strong><div class="muted" style="font-size:13px;margin-top:4px">Your tutorial is ${labels[status]||"In Progress"}. Continue from step ${docuKeepTourIndex+1} of ${DOCUKEEP_TOUR_STEPS.length}.</div></div><button type="button" class="btn" id="dkContinueTutorialBtn">${status==="skipped"?"Start Tutorial":"Continue Tutorial"}</button>`;
-  $("dkContinueTutorialBtn")?.addEventListener("click",()=>showDocuKeepTourStep(docuKeepTourIndex));
-  card.classList.remove("hidden");
+  card.innerHTML=`<div><strong>Continue your DocuKeep guide</strong><div class="muted" style="font-size:13px;margin-top:4px">Tutorial status: ${labels[status]||"In Progress"}. Resume at step ${docuKeepTourIndex+1} of ${DOCUKEEP_TOUR_STEPS.length}.</div></div><button type="button" class="btn" id="dkContinueTutorialBtn">Continue Tutorial</button>`;
+  $("dkContinueTutorialBtn")?.addEventListener("click",()=>showDocuKeepTourStep(docuKeepTourIndex));card.classList.remove("hidden");
 }
 async function maybeStartOnboarding(){
-  if(!currentProfile)return;
+  if(!currentProfile||offlineMode||!navigator.onLine)return;
   let data=null;
+  try{const result=await sb.from("docukeep_onboarding_progress").select("user_id,status,current_step,completed_steps,date_started,date_completed,completed_at,skipped_at,auto_enrolled").eq("user_id",currentProfile.id).maybeSingle();if(result.error)throw result.error;data=result.data;}
+  catch(error){console.warn("Onboarding status could not be checked; automatic launch is withheld:",error);return;}
+  // No signup-triggered row means this is an existing account (or the migration is not installed).
+  // Never infer that a missing row means a new user.
+  if(!data||data.auto_enrolled!==true){$("dkOnboardingReminder")?.classList.add("hidden");return;}
+  docuKeepTourEnrolled=true;
+  if(data.status==="completed"||data.completed_at||data.date_completed){$("dkOnboardingReminder")?.classList.add("hidden");return;}
   const local=readLocalOnboarding();
-  if(!offlineMode&&navigator.onLine){
-    try{const result=await sb.from("docukeep_onboarding_progress").select("completed_at,status,current_step,skipped_at").eq("user_id",currentProfile.id).maybeSingle();if(result.error)throw result.error;data=result.data;}
-    catch(error){console.warn("Onboarding status unavailable; using local progress:",error);}
-  }
-  const progress=data||local||{};
-  if(progress.status==="completed"||progress.completed_at){$("dkOnboardingReminder")?.classList.add("hidden");return;}
-  const status=progress.status|| (progress.skipped_at?"skipped":(Number(progress.current_step)>0?"in_progress":"not_started"));
-  docuKeepTourIndex=Math.max(0,Math.min(Number(progress.current_step)||0,DOCUKEEP_TOUR_STEPS.length-1));
+  const useLocal=!!(local.updated_at&&(!data.updated_at||Date.parse(local.updated_at)>Date.parse(data.updated_at)));
+  const progress=useLocal?local:data;
+  const serverStep=Number(progress.current_step)||0;
+  docuKeepTourIndex=Math.max(0,Math.min(serverStep,DOCUKEEP_TOUR_STEPS.length-1));
+  const completed=Array.isArray(progress.completed_steps)?progress.completed_steps:[];
+  docuKeepTourCompletedSteps=new Set(completed.map(Number).filter(n=>Number.isInteger(n)&&n>=0&&n<DOCUKEEP_TOUR_STEPS.length));
+  docuKeepTourStartedAt=progress.date_started||null;
+  const status=progress.status||"not_started";
   ensureOnboardingReminder(status);
-  // First-time users see the guide automatically. Returning users resume only if
-  // they had already started; skipped users keep a dashboard reminder.
+  if(useLocal)persistOnboardingProgress(status);
+  // A skipped user keeps a reminder and resumes only after choosing Continue.
   if(status!=="skipped")showDocuKeepTourStep(docuKeepTourIndex);
 }
-function replayOnboarding(){const menu=$("profileMenu");if(menu)menu.open=false;showDocuKeepTourStep(docuKeepTourIndex);}
+function replayOnboarding(){if(!currentProfile)return;docuKeepTourEnrolled=true;const menu=$("profileMenu");if(menu)menu.open=false;showDocuKeepTourStep(docuKeepTourIndex);}
 window.replayOnboarding=replayOnboarding;
 async function finishDocuKeepTour(completed,skipImmediately=false){
-  if(!completed){
-    clearDocuKeepTourFocus();if(docuKeepTourElement)docuKeepTourElement.classList.add("hidden");document.body.classList.remove("dk-tour-open");
-    await persistOnboardingProgress("in_progress");ensureOnboardingReminder("in_progress");return;
-  }
-  if(!currentProfile||docuKeepTourSaving)return;
+  if(!currentProfile||!docuKeepTourEnrolled||docuKeepTourSaving)return;
   docuKeepTourSaving=true;
   const finish=$("dkTourFinish");if(finish){finish.disabled=true;finish.textContent="Saving…";}
   try{
-    if(skipImmediately){
-      await persistOnboardingProgress("skipped");
-      clearDocuKeepTourFocus();if(docuKeepTourElement)docuKeepTourElement.classList.add("hidden");document.body.classList.remove("dk-tour-open");
-      ensureOnboardingReminder("skipped");toast("Tutorial skipped. You can continue it anytime from the dashboard.","ok");return;
-    }
+    if(skipImmediately){await persistOnboardingProgress("skipped");clearDocuKeepTourFocus();if(docuKeepTourElement)docuKeepTourElement.classList.add("hidden");document.body.classList.remove("dk-tour-open");ensureOnboardingReminder("skipped");toast("Tutorial skipped. You can continue it anytime from the dashboard.","ok");return;}
     if(docuKeepTourIndex!==DOCUKEEP_TOUR_STEPS.length-1)throw Error("Reach the final tutorial step before completing the guide.");
+    docuKeepTourCompletedSteps.add(docuKeepTourIndex);
     await persistOnboardingProgress("completed");
-    clearDocuKeepTourFocus();if(docuKeepTourElement)docuKeepTourElement.classList.add("hidden");document.body.classList.remove("dk-tour-open");
-    $("dkOnboardingReminder")?.classList.add("hidden");toast("DocuKeep tutorial completed.","ok");
+    clearDocuKeepTourFocus();if(docuKeepTourElement)docuKeepTourElement.classList.add("hidden");document.body.classList.remove("dk-tour-open");$("dkOnboardingReminder")?.classList.add("hidden");toast("DocuKeep tutorial completed.","ok");
   }catch(error){console.error("Could not save tutorial progress",error);toast("Could not save tutorial progress. Your current step remains available.");}
-  finally{docuKeepTourSaving=false;if(finish){finish.disabled=false;finish.textContent="Finish";}}
+  finally{docuKeepTourSaving=false;if(finish){finish.disabled=false;finish.textContent="Finish Tutorial";}}
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&docuKeepTourElement&&!docuKeepTourElement.classList.contains("hidden"))finishDocuKeepTour(false);});
+window.addEventListener("resize",()=>{if(docuKeepTourElement&&!docuKeepTourElement.classList.contains("hidden"))positionDocuKeepTourCard(docuKeepTourTarget);});
 
 /* =========================================================
    SECURE OFFLINE ACCESS — AUTOMATIC DEVICE PROVISIONING
