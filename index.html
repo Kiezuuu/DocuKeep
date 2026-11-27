@@ -2887,6 +2887,13 @@ $("loginForm").addEventListener("submit", async e => {
     b.textContent = "Signing in…";
 
     try {
+        // Offline authentication must never call Supabase Auth.
+        // The locally stored, device-bound authorization is verified instead.
+        if (!navigator.onLine) {
+            await continueOfflineLogin(email, type);
+            return;
+        }
+
         const { data, error } = await sb.auth.signInWithPassword({
             email,
             password
@@ -2897,6 +2904,27 @@ $("loginForm").addEventListener("submit", async e => {
         await loadProfile(data.user, type);
 
     } catch (err) {
+        // A browser may report online even when the connection is unusable.
+        // Fall back only for network failures, never for invalid credentials,
+        // unapproved accounts, or other server-side authentication errors.
+        const networkFailure =
+            err?.name === "AuthRetryableFetchError" ||
+            err instanceof TypeError ||
+            /failed to fetch|network request failed|internet disconnected|load failed/i.test(String(err?.message || ""));
+
+        if (networkFailure) {
+            try {
+                await continueOfflineLogin(email, type);
+                return;
+            } catch (offlineError) {
+                console.warn("Offline sign-in could not be completed:", offlineError);
+                const message = offlineError?.message || "This device has no valid offline authorization.";
+                setAuthMessage("Offline login unavailable: " + message, "warn");
+                toast("Offline login unavailable: " + message);
+                return;
+            }
+        }
+
         console.error("Login error", err);
 
         setAuthMessage(
@@ -6096,10 +6124,16 @@ async function renderOfflineAccessSettings(){
   catch(e){expiry.textContent="Expired or invalid";expiry.className="pill rejected";if(message)message.textContent=e.message;}
 }
 
-async function continueOfflineLogin(){
+async function continueOfflineLogin(expectedEmail="", expectedRole=null){
   try{
     const record=await offlineGet("offlineAccess","current");
     const claims=await verifyDeviceAuthorization(record);
+    if(expectedEmail && String(claims.email||"").trim().toLowerCase()!==String(expectedEmail).trim().toLowerCase()){
+      throw Error("The email address does not match the account authorized on this device.");
+    }
+    if(expectedRole && claims.role!==expectedRole){
+      throw Error(`This device is authorized for the ${claims.role} account. Select ${claims.role} to continue.`);
+    }
     offlineClaims=claims;offlineSessionKey=record.dataKey;offlineMode=true;
     currentProfile={id:claims.sub,full_name:claims.full_name||"",email:claims.email||"",role:claims.role,status:"approved"};accountType=claims.role;
     $("auth").classList.add("hidden");$("app").classList.remove("hidden");$("adminNav").classList.add("hidden");
