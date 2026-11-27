@@ -2,7 +2,7 @@
 import { createPrivateKey, createPublicKey } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
-const expected = 'iiZPcjRJGyJIqdiNEgIo+PmHmfLucvyqOGHRw4Nvh7Y=';
+const expected = 'KagHtN5h3Bosagi6LyweAbuHelUmS2ZO7Tbss1vYS9Q=';
 
 try {
   // Paste your existing private JWK locally when prompted.

@@ -3224,7 +3224,33 @@ sb.auth.onAuthStateChange((event, session) => {
 ========================================================= */
 
 async function loadDocuments() {
-    if (!currentProfile || offlineMode || !navigator.onLine) return;
+    if (!currentProfile) return;
+
+    // Keep the existing Document Library as the single renderer in both modes.
+    // A network outage must never make the library return before reading IndexedDB.
+    if (offlineMode || !navigator.onLine) {
+        try {
+            if (!offlineClaims || !offlineSessionKey) {
+                const cachedAuthorization = await offlineGet("offlineAccess", "current");
+                if (cachedAuthorization?.accountId === currentProfile.id) {
+                    offlineClaims = await verifyDeviceAuthorization(cachedAuthorization);
+                    offlineSessionKey = cachedAuthorization.dataKey;
+                }
+            }
+            documents = offlineClaims?.sub === currentProfile.id
+                ? await loadOfflineCachedDocuments()
+                : await loadCachedDocumentsForAccount(currentProfile.id);
+            renderDocuments();
+            renderDashboard(documents);
+            return;
+        } catch (cacheError) {
+            console.warn("Could not load the local document cache:", cacheError);
+            documents = [];
+            renderDocuments();
+            renderDashboard(documents);
+            return;
+        }
+    }
 
     const { data, error } = await sb
         .from("documents")
@@ -4367,7 +4393,7 @@ async function downloadDoc(id) {
 async function previewDoc(id) {
     const d = documents.find(x => x.id === id);
     if (!d) return;
-    if (offlineMode) return openOfflineDocument(id);
+    if (offlineMode) return openCachedDocumentPreview(id);
 
     try {
         const url = await signedUrl(d);
@@ -4420,6 +4446,7 @@ async function previewDoc(id) {
 function closePreview() {
     $("previewModal").classList.remove("open");
     $("previewBody").innerHTML = "";
+    if (offlinePreviewObjectUrl) { URL.revokeObjectURL(offlinePreviewObjectUrl); offlinePreviewObjectUrl = null; }
 }
 
 window.previewDoc = previewDoc;
@@ -6179,45 +6206,96 @@ async function provisionOfflineAccessForCurrentDevice(user){
   await renderOfflineAccessSettings();
 }
 
+let docuKeepReconnectRunning = false;
+let docuKeepReconnectTimer = null;
+
 function setOfflineStatusUI(){
-  const online=navigator.onLine,chip=$("dkConnectionStatus");
-  if(chip){chip.textContent=online?"Online connection detected":"Offline";chip.className="pill "+(online?"approved":"pending");}
+  const chip=$("dkConnectionStatus");
+  const state=window.__docukeepConnectionState || (navigator.onLine ? "checking" : "offline");
+  const labels={offline:"Offline",connecting:"Reconnecting…",unavailable:"Supabase unavailable",reachable:"Online",syncing:"Syncing…",complete:"Online — Sync complete",checking:"Checking connection…"};
+  if(chip){chip.textContent=labels[state]||"Checking connection…";chip.className="pill "+(["reachable","complete"].includes(state)?"approved":"pending");}
+  const banner=$("dkOfflineModeBanner");
+  if(banner)banner.classList.toggle("visible",!!offlineMode || !navigator.onLine || state==="unavailable");
   const b=$("dkContinueOffline");if(b)b.disabled=false;
 }
-window.addEventListener("online",()=>{
-  setOfflineStatusUI();
-  (async()=>{
+
+async function enterCachedWorkspaceForCurrentAccount(){
+  if(!currentProfile)return false;
+  const record=await offlineGet("offlineAccess","current").catch(()=>null);
+  if(!record||record.accountId!==currentProfile.id)return false;
+  const claims=await verifyDeviceAuthorization(record);
+  offlineClaims=claims;offlineSessionKey=record.dataKey;offlineMode=true;
+  documents=await loadOfflineCachedDocuments();
+  $("dkOfflineModeBanner")?.classList.add("visible");
+  renderDocuments();renderDashboard(documents);
+  return true;
+}
+
+async function attemptAutomaticReconnect(){
+  if(docuKeepReconnectRunning||!navigator.onLine||!currentProfile)return;
+  if(!offlineMode&&serverReachable&&window.__docukeepConnectionState==="complete")return;
+  docuKeepReconnectRunning=true;
+  try{
+    window.__docukeepConnectionState="connecting";setOfflineStatusUI();
+    if(!(await verifyServerConnection())){window.__docukeepConnectionState="unavailable";setOfflineStatusUI();await updateOfflineStatus();return;}
+    const {data,error}=await sb.auth.getSession();
+    if(error)throw error;
+    const session=data?.session;
+    if(!session){
+      // Offline-only login intentionally has no Supabase session. Keep its local
+      // workspace intact until the user performs an authenticated online sign-in.
+      window.__docukeepConnectionState="reachable";setOfflineStatusUI();
+      await updateOfflineStatus();return;
+    }
+    if(currentProfile&&currentProfile.id!==session.user.id){
+      console.warn("Reconnect session belongs to a different account; retaining the current local view.");
+      window.__docukeepConnectionState="unavailable";setOfflineStatusUI();return;
+    }
+    const wasOffline=offlineMode;
+    if(wasOffline){offlineMode=false;offlineClaims=null;offlineSessionKey=null;}
     try{
-      if(!(await verifyServerConnection())){await updateOfflineStatus();return;}
-      const {data,error}=await sb.auth.getSession();
-      if(error)throw error;
-      const session=data?.session;
-      if(!session){await updateOfflineStatus();return;}
-      if(currentProfile&&currentProfile.id!==session.user.id){console.warn("Reconnect session belongs to a different account; retaining the current local view until explicit sign-out.");return;}
-      const wasOffline=offlineMode;
-      if(wasOffline){offlineMode=false;offlineClaims=null;offlineSessionKey=null;}
-      try{
-        await loadProfile(session.user,null);
-        await renderOfflineAccessSettings();
-        await loadDocuments();
-        await syncOfflineUploads();
-        await updateOfflineStatus();
-      }catch(validationError){
-        const approvalDenied=/awaiting staff approval|not approved|account is not approved|invalid account role/i.test(validationError?.message||"");
-        if(wasOffline&&approvalDenied){
-          // A reachable backend has authoritatively revoked approval; do not keep
-          // presenting the previously approved offline workspace.
-          await signOutOffline();
-          setAuthMessage("Your account is no longer approved. Contact the DocuKeep administrator.","warn");
-        }else if(wasOffline){
-          offlineMode=true;const rec=await offlineGet("offlineAccess","current").catch(()=>null);if(rec){offlineClaims=await verifyDeviceAuthorization(rec);offlineSessionKey=rec.dataKey;documents=await loadOfflineCachedDocuments();renderDocuments();renderDashboard(documents);}
-        }
-        throw validationError;
+      await loadProfile(session.user,null);
+      await renderOfflineAccessSettings();
+      window.__docukeepConnectionState="syncing";setOfflineStatusUI();
+      await syncOfflineUploads();
+      await loadDocuments();
+      await updateOfflineStatus();
+      window.__docukeepConnectionState="complete";serverReachable=true;setOfflineStatusUI();
+    }catch(validationError){
+      const approvalDenied=/awaiting staff approval|not approved|account is not approved|invalid account role/i.test(validationError?.message||"");
+      if(wasOffline&&approvalDenied){
+        await signOutOffline();
+        setAuthMessage("Your account is no longer approved. Contact the DocuKeep administrator.","warn");
+      }else if(wasOffline){
+        offlineMode=true;
+        await enterCachedWorkspaceForCurrentAccount().catch(()=>{});
       }
-    }catch(e){console.warn("Reconnect validation/synchronization deferred; local data is preserved:",e);await updateOfflineStatus();}
-  })();
+      throw validationError;
+    }
+  }catch(e){
+    console.warn("Reconnect validation/synchronization deferred; local data is preserved:",e);
+    if(window.__docukeepConnectionState!=="unavailable")window.__docukeepConnectionState="unavailable";
+    setOfflineStatusUI();await updateOfflineStatus();
+  }finally{docuKeepReconnectRunning=false;}
+}
+window.addEventListener("online",()=>{setOfflineStatusUI();attemptAutomaticReconnect();scheduleQueueRetry(3000);});
+window.addEventListener("offline",async()=>{
+  serverReachable=false;window.__docukeepConnectionState="offline";
+  if(currentProfile&&!offlineMode){
+    try{await enterCachedWorkspaceForCurrentAccount();}
+    catch(error){console.warn("Offline cache could not be activated:",error);}
+  }
+  setOfflineStatusUI();updateOfflineStatus();
 });
-window.addEventListener("offline",setOfflineStatusUI);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)attemptAutomaticReconnect();});
+window.addEventListener("focus",()=>attemptAutomaticReconnect());
+if(docuKeepReconnectTimer)clearInterval(docuKeepReconnectTimer);
+docuKeepReconnectTimer=setInterval(async()=>{
+  if(document.hidden||!currentProfile||!navigator.onLine)return;
+  const reachable=await verifyServerConnection();
+  if(!reachable){window.__docukeepConnectionState="unavailable";setOfflineStatusUI();return;}
+  if(offlineMode||window.__docukeepConnectionState!=="complete")attemptAutomaticReconnect();
+},30000);
 setOfflineStatusUI();
 
 async function renderOfflineAccessSettings(){
@@ -6282,7 +6360,7 @@ async function cacheDocumentForOffline(id,options={}){
     const response=await fetch(data.signedUrl);if(!response.ok)throw Error("Could not download the document using your current permissions.");
     const blob=await response.blob(),fileIv=crypto.getRandomValues(new Uint8Array(12)),metaIv=crypto.getRandomValues(new Uint8Array(12));
     const fileAad=utf8(`docukeep-offline-file:${currentProfile.id}:${doc.id}`),metaAad=utf8(`docukeep-offline-meta:${currentProfile.id}:${doc.id}`);
-    const metadata={title:doc.title,file_name:doc.file_name,mime_type:doc.mime_type,size_bytes:doc.size_bytes,created_at:doc.created_at,status:doc.status,owner_id:doc.owner_id,owner_name:doc.owner_name,is_public:!!doc.is_public,category:doc.category,account_id:currentProfile.id,document_id:doc.id};
+    const metadata={...doc,title:doc.title,file_name:doc.file_name,mime_type:doc.mime_type,size_bytes:doc.size_bytes,created_at:doc.created_at,status:doc.status,owner_id:doc.owner_id,owner_name:doc.owner_name,is_public:!!doc.is_public,category:doc.category,account_id:currentProfile.id,document_id:doc.id};
     const [encryptedFile,encryptedMeta]=await Promise.all([
       crypto.subtle.encrypt({name:"AES-GCM",iv:fileIv,additionalData:fileAad},record.dataKey,await blob.arrayBuffer()),
       crypto.subtle.encrypt({name:"AES-GCM",iv:metaIv,additionalData:metaAad},record.dataKey,utf8(JSON.stringify(metadata)))
@@ -6308,9 +6386,10 @@ async function loadCachedDocumentsForAccount(accountId){
   return result.sort((a,b)=>new Date(b.created_at||b.savedAt||0)-new Date(a.created_at||a.savedAt||0));
 }
 async function reconcileCachedDocuments(serverRows,accountId){
-  const allowed=new Set((serverRows||[]).map(d=>d.id));
-  const rows=(await offlineGetAll("offlineDocuments")).filter(r=>r.accountId===accountId);
-  const db=await openOfflineDB();await new Promise((resolve,reject)=>{const names=["offlineDocuments","offlineMyFiles","offlinePublicFiles","offlineSyncedFiles"];const tx=db.transaction(names,"readwrite");for(const row of rows)if(!allowed.has(row.id))for(const name of names)tx.objectStore(name).delete(row.id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();
+  // Deliberately retain encrypted offline copies during refresh/reconnect.
+  // Every cached row is account-bound and authenticated by the device authorization
+  // before it can be decrypted or rendered; no cache rows are deleted here.
+  return true;
 }
 async function cacheVisibleDocumentsForOffline(rows){
   if(offlineMode||!currentProfile||!navigator.onLine)return;
@@ -6318,7 +6397,7 @@ async function cacheVisibleDocumentsForOffline(rows){
   for(const doc of rows||[]){
     if(!navigator.onLine||!currentProfile||currentProfile.id!==record.accountId)break;
     const cached=await offlineGet("offlineDocuments",doc.id).catch(()=>null);
-    if(cached&&doc.sha256&&cached.sha256===doc.sha256){
+    if(cached&&(!doc.sha256||cached.sha256===doc.sha256)){
       const indexRecord={id:doc.id,accountId:currentProfile.id,owner_id:doc.owner_id,is_public:!!doc.is_public,sha256:doc.sha256,cachedAt:cached.savedAt};
       const primaryIndex=doc.owner_id!==currentProfile.id?"offlinePublicFiles":"offlineMyFiles";
       const secondaryIndex=primaryIndex==="offlinePublicFiles"?"offlineMyFiles":"offlinePublicFiles";
@@ -6358,13 +6437,42 @@ async function renderOfflineDocuments(){
   const items=await Promise.all(rows.map(async d=>{try{return {id:d.id,metadata:await decryptOfflineDocumentMetadata(d),savedAt:d.savedAt};}catch(_){return null;}}));
   host.innerHTML=items.filter(Boolean).map(d=>`<div class="dk-offline-doc"><div><strong>${escapeHTML(d.metadata.title||d.metadata.file_name||"Document")}</strong><small>${escapeHTML(d.metadata.file_name||"")} · Cached ${new Date(d.savedAt).toLocaleDateString()}</small></div><button class="btn secondary small" type="button" onclick="openOfflineDocument('${d.id}')">Open</button></div>`).join("")||'<div class="empty">No valid cached documents are available for this account.</div>';
 }
+async function getCachedDocumentBlob(id){
+  if(!offlineMode||!offlineSessionKey)throw Error("Offline session is not active.");
+  const d=await offlineGet("offlineDocuments",id);
+  if(!d||d.accountId!==offlineClaims?.sub)throw Error("Cached document not found for this account.");
+  const metadata=await decryptOfflineDocumentMetadata(d);
+  if(!d.fileIv||!d.fileCiphertext)throw Error("Only document details are cached on this device; the file contents are not available offline.");
+  const aad=utf8(`docukeep-offline-file:${offlineClaims.sub}:${d.id}`);
+  const plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64ToBytes(d.fileIv),additionalData:aad},offlineSessionKey,b64ToBytes(d.fileCiphertext));
+  return {metadata,blob:new Blob([plain],{type:metadata.mime_type||"application/octet-stream"})};
+}
+let offlinePreviewObjectUrl=null;
+async function openCachedDocumentPreview(id){
+  try{
+    const {metadata,blob}=await getCachedDocumentBlob(id);
+    if(offlinePreviewObjectUrl)URL.revokeObjectURL(offlinePreviewObjectUrl);
+    offlinePreviewObjectUrl=URL.createObjectURL(blob);
+    $("previewTitle").textContent=metadata.file_name||metadata.title||"Cached document";
+    $("previewBody").innerHTML="";
+    const mime=(metadata.mime_type||"").toLowerCase(),name=(metadata.file_name||"").toLowerCase();
+    if(mime==="application/pdf"||name.endsWith(".pdf")){
+      const frame=document.createElement("iframe");frame.src=offlinePreviewObjectUrl;frame.title="Cached PDF preview";$("previewBody").appendChild(frame);
+    }else if(mime.startsWith("image/")||/\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(name)){
+      const image=document.createElement("img");image.src=offlinePreviewObjectUrl;image.alt=metadata.file_name||"Cached document";$("previewBody").appendChild(image);
+    }else if(mime.startsWith("text/")||/\.(txt|md|csv|json|log)$/i.test(name)){
+      const pre=document.createElement("pre");pre.style.cssText="white-space:pre-wrap;overflow:auto;max-height:65vh;padding:16px";pre.textContent=await blob.text();$("previewBody").appendChild(pre);
+    }else{
+      const note=document.createElement("div");note.className="empty";note.style.padding="28px";note.textContent="This file is cached and can be downloaded, but this format cannot be previewed in the browser.";$("previewBody").appendChild(note);
+    }
+    $("previewDownload").onclick=()=>openOfflineDocument(id);
+    $("previewModal").classList.add("open");
+  }catch(error){toast("Could not preview cached document: "+error.message);}
+}
 async function openOfflineDocument(id){
   try{
-    if(!offlineMode||!offlineSessionKey)throw Error("Offline session is not active.");
-    const d=await offlineGet("offlineDocuments",id);if(!d||d.accountId!==offlineClaims?.sub)throw Error("Cached document not found for this account.");
-    const metadata=await decryptOfflineDocumentMetadata(d),aad=utf8(`docukeep-offline-file:${offlineClaims.sub}:${d.id}`);
-    const plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64ToBytes(d.fileIv),additionalData:aad},offlineSessionKey,b64ToBytes(d.fileCiphertext));
-    const blob=new Blob([plain],{type:metadata.mime_type||"application/octet-stream"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=metadata.file_name||"DocuKeep-document";a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
+    const {metadata,blob}=await getCachedDocumentBlob(id);
+    const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=metadata.file_name||"DocuKeep-document";a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
   }catch(e){toast("Could not open cached document: "+e.message);}
 }
 window.openOfflineDocument=openOfflineDocument;
