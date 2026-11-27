@@ -2888,6 +2888,13 @@ $("loginForm").addEventListener("submit", async e => {
     b.textContent = "Signing in…";
 
     try {
+        // Offline devices must never attempt Supabase password authentication.
+        // Use the previously provisioned, device-bound offline authorization instead.
+        if (!navigator.onLine) {
+            await continueOfflineLogin(type, email);
+            return;
+        }
+
         const { data, error } = await sb.auth.signInWithPassword({
             email,
             password
@@ -2899,6 +2906,20 @@ $("loginForm").addEventListener("submit", async e => {
 
     } catch (err) {
         console.error("Login error", err);
+
+        // A connection can disappear after navigator.onLine was checked.
+        // Fall back only for network failures, never for invalid credentials,
+        // unconfirmed email, or account-policy errors.
+        const networkFailure =
+            !navigator.onLine ||
+            err?.name === "AuthRetryableFetchError" ||
+            (err instanceof TypeError && /fetch|network|load failed/i.test(err.message || "")) ||
+            /failed to fetch|network request failed|internet disconnected/i.test(err?.message || "");
+
+        if (networkFailure) {
+            await continueOfflineLogin(type, email);
+            return;
+        }
 
         setAuthMessage(
             "Login failed: " + friendlyAuthError(err),
@@ -6105,10 +6126,12 @@ async function renderOfflineAccessSettings(){
   catch(e){expiry.textContent="Expired or invalid";expiry.className="pill rejected";if(message)message.textContent=e.message;}
 }
 
-async function continueOfflineLogin(){
+async function continueOfflineLogin(expectedType=null, expectedEmail=null){
   try{
     const record=await offlineGet("offlineAccess","current");
     const claims=await verifyDeviceAuthorization(record);
+    if(expectedType && claims.role!==expectedType)throw Error(`This device's offline authorization is for ${claims.role}. Select ${claims.role} to continue.`);
+    if(expectedEmail && String(claims.email||"").trim().toLowerCase()!==String(expectedEmail).trim().toLowerCase())throw Error("The email address does not match the account authorized on this device.");
     offlineClaims=claims;offlineSessionKey=record.dataKey;offlineMode=true;
     currentProfile={id:claims.sub,full_name:claims.full_name||"",email:claims.email||"",role:claims.role,status:"approved"};accountType=claims.role;
     documents=await loadOfflineCachedDocuments();
