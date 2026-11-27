@@ -1499,6 +1499,17 @@ body.dk-tour-open { overflow:hidden; }
 @media(max-width:760px){.dk-tour-card{right:10px!important;left:10px!important;bottom:10px!important;width:auto!important;max-height:min(48vh,390px)!important}.dk-tour-card h2{font-size:19px!important}.dk-tour-card p{font-size:12px!important}.dk-tour-actions{gap:7px!important;padding:0 13px 14px!important}.dk-tour-left,.dk-tour-right{gap:6px!important}.dk-tour-actions .btn{font-size:11px!important;padding:8px 10px!important}}
 @media(max-width:390px){.dk-tour-card{max-height:52vh!important}.dk-tour-actions .btn{padding:7px 8px!important;font-size:10px!important}}
 
+/* Onboarding viewport fix: scroll instructions independently; keep controls pinned. */
+.dk-tour-backdrop{padding:0!important;pointer-events:none!important}
+.dk-tour-card{display:flex!important;flex-direction:column!important;min-height:0!important;max-height:calc(100vh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;max-height:calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;overflow:hidden!important;overscroll-behavior:contain!important}
+.dk-tour-content{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch!important;padding:0 0 4px!important}
+.dk-tour-actions{position:relative!important;z-index:2!important;display:flex!important;flex:0 0 auto!important;align-items:center!important;justify-content:space-between!important;flex-wrap:wrap!important;gap:8px!important;margin:0!important;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))!important;border-top:1px solid #edf1f6!important;background:#fff!important;box-shadow:0 -5px 14px rgba(20,40,65,.05)!important}
+.dk-tour-left,.dk-tour-right{display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:7px!important;min-width:0!important}
+.dk-tour-actions .btn{min-height:40px!important;white-space:normal!important;touch-action:manipulation!important}
+@media(max-width:760px){.dk-tour-card{left:10px!important;right:10px!important;width:auto!important;max-height:calc(100vh - 20px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;max-height:calc(100dvh - 20px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;border-radius:16px!important}.dk-tour-actions{gap:8px!important;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))!important}.dk-tour-left,.dk-tour-right{gap:6px!important}.dk-tour-actions .btn{min-height:40px!important;padding:9px 11px!important;font-size:12px!important}}
+@media(max-width:390px){.dk-tour-actions{justify-content:center!important}.dk-tour-left,.dk-tour-right{flex:1 1 100%!important;justify-content:space-between!important}.dk-tour-actions .btn{flex:1 1 auto!important;min-width:0!important;padding:9px 7px!important;font-size:11px!important}}
+@supports(height:100dvh){.dk-tour-card{max-height:calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important}}
+
 
         /* Registration success confirmation */
         .registration-success-backdrop {
@@ -6121,7 +6132,7 @@ function ensureTourElement(){
   wrap.className="dk-tour-backdrop hidden";wrap.id="docuKeepTour";
   wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","false");
   wrap.setAttribute("aria-labelledby","dkTourTitle");wrap.setAttribute("aria-describedby","dkTourText");
-  wrap.innerHTML=`<section class="dk-tour-card"><div class="dk-tour-top"><div class="dk-tour-brand"><span class="dk-tour-brand-mark">✦</span> DocuKeep guide</div><div class="dk-tour-kicker" id="dkTourCount">Step 1 of 10</div></div><div class="dk-tour-progress"><span id="dkTourProgress"></span></div><h2 id="dkTourTitle"></h2><p id="dkTourText"></p><div class="dk-tour-tip" id="dkTourTip"></div><div class="dk-tour-actions"><div class="dk-tour-left"><button class="btn secondary" type="button" id="dkTourBack">Previous</button><button class="btn secondary" type="button" id="dkTourSkip">Skip</button></div><div class="dk-tour-right"><button class="btn" type="button" id="dkTourNext">Next</button><button class="btn hidden" type="button" id="dkTourFinish">Finish Tutorial</button></div></div></section>`;
+  wrap.innerHTML=`<section class="dk-tour-card"><div class="dk-tour-content"><div class="dk-tour-top"><div class="dk-tour-brand"><span class="dk-tour-brand-mark">✦</span> DocuKeep guide</div><div class="dk-tour-kicker" id="dkTourCount">Step 1 of 10</div></div><div class="dk-tour-progress"><span id="dkTourProgress"></span></div><h2 id="dkTourTitle"></h2><p id="dkTourText"></p><div class="dk-tour-tip" id="dkTourTip"></div></div><div class="dk-tour-actions"><div class="dk-tour-left"><button class="btn secondary" type="button" id="dkTourBack">Previous</button><button class="btn secondary" type="button" id="dkTourSkip">Skip</button></div><div class="dk-tour-right"><button class="btn" type="button" id="dkTourNext">Next</button><button class="btn hidden" type="button" id="dkTourFinish">Finish Tutorial</button></div></div></section>`;
   document.body.appendChild(wrap);docuKeepTourElement=wrap;
   wrap.querySelector("#dkTourBack").addEventListener("click",()=>showDocuKeepTourStep(docuKeepTourIndex-1));
   wrap.querySelector("#dkTourSkip").addEventListener("click",()=>finishDocuKeepTour(true,true));
@@ -6139,6 +6150,7 @@ function showDocuKeepTourStep(index){
   try{target=step.target?document.querySelector(step.target):null;}catch(err){console.warn("Invalid onboarding target:",step.target,err);}
   if(target){docuKeepTourTarget=target;target.classList.add("dk-tour-focus");try{target.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center",inline:"nearest"});}catch(_){}}
   const el=ensureTourElement();el.classList.remove("hidden");document.body.classList.add("dk-tour-open");
+  const tourContent=el.querySelector(".dk-tour-content");if(tourContent)tourContent.scrollTop=0;
   positionDocuKeepTourCard(target);requestAnimationFrame(()=>positionDocuKeepTourCard(target));
   $("dkTourCount").textContent=`Step ${docuKeepTourIndex+1} of ${DOCUKEEP_TOUR_STEPS.length}`;
   $("dkTourTitle").textContent=step.title;$("dkTourText").textContent=step.text;$("dkTourTip").textContent=step.tip||"";
