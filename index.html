@@ -2213,6 +2213,7 @@ let selectedDocumentId = null;
 let documentSearchTerm = "";
 let documentVisibilityFilter = "all";
 let selectedUploadFiles = [];
+const selectedUploadDrafts = new WeakMap();
 let cancelUploadRequested = false;
 let folderCache = [];
 
@@ -3235,12 +3236,28 @@ async function loadDocuments() {
         .order("created_at", { ascending: false });
 
     if (error) {
-        console.error(error);
-        toast("Could not load documents: " + error.message);
+        console.error("Could not refresh documents from Supabase:", error);
+        const cached = await loadCachedDocumentsForAccount(currentProfile.id).catch(() => []);
+        if (cached.length) {
+            // Switch the existing workspace into its protected local-only mode so
+            // file actions never try to open remote signed URLs while disconnected.
+            await continueOfflineLogin(null, null, {silent:true});
+            renderDocuments();
+            renderDashboard(documents);
+            toast("Showing previously synchronized files. Cloud updates will resume when Supabase is reachable.");
+        } else {
+            toast("Could not load documents: " + error.message);
+        }
         return;
     }
 
     documents = data || [];
+    // Reconcile cached visibility against the latest RLS-authorized server result.
+    // This removes locally cached copies only after a successful server read.
+    await reconcileCachedDocuments(documents, currentProfile.id).catch(e => console.warn("Offline cache reconciliation failed:", e));
+    // Cache files the user can currently access (personal and public) so they remain
+    // available after a later outage. Existing matching hashes are not downloaded again.
+    cacheVisibleDocumentsForOffline(documents).catch(e => console.warn("Automatic offline caching was incomplete:", e));
 
     renderDocuments();
     updateStorageStats();
@@ -3518,12 +3535,15 @@ let notificationRealtimeChannel = null;
 
 function openOfflineDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 4);
+        const request = indexedDB.open(DB_NAME, 5);
         request.onupgradeneeded = () => {
             const db = request.result;
             if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
             if (!db.objectStoreNames.contains("offlineAccess")) db.createObjectStore("offlineAccess", { keyPath: "id" });
             if (!db.objectStoreNames.contains("offlineDocuments")) db.createObjectStore("offlineDocuments", { keyPath: "id" });
+            if (!db.objectStoreNames.contains("offlineMyFiles")) db.createObjectStore("offlineMyFiles", { keyPath: "id" });
+            if (!db.objectStoreNames.contains("offlinePublicFiles")) db.createObjectStore("offlinePublicFiles", { keyPath: "id" });
+            if (!db.objectStoreNames.contains("offlineSyncedFiles")) db.createObjectStore("offlineSyncedFiles", { keyPath: "id" });
         };
         request.onsuccess = () => {
             const db = request.result;
@@ -3731,8 +3751,8 @@ async function syncOfflineUploads() {
             await removeQueuedUpload(cancelled.id);
         }
         const now = Date.now();
-        const retryLater = allJobs.filter(j => !["Paused", "Upload Failed", "Completed", "Cancelled"].includes(j.status) && Number(j.nextRetryAt || 0) > now);
-        const ready = allJobs.filter(j => !["Paused", "Upload Failed", "Cancelled", "Completed"].includes(j.status) && Number(j.nextRetryAt || 0) <= now);
+        const retryLater = allJobs.filter(j => !j.draftSelection && !["Paused", "Upload Failed", "Completed", "Cancelled"].includes(j.status) && Number(j.nextRetryAt || 0) > now);
+        const ready = allJobs.filter(j => !j.draftSelection && !["Paused", "Upload Failed", "Cancelled", "Completed"].includes(j.status) && Number(j.nextRetryAt || 0) <= now);
         for (const job of ready) {
             if (!navigator.onLine || !currentProfile || currentProfile.id !== ownerAtStart) break;
             if (pausedUploadIds.has(job.id) || cancelledUploadIds.has(job.id)) continue;
@@ -3983,6 +4003,9 @@ function renderSelectedUploadFiles() {
         </div>`).join("");
 }
 function removeSelectedUploadFile(index) {
+    const file=selectedUploadFiles[index];
+    const draftId=file?selectedUploadDrafts.get(file):null;
+    if(draftId){removeQueuedUpload(draftId).then(renderQueuedUploadManager).catch(e=>console.warn("Could not remove unsubmitted local file draft:",e));selectedUploadDrafts.delete(file);}
     selectedUploadFiles.splice(index, 1);
     renderSelectedUploadFiles();
     if (!selectedUploadFiles.length) $("file").value = "";
@@ -3992,6 +4015,17 @@ window.removeSelectedUploadFile = removeSelectedUploadFile;
 $("file").addEventListener("change", e => {
     selectedUploadFiles = Array.from(e.target.files || []);
     renderSelectedUploadFiles();
+    if(!navigator.onLine || offlineMode){
+      (async()=>{
+        for(const file of selectedUploadFiles){
+          if(selectedUploadDrafts.has(file))continue;
+          const id=crypto.randomUUID(),safeName=file.name.replace(/[^\w.\-]/g,"_");
+          const job={id,path:`${currentProfile.id}/${id}/${safeName}`,file,sha256:await sha256File(file),title:file.name,category:"Uncategorized",ownerId:currentProfile.id,ownerName:currentProfile.full_name,fileName:file.name,mimeType:file.type||"application/octet-stream",sizeBytes:file.size,status:"Draft — Waiting for Details",draftSelection:true,progressPercent:0,createdAt:new Date().toISOString(),retryCount:0,lastError:"File content is saved locally. Complete the upload form and submit to queue synchronization."};
+          await queueOfflineUpload(job);selectedUploadDrafts.set(file,id);
+        }
+        await renderQueuedUploadManager();await updateOfflineStatus();
+      })().catch(error=>{console.error("Could not save selected offline file:",error);toast("Could not save the selected file locally: "+error.message);});
+    }
 });
 
 async function renderQueuedUploadManager() {
@@ -4003,7 +4037,9 @@ async function renderQueuedUploadManager() {
         host.innerHTML = jobs.length ? `
             <div class="queued-upload-heading">Upload queue · ${jobs.length}</div>
             ${jobs.map(job => {
-                const status = job.status || "Queued";
+                const rawStatus = job.status || "Queued";
+                const status = rawStatus;
+                const displayStatus = job.draftSelection ? "Pending Upload — Complete Details" : rawStatus === "Waiting for Internet" ? "Pending Upload — Waiting for Internet" : rawStatus;
                 const pct = Math.max(0, Math.min(100, Number(job.progressPercent || 0)));
                 const isActive = status === "Uploading";
                 const isPaused = status === "Paused";
@@ -4012,13 +4048,13 @@ async function renderQueuedUploadManager() {
                     <span class="file-type-icon file-${documentFileKind({file_name:job.fileName,mime_type:job.mimeType}).toLowerCase()}">${documentFileKind({file_name:job.fileName,mime_type:job.mimeType})}</span>
                     <div class="queued-upload-main">
                         <div class="queued-upload-fileline"><strong title="${escapeHTML(job.fileName)}">${escapeHTML(job.fileName)}</strong><span>${humanBytes(job.sizeBytes)}</span></div>
-                        <div class="queued-upload-status"><span>${escapeHTML(status)}</span><span data-queue-percent="${job.id}">${pct}%</span></div>
+                        <div class="queued-upload-status"><span>${escapeHTML(displayStatus)}</span><span data-queue-percent="${job.id}">${pct}%</span></div>
                         <div class="queued-upload-track"><span data-queue-progress="${job.id}" style="width:${pct}%"></span></div>
                         ${job.lastError ? `<small class="queued-upload-error">${escapeHTML(job.lastError)}</small>` : ""}
                     </div>
                     <div class="queued-upload-actions">
                         ${isActive ? `<button type="button" class="btn secondary small" onclick="pauseQueuedUpload('${job.id}')" aria-label="Pause upload" title="Pause upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>` : ""}
-                        ${(isPaused || failed || status === "Waiting for Retry" || status === "Waiting for Connection" || status === "Waiting for Internet" || status === "Waiting for Sign-in" || status === "Queued") ? `<button type="button" class="btn secondary small" onclick="resumeQueuedUpload('${job.id}')" aria-label="Resume upload" title="Resume upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ""}
+                        ${(!job.draftSelection && (isPaused || failed || status === "Waiting for Retry" || status === "Waiting for Connection" || status === "Waiting for Internet" || status === "Waiting for Sign-in" || status === "Queued")) ? `<button type="button" class="btn secondary small" onclick="resumeQueuedUpload('${job.id}')" aria-label="Resume upload" title="Resume upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ""}
                         ${status !== "Completed" ? `<button type="button" class="btn danger small" onclick="cancelQueuedUpload('${job.id}')" aria-label="Cancel upload" title="Cancel upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>` : `<span class="queued-upload-done" aria-label="Completed">✓</span>`}
                     </div>
                 </div>`;
@@ -4120,6 +4156,7 @@ $("uploadForm").addEventListener("submit", async e => {
     try {
         window.__docukeepConnectionState = navigator.onLine ? "connecting" : "offline";
         const onlineToServer = await verifyServerConnection();
+        const existingQueueJobs = await getQueuedUploads();
         for (let index = 0; index < files.length; index++) {
             if (cancelUploadRequested) break;
             const file = files[index];
@@ -4136,7 +4173,9 @@ $("uploadForm").addEventListener("submit", async e => {
                 continue;
             }
 
-            const id = crypto.randomUUID();
+            const draftId = selectedUploadDrafts.get(file);
+            const existingDraft = draftId ? existingQueueJobs.find(j => j.id === draftId && j.ownerId === currentProfile.id && j.draftSelection) : null;
+            const id = existingDraft?.id || crypto.randomUUID();
             const safeName = file.name.replace(/[^\w.\-]/g, "_");
             const hash = await sha256File(file);
             const duplicate = hash && documents.find(doc =>
@@ -4145,8 +4184,9 @@ $("uploadForm").addEventListener("submit", async e => {
             if (duplicate && !confirm(`This file may duplicate "${duplicate.file_name || duplicate.title}". Upload anyway?`)) continue;
 
             const job = {
+                ...(existingDraft || {}),
                 id,
-                path: `${currentProfile.id}/${id}/${safeName}`,
+                path: existingDraft?.path || `${currentProfile.id}/${id}/${safeName}`,
                 file,
                 sha256: hash,
                 title: files.length === 1 ? title : `${title} - ${file.name}`,
@@ -4163,10 +4203,12 @@ $("uploadForm").addEventListener("submit", async e => {
                 mimeType: file.type || "application/octet-stream",
                 sizeBytes: file.size,
                 status: !navigator.onLine ? "Waiting for Internet" : onlineToServer ? "Queued" : "Connecting",
+                draftSelection: false,
                 progressPercent: 0,
-                createdAt: new Date().toISOString(),
-                retryCount: 0
+                createdAt: existingDraft?.createdAt || new Date().toISOString(),
+                retryCount: Number(existingDraft?.retryCount || 0)
             };
+            selectedUploadDrafts.delete(file);
 
             try {
                 if (!navigator.onLine) {
@@ -5695,14 +5737,26 @@ window.signOut = signOut;
 ========================================================= */
 
 async function restoreSession() {
-    if (!navigator.onLine) return; // Avoid treating a cached Supabase session as offline authentication.
-    const { data, error } = await sb.auth.getSession();
-
-    if (error) throw error;
-
-    if (data.session) {
-        await loadProfile(data.session.user, null);
+    // Supabase persists its session in the browser. A temporary network outage must
+    // not discard it; use the already provisioned device authorization when the
+    // profile endpoint cannot be reached.
+    let session = null;
+    try {
+        const { data, error } = await sb.auth.getSession();
+        if (error) throw error;
+        session = data?.session || null;
+    } catch (error) {
+        console.warn("Could not reach Supabase while restoring the session:", error);
     }
+    if (session && navigator.onLine) {
+        try { await loadProfile(session.user, null); return; }
+        catch (error) {
+            if (navigator.onLine && !(error instanceof TypeError) && !/fetch|network|timeout|temporar/i.test(error?.message || "")) throw error;
+            console.warn("Online session exists but profile validation is temporarily unavailable; using cached authorization.", error);
+        }
+    }
+    // Automatic offline restore means refresh/reopen does not require password entry.
+    await continueOfflineLogin(null, null, {silent:true});
 }
 
 /* =========================================================
@@ -5998,46 +6052,68 @@ function showDocuKeepTourStep(index){
   $("dkTourFinish").classList.toggle("hidden",!last);
   $("dkTourFinish").disabled=false;$("dkTourFinish").textContent="Finish";
   const focusControl=last?$("dkTourFinish"):$("dkTourNext");if(focusControl)focusControl.focus({preventScroll:true});
+  persistOnboardingProgress("in_progress");ensureOnboardingReminder("in_progress");
+}
+function onboardingLocalKey(userId){return `docukeep:onboarding:${userId}`;}
+function readLocalOnboarding(){try{return JSON.parse(localStorage.getItem(onboardingLocalKey(currentProfile?.id))||"{}");}catch(_){return {};}}
+async function persistOnboardingProgress(status="in_progress",extra={}){
+  if(!currentProfile)return;
+  const record={status,current_step:docuKeepTourIndex,updated_at:new Date().toISOString(),...extra};
+  try{localStorage.setItem(onboardingLocalKey(currentProfile.id),JSON.stringify(record));}catch(e){console.warn("Local onboarding progress could not be saved:",e);}
+  if(offlineMode||!navigator.onLine)return;
+  try{
+    const {error}=await sb.from("docukeep_onboarding_progress").upsert({user_id:currentProfile.id,status,current_step:docuKeepTourIndex,skipped_at:status==="skipped"?new Date().toISOString():null,completed_at:status==="completed"?new Date().toISOString():null,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+    if(error)throw error;
+  }catch(error){console.warn("Server onboarding progress sync deferred:",error);}
+}
+function ensureOnboardingReminder(status="not_started"){
+  const page=$("page-dashboard");if(!page)return;
+  let card=$("dkOnboardingReminder");
+  if(!card){card=document.createElement("section");card.id="dkOnboardingReminder";card.className="panel";card.style.cssText="margin:0 0 18px;padding:16px 18px;border:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap";const anchor=page.querySelector(".dashboard-quickstats")||page.firstElementChild;page.insertBefore(card,anchor);}
+  const labels={not_started:"Not Started",in_progress:"In Progress",skipped:"Skipped"};
+  card.innerHTML=`<div><strong>Finish setting up DocuKeep</strong><div class="muted" style="font-size:13px;margin-top:4px">Your tutorial is ${labels[status]||"In Progress"}. Continue from step ${docuKeepTourIndex+1} of ${DOCUKEEP_TOUR_STEPS.length}.</div></div><button type="button" class="btn" id="dkContinueTutorialBtn">${status==="skipped"?"Start Tutorial":"Continue Tutorial"}</button>`;
+  $("dkContinueTutorialBtn")?.addEventListener("click",()=>showDocuKeepTourStep(docuKeepTourIndex));
+  card.classList.remove("hidden");
 }
 async function maybeStartOnboarding(){
   if(!currentProfile)return;
-  try{
-    const {data,error}=await sb.from("docukeep_onboarding_progress").select("completed_at").eq("user_id",currentProfile.id).maybeSingle();
-    if(error){console.warn("Onboarding status unavailable; apply docukeep_onboarding_migration.sql first.",error);return;}
-    if(!data?.completed_at)showDocuKeepTourStep(0);
-  }catch(error){console.warn("Could not check onboarding progress",error);}
+  let data=null;
+  const local=readLocalOnboarding();
+  if(!offlineMode&&navigator.onLine){
+    try{const result=await sb.from("docukeep_onboarding_progress").select("completed_at,status,current_step,skipped_at").eq("user_id",currentProfile.id).maybeSingle();if(result.error)throw result.error;data=result.data;}
+    catch(error){console.warn("Onboarding status unavailable; using local progress:",error);}
+  }
+  const progress=data||local||{};
+  if(progress.status==="completed"||progress.completed_at){$("dkOnboardingReminder")?.classList.add("hidden");return;}
+  const status=progress.status|| (progress.skipped_at?"skipped":(Number(progress.current_step)>0?"in_progress":"not_started"));
+  docuKeepTourIndex=Math.max(0,Math.min(Number(progress.current_step)||0,DOCUKEEP_TOUR_STEPS.length-1));
+  ensureOnboardingReminder(status);
+  // First-time users see the guide automatically. Returning users resume only if
+  // they had already started; skipped users keep a dashboard reminder.
+  if(status!=="skipped")showDocuKeepTourStep(docuKeepTourIndex);
 }
-function replayOnboarding(){const menu=$("profileMenu");if(menu)menu.open=false;showDocuKeepTourStep(0);}
+function replayOnboarding(){const menu=$("profileMenu");if(menu)menu.open=false;showDocuKeepTourStep(docuKeepTourIndex);}
 window.replayOnboarding=replayOnboarding;
 async function finishDocuKeepTour(completed,skipImmediately=false){
   if(!completed){
-    clearDocuKeepTourFocus();
-    if(docuKeepTourElement)docuKeepTourElement.classList.add("hidden");
-    document.body.classList.remove("dk-tour-open");
-    return;
+    clearDocuKeepTourFocus();if(docuKeepTourElement)docuKeepTourElement.classList.add("hidden");document.body.classList.remove("dk-tour-open");
+    await persistOnboardingProgress("in_progress");ensureOnboardingReminder("in_progress");return;
   }
   if(!currentProfile||docuKeepTourSaving)return;
   docuKeepTourSaving=true;
   const finish=$("dkTourFinish");if(finish){finish.disabled=true;finish.textContent="Saving…";}
-  if(skipImmediately){
-    clearDocuKeepTourFocus();
-    if(docuKeepTourElement)docuKeepTourElement.classList.add("hidden");
-    document.body.classList.remove("dk-tour-open");
-  }
   try{
-    const now=new Date().toISOString();
-    const {error}=await sb.from("docukeep_onboarding_progress").upsert({user_id:currentProfile.id,completed_at:now,updated_at:now},{onConflict:"user_id"});
-    if(error)throw error;
-    if(!skipImmediately){
-      clearDocuKeepTourFocus();
-      if(docuKeepTourElement)docuKeepTourElement.classList.add("hidden");
-      document.body.classList.remove("dk-tour-open");
+    if(skipImmediately){
+      await persistOnboardingProgress("skipped");
+      clearDocuKeepTourFocus();if(docuKeepTourElement)docuKeepTourElement.classList.add("hidden");document.body.classList.remove("dk-tour-open");
+      ensureOnboardingReminder("skipped");toast("Tutorial skipped. You can continue it anytime from the dashboard.","ok");return;
     }
-    toast(skipImmediately?"Tutorial skipped.":"DocuKeep tutorial completed.","ok");
-  }catch(error){
-    console.error("Could not save tutorial completion",error);
-    toast(skipImmediately?"Tutorial closed, but skip status could not be saved.":"Could not save tutorial progress. Please try Finish again.");
-  }finally{docuKeepTourSaving=false;if(finish){finish.disabled=false;finish.textContent="Finish";}}
+    if(docuKeepTourIndex!==DOCUKEEP_TOUR_STEPS.length-1)throw Error("Reach the final tutorial step before completing the guide.");
+    await persistOnboardingProgress("completed");
+    clearDocuKeepTourFocus();if(docuKeepTourElement)docuKeepTourElement.classList.add("hidden");document.body.classList.remove("dk-tour-open");
+    $("dkOnboardingReminder")?.classList.add("hidden");toast("DocuKeep tutorial completed.","ok");
+  }catch(error){console.error("Could not save tutorial progress",error);toast("Could not save tutorial progress. Your current step remains available.");}
+  finally{docuKeepTourSaving=false;if(finish){finish.disabled=false;finish.textContent="Finish";}}
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&docuKeepTourElement&&!docuKeepTourElement.classList.contains("hidden"))finishDocuKeepTour(false);});
 
@@ -6046,7 +6122,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&docuKeepTourElement
    The upload queue and its synchronization implementation are intentionally
    outside this block and are not modified by offline authentication.
 ========================================================= */
-const OFFLINE_ED25519_PUBLIC_KEY = "M3NZr4ua7HEhPhvDD2lFM+R8+bVYx7FMY40q5A1yN1w=";
+const OFFLINE_ED25519_PUBLIC_KEY = "dwxTemFh0Sg/kwraWi3gQlHma+Yt7zjhmICfCt8vcg4=";
 let offlineSessionKey = null;
 let offlineClaims = null;
 
@@ -6110,10 +6186,36 @@ function setOfflineStatusUI(){
 }
 window.addEventListener("online",()=>{
   setOfflineStatusUI();
-  if(offlineMode){signOutOffline();setAuthMessage("Connection restored. Sign in online to revalidate your account and resume cloud features.","warn");}
-  else if(currentProfile){
-    (async()=>{try{const {data,error}=await sb.auth.getSession();if(error||!data.session||data.session.user.id!==currentProfile.id)return;await loadProfile(data.session.user,null);await renderOfflineAccessSettings();}catch(e){console.warn("Online account revalidation failed:",e);}})();
-  }
+  (async()=>{
+    try{
+      if(!(await verifyServerConnection())){await updateOfflineStatus();return;}
+      const {data,error}=await sb.auth.getSession();
+      if(error)throw error;
+      const session=data?.session;
+      if(!session){await updateOfflineStatus();return;}
+      if(currentProfile&&currentProfile.id!==session.user.id){console.warn("Reconnect session belongs to a different account; retaining the current local view until explicit sign-out.");return;}
+      const wasOffline=offlineMode;
+      if(wasOffline){offlineMode=false;offlineClaims=null;offlineSessionKey=null;}
+      try{
+        await loadProfile(session.user,null);
+        await renderOfflineAccessSettings();
+        await loadDocuments();
+        await syncOfflineUploads();
+        await updateOfflineStatus();
+      }catch(validationError){
+        const approvalDenied=/awaiting staff approval|not approved|account is not approved|invalid account role/i.test(validationError?.message||"");
+        if(wasOffline&&approvalDenied){
+          // A reachable backend has authoritatively revoked approval; do not keep
+          // presenting the previously approved offline workspace.
+          await signOutOffline();
+          setAuthMessage("Your account is no longer approved. Contact the DocuKeep administrator.","warn");
+        }else if(wasOffline){
+          offlineMode=true;const rec=await offlineGet("offlineAccess","current").catch(()=>null);if(rec){offlineClaims=await verifyDeviceAuthorization(rec);offlineSessionKey=rec.dataKey;documents=await loadOfflineCachedDocuments();renderDocuments();renderDashboard(documents);}
+        }
+        throw validationError;
+      }
+    }catch(e){console.warn("Reconnect validation/synchronization deferred; local data is preserved:",e);await updateOfflineStatus();}
+  })();
 });
 window.addEventListener("offline",setOfflineStatusUI);
 setOfflineStatusUI();
@@ -6126,7 +6228,7 @@ async function renderOfflineAccessSettings(){
   catch(e){expiry.textContent="Expired or invalid";expiry.className="pill rejected";if(message)message.textContent=e.message;}
 }
 
-async function continueOfflineLogin(expectedType=null, expectedEmail=null){
+async function continueOfflineLogin(expectedType=null, expectedEmail=null, options={}){
   try{
     const record=await offlineGet("offlineAccess","current");
     const claims=await verifyDeviceAuthorization(record);
@@ -6155,8 +6257,8 @@ async function continueOfflineLogin(expectedType=null, expectedEmail=null){
     $("dkOfflineModeBanner").classList.add("visible");
     const storageCard=document.querySelector(".storage-card");if(storageCard){storageCard.querySelector(".dashboard-panel-head h2").textContent="Offline availability";storageCard.querySelector(".storage-meta").innerHTML=`<span>Cached documents: <b>${documents.length}</b></span><span>Account: <b>Locally verified</b></span>`;storageCard.querySelector(".storage-track").classList.add("hidden");storageCard.querySelector("#storageUpgradeHint").textContent="Only documents previously cached on this device are available. Cloud storage details require an internet connection.";storageCard.querySelector("#storageUpgradeButton")?.classList.add("hidden");}
     go("dashboard");renderDashboard(documents);renderDocumentCards(documents);
-    toast(`Offline login successful. ${documents.length} cached document(s) available.`);
-  }catch(e){console.error("Offline login rejected",e);const msg=$("dkAuthOfflineMessage");if(msg)msg.textContent=e.message;toast("Offline login unavailable: "+e.message);}
+    if(!options.silent)toast(`Offline login successful. ${documents.length} cached document(s) available.`);
+  }catch(e){console.error("Offline login rejected",e);const msg=$("dkAuthOfflineMessage");if(msg)msg.textContent=e.message;if(!options.silent)toast("Offline login unavailable: "+e.message);}
 }
 window.continueOfflineLogin=continueOfflineLogin;
 
@@ -6185,12 +6287,49 @@ async function cacheDocumentForOffline(id,options={}){
       crypto.subtle.encrypt({name:"AES-GCM",iv:fileIv,additionalData:fileAad},record.dataKey,await blob.arrayBuffer()),
       crypto.subtle.encrypt({name:"AES-GCM",iv:metaIv,additionalData:metaAad},record.dataKey,utf8(JSON.stringify(metadata)))
     ]);
-    const saved={id:doc.id,accountId:currentProfile.id,fileIv:bytesToB64(fileIv),fileCiphertext:bytesToB64(new Uint8Array(encryptedFile)),metaIv:bytesToB64(metaIv),metaCiphertext:bytesToB64(new Uint8Array(encryptedMeta)),savedAt:new Date().toISOString()};
+    const saved={id:doc.id,accountId:currentProfile.id,sha256:doc.sha256||null,fileIv:bytesToB64(fileIv),fileCiphertext:bytesToB64(new Uint8Array(encryptedFile)),metaIv:bytesToB64(metaIv),metaCiphertext:bytesToB64(new Uint8Array(encryptedMeta)),savedAt:new Date().toISOString()};
     await offlineStore("offlineDocuments","readwrite",store=>store.put(saved));
+    const indexRecord={id:doc.id,accountId:currentProfile.id,owner_id:doc.owner_id,is_public:!!doc.is_public,sha256:doc.sha256||null,cachedAt:saved.savedAt};
+    const primaryIndex=doc.owner_id!==currentProfile.id?"offlinePublicFiles":"offlineMyFiles";
+    const secondaryIndex=primaryIndex==="offlinePublicFiles"?"offlineMyFiles":"offlinePublicFiles";
+    await offlineStore(primaryIndex,"readwrite",store=>store.put(indexRecord));
+    await offlineStore(secondaryIndex,"readwrite",store=>store.delete(doc.id));
+    await offlineStore("offlineSyncedFiles","readwrite",store=>store.put(indexRecord));
     if(!options.silent)toast("Document cached securely for offline access.");
   }catch(e){console.warn("Offline document cache failed",e);if(!options.silent)toast("Could not cache document: "+e.message);}
 }
 window.cacheDocumentForOffline=cacheDocumentForOffline;
+
+async function loadCachedDocumentsForAccount(accountId){
+  const rows=(await offlineGetAll("offlineDocuments")).filter(row=>row.accountId===accountId);
+  const record=await offlineGet("offlineAccess","current");if(!record||record.accountId!==accountId)return [];
+  const claims=await verifyDeviceAuthorization(record);offlineClaims=claims;offlineSessionKey=record.dataKey;
+  const result=[];for(const row of rows){try{const meta=await decryptOfflineDocumentMetadata(row);result.push({...meta,id:row.id,isOfflineCached:true,savedAt:row.savedAt});}catch(e){console.warn("Cached file could not be read:",row.id,e);}}
+  return result.sort((a,b)=>new Date(b.created_at||b.savedAt||0)-new Date(a.created_at||a.savedAt||0));
+}
+async function reconcileCachedDocuments(serverRows,accountId){
+  const allowed=new Set((serverRows||[]).map(d=>d.id));
+  const rows=(await offlineGetAll("offlineDocuments")).filter(r=>r.accountId===accountId);
+  const db=await openOfflineDB();await new Promise((resolve,reject)=>{const names=["offlineDocuments","offlineMyFiles","offlinePublicFiles","offlineSyncedFiles"];const tx=db.transaction(names,"readwrite");for(const row of rows)if(!allowed.has(row.id))for(const name of names)tx.objectStore(name).delete(row.id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();
+}
+async function cacheVisibleDocumentsForOffline(rows){
+  if(offlineMode||!currentProfile||!navigator.onLine)return;
+  const record=await offlineGet("offlineAccess","current").catch(()=>null);if(!record||record.accountId!==currentProfile.id)return;
+  for(const doc of rows||[]){
+    if(!navigator.onLine||!currentProfile||currentProfile.id!==record.accountId)break;
+    const cached=await offlineGet("offlineDocuments",doc.id).catch(()=>null);
+    if(cached&&doc.sha256&&cached.sha256===doc.sha256){
+      const indexRecord={id:doc.id,accountId:currentProfile.id,owner_id:doc.owner_id,is_public:!!doc.is_public,sha256:doc.sha256,cachedAt:cached.savedAt};
+      const primaryIndex=doc.owner_id!==currentProfile.id?"offlinePublicFiles":"offlineMyFiles";
+      const secondaryIndex=primaryIndex==="offlinePublicFiles"?"offlineMyFiles":"offlinePublicFiles";
+      await offlineStore(primaryIndex,"readwrite",store=>store.put(indexRecord));
+      await offlineStore(secondaryIndex,"readwrite",store=>store.delete(doc.id));
+      await offlineStore("offlineSyncedFiles","readwrite",store=>store.put(indexRecord));
+      continue;
+    }
+    await cacheDocumentForOffline(doc.id,{silent:true});
+  }
+}
 
 async function decryptOfflineDocumentMetadata(d){
   if(d.accountId!==offlineClaims?.sub)throw Error("Cached document belongs to another account.");
