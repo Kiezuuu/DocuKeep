@@ -1601,7 +1601,8 @@ body.dk-tour-open { overflow:hidden; }
     .dk-offline-doc{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--line);border-radius:10px;margin:8px 0}
     .dk-offline-doc small{display:block;color:var(--muted);margin-top:4px}
 
-    </style>
+        .nav button.offline-nav-disabled { opacity:.42; cursor:not-allowed; }
+</style>
 </head>
 
 <body>
@@ -1820,7 +1821,7 @@ body.dk-tour-open { overflow:hidden; }
                             <h1>Upload Document</h1>
                             <p>Upload a school document directly to your shared document library.</p>
                         </div>
-                        <button class="btn secondary hidden" id="dkBackOfflineUpload" type="button" onclick="go('offline-workspace')">← Back to Offline Workspace</button>
+                        <button class="btn secondary hidden" id="dkBackOfflineUpload" type="button" onclick="go('dashboard')">← Back to Dashboard</button>
                     </div>
                     <div class="panel">
                         <form id="uploadForm">
@@ -2887,13 +2888,6 @@ $("loginForm").addEventListener("submit", async e => {
     b.textContent = "Signing in…";
 
     try {
-        // Never call Supabase Auth while the browser is offline. Use only the
-        // device-bound authorization already stored on this device.
-        if (!navigator.onLine) {
-            await continueOfflineLogin(email);
-            return;
-        }
-
         const { data, error } = await sb.auth.signInWithPassword({
             email,
             password
@@ -2904,22 +2898,6 @@ $("loginForm").addEventListener("submit", async e => {
         await loadProfile(data.user, type);
 
     } catch (err) {
-        // Chrome may report the browser as online while a request is actually
-        // disconnected. Fall back only for network failures, never bad passwords.
-        const networkFailure = !navigator.onLine ||
-            err?.name === "AuthRetryableFetchError" ||
-            err instanceof TypeError ||
-            /failed to fetch|network request failed|internet disconnected|load failed/i.test(String(err?.message || ""));
-
-        if (networkFailure) {
-            try {
-                await continueOfflineLogin(email);
-                return;
-            } catch (offlineError) {
-                console.warn("Offline login fallback unavailable:", offlineError);
-            }
-        }
-
         console.error("Login error", err);
 
         setAuthMessage(
@@ -3306,10 +3284,12 @@ function renderDocumentCards(items) {
                     <span>${dateText(d.created_at)}</span>
                 </div>
                 <div class="document-card-actions">
-                    <button class="btn small" onclick="event.stopPropagation();previewDoc('${d.id}')">Full view</button>
-                    <button class="btn secondary small" onclick="event.stopPropagation();downloadDoc('${d.id}')">Download</button>
-                    ${d.owner_id === currentProfile?.id ? `<button class="btn secondary small" onclick="event.stopPropagation();toggleDocumentVisibility('${d.id}')">Make ${d.is_public ? "Private" : "Public"}</button><select class="btn secondary small" aria-label="Move document to folder" onclick="event.stopPropagation()" onchange="event.stopPropagation();moveDocument('${d.id}',this.value)"><option value="" ${!d.folder_id ? "selected" : ""}>No folder</option>${folderCache.filter(f=>f.owner_id===currentProfile.id).map(f=>`<option value="${f.id}" ${d.folder_id===f.id?"selected":""}>${escapeHTML(f.name)}</option>`).join("")}</select>${["teacher","staff"].includes(currentProfile?.role) ? `<button class="btn secondary small" onclick="event.stopPropagation();shareDocument('${d.id}')">Share</button><button class="btn secondary small" onclick="event.stopPropagation();unshareDocument('${d.id}')">Revoke share</button>` : ""}` : ""}
-                    ${(d.owner_id === currentProfile?.id || currentProfile?.role === "staff") ? `<button class="btn danger small" title="${currentProfile?.role === "staff" && d.owner_id !== currentProfile?.id ? "Admin: delete this user's document" : "Delete your document"}" onclick="event.stopPropagation();deleteDocument('${d.id}')">Delete</button>` : ""}
+                    ${offlineMode
+                        ? `<button class="btn small" onclick="event.stopPropagation();openOfflineDocument('${d.id}')">Open cached file</button>`
+                        : `<button class="btn small" onclick="event.stopPropagation();previewDoc('${d.id}')">Full view</button>
+                           <button class="btn secondary small" onclick="event.stopPropagation();downloadDoc('${d.id}')">Download</button>
+                           ${d.owner_id === currentProfile?.id ? `<button class="btn secondary small" onclick="event.stopPropagation();toggleDocumentVisibility('${d.id}')">Make ${d.is_public ? "Private" : "Public"}</button><select class="btn secondary small" aria-label="Move document to folder" onclick="event.stopPropagation()" onchange="event.stopPropagation();moveDocument('${d.id}',this.value)"><option value="" ${!d.folder_id ? "selected" : ""}>No folder</option>${folderCache.filter(f=>f.owner_id===currentProfile.id).map(f=>`<option value="${f.id}" ${d.folder_id===f.id?"selected":""}>${escapeHTML(f.name)}</option>`).join("")}</select>${["teacher","staff"].includes(currentProfile?.role) ? `<button class="btn secondary small" onclick="event.stopPropagation();shareDocument('${d.id}')">Share</button><button class="btn secondary small" onclick="event.stopPropagation();unshareDocument('${d.id}')">Revoke share</button>` : ""}` : ""}
+                           ${(d.owner_id === currentProfile?.id || currentProfile?.role === "staff") ? `<button class="btn danger small" title="${currentProfile?.role === "staff" && d.owner_id !== currentProfile?.id ? "Admin: delete this user's document" : "Delete your document"}" onclick="event.stopPropagation();deleteDocument('${d.id}')">Delete</button>` : ""}`}
                 </div>
             </article>`;
     }).join("");
@@ -3352,12 +3332,14 @@ function documentPreviewPanelHTML(d) {
             <div><span>Visibility</span><b>${d.is_public ? "Public — visible to signed-in DocuKeep users" : "Private — only you and authorized staff"}</b></div>
         </div>
         <div class="preview-panel-actions">
-            <button class="btn" onclick="previewDoc('${d.id}')">Open full view</button>
-            <button class="btn secondary" onclick="downloadDoc('${d.id}')">Download</button>
-            <button class="btn secondary" onclick="cacheDocumentForOffline('${d.id}')">Save for offline</button>
-            ${d.owner_id === currentProfile?.id ? `<button class="btn secondary" onclick="toggleDocumentVisibility('${d.id}')">Make ${d.is_public ? "Private" : "Public"}</button>` : ""}
+            ${offlineMode
+                ? `<button class="btn" onclick="openOfflineDocument('${d.id}')">Open cached file</button>`
+                : `<button class="btn" onclick="previewDoc('${d.id}')">Open full view</button>
+                   <button class="btn secondary" onclick="downloadDoc('${d.id}')">Download</button>
+                   <button class="btn secondary" onclick="cacheDocumentForOffline('${d.id}')">Save for offline</button>
+                   ${d.owner_id === currentProfile?.id ? `<button class="btn secondary" onclick="toggleDocumentVisibility('${d.id}')">Make ${d.is_public ? "Private" : "Public"}</button>` : ""}`}
         </div>
-        ${(d.owner_id === currentProfile?.id || currentProfile?.role === "staff") ? `<button class="btn danger small preview-delete-button" onclick="deleteDocument('${d.id}')">${currentProfile?.role === "staff" && d.owner_id !== currentProfile?.id ? "Admin: delete document" : "Delete document"}</button>` : ""}`;
+        ${!offlineMode && (d.owner_id === currentProfile?.id || currentProfile?.role === "staff") ? `<button class="btn danger small preview-delete-button" onclick="deleteDocument('${d.id}')">${currentProfile?.role === "staff" && d.owner_id !== currentProfile?.id ? "Admin: delete document" : "Delete document"}</button>` : ""}`;
 }
 
 function selectDocumentPreview(id) {
@@ -4299,6 +4281,7 @@ async function signedUrl(d) {
 async function downloadDoc(id) {
     const d = documents.find(x => x.id === id);
     if (!d) return;
+    if (offlineMode) return openOfflineDocument(id);
 
     try {
         const url = await signedUrl(d);
@@ -4321,6 +4304,7 @@ async function downloadDoc(id) {
 async function previewDoc(id) {
     const d = documents.find(x => x.id === id);
     if (!d) return;
+    if (offlineMode) return openOfflineDocument(id);
 
     try {
         const url = await signedUrl(d);
@@ -5550,7 +5534,7 @@ function formatQuotaBytes(bytes) {
 }
 
 async function refreshStorageDashboard() {
-    if (!currentProfile) return;
+    if (!currentProfile || offlineMode || !navigator.onLine) return;
     const { data, error } = await sb.rpc("docukeep_get_my_storage_usage");
     if (error) {
         console.error("Storage usage:", error);
@@ -5598,7 +5582,7 @@ function go(page) {
     if (!currentProfile) {
         return toast("Please sign in first.");
     }
-    if (offlineMode && !["offline-workspace", "upload"].includes(page)) return toast("This feature is unavailable in Offline Mode.");
+    if (offlineMode && !["dashboard", "documents", "upload"].includes(page)) return toast("This section needs an internet connection. Your cached documents remain available in Dashboard and My Documents.");
 
     if (page === "admin" && currentProfile.role !== "staff") {
         return toast("Staff access required.");
@@ -5635,7 +5619,9 @@ function go(page) {
     if (page === "settings") { renderProfileMenu(); renderOfflineAccessSettings(); }
     if (page === "premium") loadMySubscriptionRequests();
     if (page === "folders") loadFolders();
-    if (page === "dashboard") refreshStorageDashboard();
+    if (page === "dashboard" && !offlineMode) refreshStorageDashboard();
+    if (page === "dashboard" && offlineMode) renderDashboard(documents);
+    if (page === "documents" && offlineMode) renderDocumentCards(documents);
 
     window.scrollTo(0, 0);
 }
@@ -6039,7 +6025,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&docuKeepTourElement
    The upload queue and its synchronization implementation are intentionally
    outside this block and are not modified by offline authentication.
 ========================================================= */
-const OFFLINE_ED25519_PUBLIC_KEY = "M3NZr4ua7HEhPhvDD2lFM+R8+bVYx7FMY40q5A1yN1w=";
+const OFFLINE_ED25519_PUBLIC_KEY = "dwxTemFh0Sg/kwraWi3gQlHma+Yt7zjhmICfCt8vcg4=";
 let offlineSessionKey = null;
 let offlineClaims = null;
 
@@ -6119,29 +6105,43 @@ async function renderOfflineAccessSettings(){
   catch(e){expiry.textContent="Expired or invalid";expiry.className="pill rejected";if(message)message.textContent=e.message;}
 }
 
-async function continueOfflineLogin(expectedEmail=""){
+async function continueOfflineLogin(){
   try{
     const record=await offlineGet("offlineAccess","current");
     const claims=await verifyDeviceAuthorization(record);
-    if(expectedEmail && String(claims.email||"").trim().toLowerCase()!==String(expectedEmail).trim().toLowerCase()){
-      throw Error("The email entered does not match the account authorized on this device.");
-    }
     offlineClaims=claims;offlineSessionKey=record.dataKey;offlineMode=true;
     currentProfile={id:claims.sub,full_name:claims.full_name||"",email:claims.email||"",role:claims.role,status:"approved"};accountType=claims.role;
-    $("auth").classList.add("hidden");$("app").classList.remove("hidden");$("adminNav").classList.add("hidden");
-    document.querySelectorAll(".nav button").forEach(b=>b.classList.add("hidden"));
-    document.querySelector(".sidebar")?.classList.add("hidden");$("profileMenu")?.classList.add("hidden");$("topNotificationMenu")?.classList.add("hidden");
+    documents=await loadOfflineCachedDocuments();
+    $("auth").classList.add("hidden");$("app").classList.remove("hidden");
+    $("adminNav")?.classList.add("hidden");
+    // Keep the regular DocuKeep shell and navigation visible. Only cloud-only
+    // destinations are disabled; Dashboard, My Documents and Upload stay usable.
+    document.querySelectorAll(".nav button[data-page]").forEach(button=>{
+      const page=button.dataset.page;
+      const supported=["dashboard","documents","upload"].includes(page);
+      button.disabled=!supported;
+      button.title=supported?"Available offline":"Connect to the internet to use this section";
+      button.classList.toggle("offline-nav-disabled",!supported);
+    });
+    $("profileMenu")?.classList.remove("hidden");
+    const who=$("who");if(who)who.textContent=currentProfile.full_name||currentProfile.email||"Offline user";
+    const role=$("topProfileRole");if(role)role.textContent=String(currentProfile.role||"USER").toUpperCase();
+    const avatar=$("topProfileAvatar");if(avatar)avatar.textContent=(currentProfile.full_name||currentProfile.email||"U").trim().charAt(0).toUpperCase();
+    const logout=$("profileMenu")?.querySelector("button.danger");if(logout){logout.setAttribute("onclick","signOutOffline()");logout.textContent="↪ Exit Offline Mode";}
+    $("topNotificationMenu")?.classList.add("hidden");
     $("dkOfflineModeBanner").classList.add("visible");
-    $("dkOfflineProfile").innerHTML=`<div class="profile-info-item"><small>Name</small><b>${escapeHTML(currentProfile.full_name||"User")}</b></div><div class="profile-info-item"><small>Email</small><b>${escapeHTML(currentProfile.email||"")}</b></div><div class="profile-info-item"><small>Role</small><b>${escapeHTML(currentProfile.role)}</b></div><div class="profile-info-item"><small>Authorization expires</small><b>${new Date(claims.exp*1000).toLocaleString()}</b></div>`;
-    go("offline-workspace");await renderOfflineDocuments();toast("Offline login successful. Only cached documents are available.");
+    const storageCard=document.querySelector(".storage-card");if(storageCard){storageCard.querySelector(".dashboard-panel-head h2").textContent="Offline availability";storageCard.querySelector(".storage-meta").innerHTML=`<span>Cached documents: <b>${documents.length}</b></span><span>Account: <b>Locally verified</b></span>`;storageCard.querySelector(".storage-track").classList.add("hidden");storageCard.querySelector("#storageUpgradeHint").textContent="Only documents previously cached on this device are available. Cloud storage details require an internet connection.";storageCard.querySelector("#storageUpgradeButton")?.classList.add("hidden");}
+    go("dashboard");renderDashboard(documents);renderDocumentCards(documents);
+    toast(`Offline login successful. ${documents.length} cached document(s) available.`);
   }catch(e){console.error("Offline login rejected",e);const msg=$("dkAuthOfflineMessage");if(msg)msg.textContent=e.message;toast("Offline login unavailable: "+e.message);}
 }
 window.continueOfflineLogin=continueOfflineLogin;
 
 async function signOutOffline(){
   offlineMode=false;offlineSessionKey=null;offlineClaims=null;currentProfile=null;documents=[];
-  $("dkOfflineModeBanner")?.classList.remove("visible");document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("hidden"));
+  $("dkOfflineModeBanner")?.classList.remove("visible");document.querySelectorAll(".nav button").forEach(b=>{b.classList.remove("hidden","offline-nav-disabled");b.disabled=false;b.removeAttribute("title");});
   document.querySelector(".sidebar")?.classList.remove("hidden");$("profileMenu")?.classList.remove("hidden");$("topNotificationMenu")?.classList.remove("hidden");
+  const logout=$("profileMenu")?.querySelector("button.danger");if(logout){logout.setAttribute("onclick","signOut()");logout.textContent="↪ Log Out";}
   $("app").classList.add("hidden");$("auth").classList.remove("hidden");backChoice();
 }
 window.signOutOffline=signOutOffline;
@@ -6157,7 +6157,7 @@ async function cacheDocumentForOffline(id,options={}){
     const response=await fetch(data.signedUrl);if(!response.ok)throw Error("Could not download the document using your current permissions.");
     const blob=await response.blob(),fileIv=crypto.getRandomValues(new Uint8Array(12)),metaIv=crypto.getRandomValues(new Uint8Array(12));
     const fileAad=utf8(`docukeep-offline-file:${currentProfile.id}:${doc.id}`),metaAad=utf8(`docukeep-offline-meta:${currentProfile.id}:${doc.id}`);
-    const metadata={title:doc.title,file_name:doc.file_name,mime_type:doc.mime_type,size_bytes:doc.size_bytes,created_at:doc.created_at,status:doc.status,owner_id:doc.owner_id,account_id:currentProfile.id,document_id:doc.id};
+    const metadata={title:doc.title,file_name:doc.file_name,mime_type:doc.mime_type,size_bytes:doc.size_bytes,created_at:doc.created_at,status:doc.status,owner_id:doc.owner_id,owner_name:doc.owner_name,is_public:!!doc.is_public,category:doc.category,account_id:currentProfile.id,document_id:doc.id};
     const [encryptedFile,encryptedMeta]=await Promise.all([
       crypto.subtle.encrypt({name:"AES-GCM",iv:fileIv,additionalData:fileAad},record.dataKey,await blob.arrayBuffer()),
       crypto.subtle.encrypt({name:"AES-GCM",iv:metaIv,additionalData:metaAad},record.dataKey,utf8(JSON.stringify(metadata)))
@@ -6177,6 +6177,19 @@ async function decryptOfflineDocumentMetadata(d){
   if(metadata.account_id!==offlineClaims.sub||metadata.document_id!==d.id)throw Error("Cached document metadata is invalid.");
   return metadata;
 }
+async function loadOfflineCachedDocuments(){
+  const rows=(await offlineGetAll("offlineDocuments")).filter(row=>row.accountId===offlineClaims?.sub);
+  const output=[];
+  for(const row of rows){
+    try{
+      const metadata=await decryptOfflineDocumentMetadata(row);
+      output.push({...metadata,id:row.id,owner_id:metadata.owner_id||offlineClaims.sub,owner_name:metadata.owner_name||currentProfile?.full_name||"You",is_public:!!metadata.is_public,folder_id:null,isOfflineCached:true,savedAt:row.savedAt});
+    }catch(error){console.warn("Skipping unreadable cached document:",row.id,error?.message||error);}
+  }
+  output.sort((a,b)=>new Date(b.created_at||b.savedAt||0)-new Date(a.created_at||a.savedAt||0));
+  return output;
+}
+
 async function renderOfflineDocuments(){
   const host=$("dkOfflineDocuments");if(!host)return;const rows=(await offlineGetAll("offlineDocuments")).filter(row=>row.accountId===offlineClaims?.sub);
   if(!rows.length){host.innerHTML='<div class="empty">No documents have been cached on this device.</div>';return;}
