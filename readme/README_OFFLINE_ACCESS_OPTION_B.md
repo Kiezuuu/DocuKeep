@@ -1,122 +1,77 @@
-# DocuKeep — Option B: Secure Offline Access
+# DocuKeep — Automatic Offline Login (Option B revision)
 
-## What was added
+## Behavior
 
-- A server-issued Ed25519-signed offline authorization package.
-- AES-256-GCM encryption of the package with a separate passphrase-derived key.
-- PBKDF2-SHA-256 (310,000 iterations) with a random 16-byte salt.
-- Seven-day maximum authorization lifetime, with strict validation of issuer, audience, account ID, email, role, approval status, exact offline permission, issued-at time, and expiration.
-- Import/export of the encrypted JSON package.
-- An isolated Offline Workspace with cached profile details and explicitly cached documents only.
-- AES-GCM encryption of cached document bytes and metadata in IndexedDB.
-- Existing IndexedDB upload queue preserved; the database is upgraded from version 3 to 4 and adds `offlineAccess` and `offlineDocuments` stores.
-- Existing Supabase login, registration, verification, password reset, roles, approval checks, and online document code remain in place.
+- Registration and email verification remain online-only through the existing Supabase Auth flow.
+- After a successful online login, DocuKeep checks the existing `profiles` row and automatically requests a device-bound, Ed25519-signed offline authorization.
+- The authorization is valid for exactly seven days or less and contains only the `cached_documents:read` capability. It is not a Supabase access/refresh token and does not create a Supabase session.
+- A device that has never completed a successful online sign-in cannot receive authorization while offline. Every new device must connect and sign in online once.
+- The browser stores the signed credential, a non-extractable P-256 device private key, and a non-extractable AES-GCM data key in the existing `docukeep-offline-v1` IndexedDB database. The signed credential includes a thumbprint of the device public key.
+- Offline login verifies issuer, audience, version, account binding, device-key thumbprint, role, permission set, signature, issue time, and expiry before opening the limited Offline Workspace.
+- Only documents that were visible to the user under the existing Supabase RLS rules and successfully cached on this device are listed offline. Documents uploaded by other users can be cached when the signed-in user is allowed to access them. Uncached files are never fetched while offline.
+- Accessing a document through the existing preview or download flow also attempts to save an encrypted local copy. The existing “Save for offline” action remains available for documents visible to the current account.
+- The existing upload form remains available from the Offline Workspace. Its unchanged submit handler stores offline selections in the existing `pendingUploads` queue; it does not send them to Supabase while offline.
+- Offline mode is read-only for cloud operations. It does not expose staff/admin controls or claim that Supabase authenticated the offline session.
+- When connectivity returns, the offline workspace closes. The user must sign in online; the existing `loadProfile` checks approval and roles before online features and the existing upload queue synchronization resume.
 
-Approved student, teacher, and staff accounts may receive a limited offline package. Staff accounts receive no staff/admin controls or privileged offline actions; they can only use their cached profile and explicitly cached documents they own. The package is not a Supabase session and cannot authorize any server-side request.
+## Supabase Edge Function deployment
 
-## Required one-time deployment setup
+The existing function name is retained:
 
-The feature will not issue packages until the signing key is configured. Do not skip this setup.
+```bash
+supabase functions deploy docukeep-offline-access
+```
 
-1. Install/use Node.js on a trusted administrator computer.
-2. From the DocuKeep project root, run:
+The function requires the existing standard Supabase Edge Function environment values:
 
-   ```bash
-   node scripts/generate-offline-signing-keys.mjs
-   ```
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (server-side only; never put it in frontend files)
+- `DOCUKEEP_OFFLINE_ED25519_PRIVATE_JWK` (private Ed25519 JWK; server-side secret only)
 
-3. The script prints a private JWK and a public key. Keep the private JWK secret. Do not add it to this repository, frontend JavaScript, GitHub, or this ZIP.
-4. Set the private JWK as a Supabase Edge Function secret:
+If the signing secret has not been configured, generate a key pair on a trusted administrator computer:
 
-   ```bash
-   supabase secrets set DOCUKEEP_OFFLINE_ED25519_PRIVATE_JWK='PASTE_PRIVATE_JWK_JSON_HERE'
-   ```
+```bash
+node scripts/generate-offline-signing-keys.mjs
+```
 
-5. Copy the `PUBLIC_KEY_BASE64` value into `OFFLINE_ED25519_PUBLIC_KEY` in `index.html`, replacing `__DOCUKEEP_OFFLINE_PUBLIC_KEY__`.
-6. Confirm the Supabase Edge Function environment has the standard `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` secrets. The service-role key is used only inside the Edge Function.
-7. Deploy the function:
+Set the printed private JWK as a Supabase secret. Copy only the matching public key into `OFFLINE_ED25519_PUBLIC_KEY` in `index.html`. Never commit the private key. If an existing deployment already uses the public key currently in `index.html`, keep the matching private secret; do not generate a new pair unnecessarily.
 
-   ```bash
-   supabase functions deploy docukeep-offline-access
-   ```
+The Edge Function validates the current Supabase bearer token, confirmed email, approved profile, existing role rules, and device public key before signing. Deploy the function after updating it. No database migration or new table is required.
 
-8. Deploy the updated `index.html`, `sw.js`, and existing assets to the current DocuKeep hosting location. The service worker cache name is bumped to `docukeep-shell-v8` so clients can receive the updated app shell.
+## Database and upload preservation
 
-No SQL migration or new database table is required. The Edge Function reads the existing `profiles` record and checks `status = 'approved'`. It also verifies the Supabase user token and confirmed email. Staff is denied by design.
+- No SQL migration is included or required for this revision.
+- The existing IndexedDB database name, version, `pendingUploads` store, upload queue records, retry logic, and upload synchronization implementation are not changed.
+- The existing `offlineAccess` and `offlineDocuments` stores are reused. No second database or upload queue is created.
+- Existing Supabase RLS policies and Storage permissions remain the authority for online document visibility and cache downloads.
 
-### Key rotation
+## Deployment
 
-Generate and deploy a new private key secret and public key together. Previously exported packages signed by the old key will stop verifying after rotation. Users must prepare and export a new package.
+1. Back up the currently deployed DocuKeep project.
+2. Deploy the updated `docukeep-offline-access` Edge Function.
+3. Confirm the `DOCUKEEP_OFFLINE_ED25519_PRIVATE_JWK` secret matches the public key in `index.html`.
+4. Deploy the updated project files, including `index.html` and `sw.js`, to the same hosting location.
+5. The service-worker shell cache was advanced to `docukeep-shell-v9`; clients should receive the new application shell after the worker update.
+6. Have each user sign in online once on every device they want to use offline. Provisioning is automatic after existing account approval checks pass.
 
-## How users enroll and transfer
+## Security limitations
 
-1. Sign in normally through Supabase while connected.
-2. Open Profile menu → Account Settings → Offline Access.
-3. Enter a separate passphrase of at least 12 characters and confirm it.
-4. Select **Prepare & Export Package**. The server checks the authenticated user and approved profile, signs a short-lived authorization payload, and the browser encrypts it.
-5. Transfer the exported `DocuKeep-Offline-Access.json` securely to the other device.
-6. On the other device, choose **Import Offline Access Package**, select the JSON file, and enter the same offline passphrase.
-7. Select **Continue Offline** and enter the passphrase to unlock the local package.
-8. While online on the original device, users can save their own documents for offline use from the document preview using **Save for offline**. The file and metadata are encrypted before storage in IndexedDB.
+- A device without prior online provisioning cannot authenticate offline.
+- While disconnected, account revocation, password changes, role changes, approval changes, and permission changes cannot be checked. The signed authorization can remain usable until its expiry.
+- The seven-day expiry is checked against the device clock. A user who controls the device can manipulate its clock; browser software cannot provide a fully trusted offline clock.
+- Legacy Option B document cache blobs were encrypted using a user-entered passphrase-derived key. Since the revised workflow intentionally removes passphrases, those old encrypted blobs cannot be automatically decrypted/migrated. They are not deleted, but the user must access/cache those documents again while online to create new device-key-encrypted copies.
+- IndexedDB is not a hardware-backed secure enclave. Non-extractable WebCrypto keys make casual extraction harder, but malware, a compromised browser, malicious extensions, XSS, or copying an entire browser profile may expose or clone local access.
+- Offline access is limited to cached documents. It never grants cloud access, upload authorization, admin access, or a Supabase session.
 
-Import can be performed while offline as long as the DocuKeep app shell and public verification key are already cached on that device.
+## Checks performed on this package
 
-## Security model and limitations
+- Inline application JavaScript syntax check with Node.js.
+- Edge Function TypeScript source reviewed for token/profile/device-key checks and Ed25519 signing.
+- Manual import/export controls and handlers removed from the app UI/source.
+- Confirmed the upload queue store remains named `pendingUploads`; byte-for-byte comparisons against the source ZIP show the queue synchronization function and upload form submit handler are unchanged.
+- Confirmed the IndexedDB database name and version are unchanged; no migration was added.
 
-- The package contains no plaintext account password and no Supabase access or refresh token.
-- The private Ed25519 signing key exists only in Supabase Edge Function secrets. The browser contains only the public verification key.
-- The browser verifies the Ed25519 signature after decrypting the package. AES-GCM authentication rejects modified ciphertext; Ed25519 rejects altered claims or forged packages.
-- Offline authorization is a local capability, not a Supabase-authenticated session. Offline mode is visibly labelled and does not call privileged online functions.
-- The package is intentionally transferable. It is not cryptographically bound to one physical device because that would conflict with importing it onto another device. A copied package can be used on any device that has the DocuKeep app and the passphrase until it expires.
-- Browser IndexedDB is not a hardware-backed credential vault. Encryption protects stored package and cached document data at rest, but a compromised browser, malicious extension, XSS vulnerability, or malware running as the user may capture data while unlocked.
-- Expiration is checked against the device clock. Browsers do not provide a trusted offline clock, so a determined user who controls the device may manipulate its clock. The seven-day lifetime is a practical control, not a guarantee against a device owner changing system time.
-- Account revocation, role changes, and permission changes cannot be detected while disconnected. A revoked account may retain offline access until package expiration or until the user reconnects and is forced back through normal Supabase authentication.
-- After reconnection from an Offline Workspace, the local-only workspace closes and the user must sign in through Supabase. If an already-online session was temporarily disconnected, DocuKeep validates the Supabase token and re-reads the current profile approval and role; if validation fails, it clears the stale local session and returns to sign-in. Users should prepare a fresh package in Account Settings; the app does not silently re-encrypt a package because it does not retain the offline passphrase.
-- Only explicitly cached documents owned by the user are available in this implementation. Public/shared documents and uncached files are not automatically downloaded for offline access.
-- Existing queued uploads remain in the original upload store. Offline workspace does not expose administrator functions or add privileged offline operations.
+## Tests still requiring deployment/browser accounts
 
-## Verification checklist
-
-### Local/static checks completed during packaging
-
-- JavaScript syntax check of the complete inline application script.
-- Strengthened local claim validation to reject malformed account identities, unapproved roles/status, unexpected permissions, and invalid or over-seven-day validity windows.
-- Strengthened reconnection handling to verify the Supabase token and current approved profile, clearing stale local sessions on failure.
-- JavaScript syntax check of the Ed25519 key-generation script.
-- Confirmed unique HTML element IDs for the new controls.
-- Confirmed IndexedDB upgrade retains `pendingUploads` and adds only the two offline stores.
-- Confirmed no private signing key or service-role key was added to frontend source.
-
-### Required deployment/device tests (not performed by packaging)
-
-- Configure the signing key secret and public key, deploy the Edge Function, and confirm approved student/teacher package issuance.
-- Confirm pending/rejected/disabled users cannot obtain a package; confirm staff packages expose no staff/admin controls or privileged offline actions.
-- Export/import on a second browser/device.
-- Verify wrong passphrase, altered ciphertext, altered signature, and expired package rejection.
-- Save an owned document for offline use; disconnect internet; unlock Offline Workspace; open the cached file.
-- Confirm an uncached file is not available offline.
-- Confirm administrator controls are absent in Offline Workspace.
-- Confirm the existing pending upload queue survives the IndexedDB upgrade and synchronizes after a normal online Supabase sign-in.
-- Test browser refresh, private browsing restrictions, mobile browsers, and storage quota behavior.
-
-**Do not treat offline access as production-ready until the Edge Function secrets are configured and these deployment/device tests pass.**
-
-## Revision notes — 2026-11-27
-
-This revision keeps the existing Option B architecture and changes only the client-side verification/reconnection safeguards plus this documentation:
-
-- Offline authorization remains a local-only login capability. It never creates a Supabase session or grants server-side privileges.
-- Package verification now requires a valid account UUID, email, non-empty profile name, approved status, supported role, exactly the `cached_documents:read` permission, valid issued-at/expiry timestamps, and a maximum seven-day lifetime.
-- On reconnection, an existing online session is checked with Supabase Auth and the current `profiles` approval/role row. If the token/profile cannot be verified or the account is no longer approved, the app clears the stale local session and returns to sign-in. A user in the local-only Offline Workspace is returned to sign-in and must authenticate online before normal functionality resumes.
-- The existing `pendingUploads` IndexedDB store, existing document upload/synchronization implementation, service worker, Supabase schema, and Edge Function signing architecture are retained.
-
-### Checks performed for this revision
-
-- Passed: JavaScript syntax check of the inline application script.
-- Passed: JavaScript syntax check of `scripts/generate-offline-signing-keys.mjs`.
-- Passed: duplicate HTML ID check (no duplicate IDs found).
-- Passed: Web Crypto test using a generated Ed25519 key pair and AES-256-GCM/PBKDF2 package encryption: valid package accepted; wrong passphrase, modified ciphertext, invalid signature, expired package, over-seven-day package, and unexpected permissions rejected.
-- Passed: source inspection confirmed the existing `pendingUploads` store remains in IndexedDB version 4 and the service worker shell cache remains present.
-- Not performed: live Supabase Edge Function deployment, real account approval/revocation tests, two-physical-device import/login, browser offline/online integration, real document-cache tests, and end-to-end regression tests for registration/uploads/downloads/synchronization. These require the owner's Supabase project and browser/device environment.
-
-A second device does not need a previous Supabase login, but it must have loaded DocuKeep at least once while online (or otherwise have the app shell and verification key installed/cached) before it can open the website without internet. Transfer the encrypted package separately. The device's cached documents remain device-local and are not transferred with the authorization package.
+The following cannot be fully verified in this packaging environment: live Supabase login/registration, Edge Function invocation and signing-secret match, pending/rejected-account denial against the deployed database, actual multi-device offline login, offline file rendering across browsers, and real upload queue resumption. Run the checklist in the handoff notes before production rollout.
