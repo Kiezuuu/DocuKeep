@@ -1595,6 +1595,18 @@ body.dk-tour-open { overflow:hidden; }
             .registration-success-copy { animation-duration: .01ms !important; animation-delay: 0ms !important; }
         }
 
+
+    .dk-offline-indicator{display:none;align-items:center;gap:8px;padding:9px 12px;border:1px solid #f0d49b;background:#fff8e9;color:#865d17;border-radius:10px;font-size:12px;font-weight:800;margin:0 0 14px}
+    .dk-offline-indicator.visible{display:flex}
+    .dk-offline-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+    .dk-offline-tool{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff;min-width:0}
+    .dk-offline-tool h3{margin:0 0 7px;color:#263f5f;font-size:14px}
+    .dk-offline-tool p{font-size:12px;color:var(--muted);line-height:1.55;margin:0 0 12px}
+    .dk-offline-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .dk-offline-row input{flex:1;min-width:180px}
+    .dk-offline-doc{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--line);border-radius:10px;margin:8px 0}
+    .dk-offline-doc small{display:block;color:var(--muted);margin-top:4px}
+    @media(max-width:760px){.dk-offline-tools{grid-template-columns:1fr}.dk-offline-row{align-items:stretch}.dk-offline-row input{min-width:100%}}
     </style>
 </head>
 
@@ -1618,6 +1630,14 @@ body.dk-tour-open { overflow:hidden; }
                     onclick="selectType('staff')">Staff / Administrator sign in</button>
                 <div class="notice">Students use personal Gmail. Teachers may use any valid email address.
                     Staff accounts are created by the administrator.</div>
+                <div class="panel" id="dkOfflineEntryPanel" style="margin-top:16px;padding:13px">
+                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><strong style="font-size:13px">Connection status</strong><span id="dkConnectionStatus" class="pill approved">Online</span></div>
+                    <p class="muted" style="font-size:11px;margin:7px 0 10px">Offline access requires a previously issued package. It does not create a Supabase session.</p>
+                    <button type="button" class="btn secondary" id="dkContinueOffline" style="width:100%" onclick="continueOfflineLogin()">Continue Offline</button>
+                    <label class="btn secondary" for="dkImportFile" style="display:block;text-align:center;margin-top:8px;cursor:pointer">Import Offline Access Package</label>
+                    <input id="dkImportFile" type="file" accept="application/json,.json" class="hidden">
+                    <div id="dkAuthOfflineMessage" class="muted" style="font-size:11px;margin-top:8px" aria-live="polite"></div>
+                </div>
             </div>
             <div id="authform" class="hidden"><button type="button" class="link" onclick="backChoice()">← Change account
                     type</button>
@@ -1654,6 +1674,7 @@ body.dk-tour-open { overflow:hidden; }
                         onclick="toggleForm(false)">Sign in</button></div>
                 <div class="switch hidden" id="resendSwitch">Did not receive the confirmation email? Check your Gmail Spam/Junk folder, or <button type="button" class="link" onclick="resendConfirmation()">resend confirmation email</button>.</div>
                 <div id="authMsg" class="notice warn">Email verification is required. After registering, check your Gmail inbox and Spam/Junk folder for the confirmation link. Your account must also be approved by staff before you can sign in.</div>
+
             </div>
         </div>
     </section>
@@ -1700,6 +1721,7 @@ body.dk-tour-open { overflow:hidden; }
         </aside>
         <main class="main">
             <header class="top"><span id="crumb">Dashboard</span><div class="profile-menu-wrap"><details class="top-notification" id="topNotificationMenu"><summary aria-label="Notifications" title="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span class="top-notification-count hidden" id="topNotificationCount">0</span></summary><div class="top-notification-panel"><div class="top-notification-head"><span>Notifications</span><button class="btn secondary small" type="button" onclick="markAllNotificationsRead()">Mark all read</button></div><div id="topNotificationList"><div class="empty">Loading notifications…</div></div></div></details><details class="profile-menu" id="profileMenu"><summary aria-label="Open profile menu"><span class="profile-menu-avatar" id="topProfileAvatar">U</span><span class="profile-menu-label"><b id="who">Account</b><small id="topProfileRole">USER</small></span><span aria-hidden="true">⌄</span></summary><div class="profile-menu-panel"><button type="button" onclick="profileMenuAction('view')">◉ View Profile</button><button type="button" onclick="profileMenuAction('edit')">✎ Edit Profile</button><button type="button" onclick="profileMenuAction('settings')">⚙ Account Settings</button><button type="button" onclick="replayOnboarding()">▣ Replay Tutorial</button><button type="button" class="danger" onclick="signOut()">↪ Log Out</button></div></details></div></header>
+            <div class="dk-offline-indicator" id="dkOfflineModeBanner">⚠ OFFLINE MODE — LIMITED ACCESS. Changes requiring Supabase are disabled.</div>
             <div class="syncbar" id="syncbar">Offline mode: files are saved on this device and are NOT yet uploaded.
                 <span id="queueCount">0</span> waiting.</div>
             <div class="content">
@@ -2028,9 +2050,24 @@ body.dk-tour-open { overflow:hidden; }
                         </form>
                     </div>
                 </section>
+                <section class="page" id="page-offline-workspace">
+                    <div class="heading"><div><h1>Offline Workspace</h1><p>Only locally cached and previously authorized information is available.</p></div></div>
+                    <div class="notice warn">OFFLINE MODE — LIMITED ACCESS. Supabase has not authenticated this session. Account revocation and permission changes cannot be detected until reconnection.</div>
+                    <div class="panel"><h2>Cached profile</h2><div id="dkOfflineProfile" class="profile-info-grid"></div></div>
+                    <div class="panel" style="margin-top:14px"><h2>Available offline documents</h2><p class="muted">Only files explicitly saved for offline use on this device are listed.</p><div id="dkOfflineDocuments"><div class="empty">No documents have been saved for offline access.</div></div></div>
+                    <div class="profile-form-actions"><button class="btn secondary" type="button" onclick="signOutOffline()">Exit Offline Workspace</button></div>
+                </section>
                 <section class="page" id="page-settings">
                     <div class="heading"><div><h1>Account Settings</h1><p>Manage your DocuKeep sign-in and account preferences.</p></div></div>
                     <div class="panel"><h2>Sign-in & Security</h2><p class="muted">Your email address is used to sign in and cannot be changed here.</p><button class="btn secondary" type="button" onclick="sendPasswordReset()">Send password reset email</button></div>
+                    <div class="panel" style="margin-top:14px"><h2>Offline Access</h2><p class="muted">Prepare a signed, encrypted authorization package while online. The package grants limited access for up to seven days and does not contain your password or Supabase token.</p>
+                        <div class="dk-offline-tools">
+                            <div class="dk-offline-tool"><h3>Prepare Offline Access</h3><p>Issue a new server-signed package for this approved account.</p><div class="field"><label for="dkOfflineDays">Authorization duration</label><select id="dkOfflineDays"><option value="7" selected>7 days (recommended)</option><option value="3">3 days</option><option value="1">1 day</option></select></div><div class="field"><label for="dkOfflinePassphrase">Separate offline passphrase</label><input id="dkOfflinePassphrase" type="password" minlength="12" autocomplete="new-password" placeholder="At least 12 characters"></div><div class="field"><label for="dkOfflinePassphraseConfirm">Confirm passphrase</label><input id="dkOfflinePassphraseConfirm" type="password" minlength="12" autocomplete="new-password" placeholder="Re-enter passphrase"></div><button class="btn" type="button" onclick="prepareOfflineAccess()">Prepare & Export Package</button></div>
+                            <div class="dk-offline-tool"><h3>Import Offline Access</h3><p>Import a package exported from another DocuKeep device.</p><label class="btn secondary" for="dkSettingsImportFile" style="display:block;text-align:center;cursor:pointer">Choose JSON Package</label><input id="dkSettingsImportFile" type="file" accept="application/json,.json" class="hidden"><div class="field" style="margin-top:10px"><label for="dkImportPassphrase">Offline passphrase</label><input id="dkImportPassphrase" type="password" autocomplete="off" placeholder="Package passphrase"></div><button class="btn secondary" type="button" onclick="importOfflinePackageFromSettings()">Import Package</button></div>
+                        </div>
+                        <div style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:10px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><strong>Offline Access Expiration</strong><span id="dkOfflineExpiry" class="pill">Not configured</span></div><p class="muted" style="font-size:11px;margin:7px 0">Local authorization expires automatically. Reconnect to Supabase to refresh eligibility and permissions.</p><button class="btn danger small" type="button" onclick="removeOfflineAccess()">Remove Local Offline Access</button></div>
+                        <div id="dkOfflineSettingsMessage" class="muted" style="font-size:12px;margin-top:10px" aria-live="polite"></div>
+                    </div>
                 </section>
                 <section class="page" id="page-people">
                     <div class="heading"><div><h1>People</h1><p>Find DocuKeep users and view their public profile information.</p></div></div>
@@ -2176,6 +2213,7 @@ const sb = window.supabase.createClient(
 
 let accountType = null;
 let currentProfile = null;
+let offlineMode = false;
 let documents = [];
 let managedUsersCache = [];
 let toastTimer = null;
@@ -2738,6 +2776,7 @@ window.viewUserProfile = viewUserProfile;
 window.closeUserProfile = closeUserProfile;
 
 async function loadProfile(user, expectedType = null) {
+    if (offlineMode) throw Error("Exit Offline Workspace before using online account authentication.");
     if (!user?.id) {
         throw Error("Invalid login session. Please sign in again.");
     }
@@ -2810,6 +2849,7 @@ async function loadProfile(user, expectedType = null) {
     await loadDocuments();
     await refreshStorageDashboard();
     await updateOfflineStatus();
+    await renderOfflineAccessSettings();
     await loadMySubscriptionRequests();
 
     if (navigator.onLine) {
@@ -3164,7 +3204,7 @@ sb.auth.onAuthStateChange((event, session) => {
 ========================================================= */
 
 async function loadDocuments() {
-    if (!currentProfile) return;
+    if (!currentProfile || offlineMode || !navigator.onLine) return;
 
     const { data, error } = await sb
         .from("documents")
@@ -3294,6 +3334,7 @@ function documentPreviewPanelHTML(d) {
         <div class="preview-panel-actions">
             <button class="btn" onclick="previewDoc('${d.id}')">Open full view</button>
             <button class="btn secondary" onclick="downloadDoc('${d.id}')">Download</button>
+            ${d.owner_id === currentProfile?.id ? `<button class="btn secondary" onclick="cacheDocumentForOffline('${d.id}')">Save for offline</button>` : ""}
             ${d.owner_id === currentProfile?.id ? `<button class="btn secondary" onclick="toggleDocumentVisibility('${d.id}')">Make ${d.is_public ? "Private" : "Public"}</button>` : ""}
         </div>
         ${(d.owner_id === currentProfile?.id || currentProfile?.role === "staff") ? `<button class="btn danger small preview-delete-button" onclick="deleteDocument('${d.id}')">${currentProfile?.role === "staff" && d.owner_id !== currentProfile?.id ? "Admin: delete document" : "Delete document"}</button>` : ""}`;
@@ -3454,14 +3495,19 @@ let notificationRealtimeChannel = null;
 
 function openOfflineDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 3);
+        const request = indexedDB.open(DB_NAME, 4);
         request.onupgradeneeded = () => {
             const db = request.result;
-            if (!db.objectStoreNames.contains(STORE)) {
-                db.createObjectStore(STORE, { keyPath: "id" });
-            }
+            if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
+            if (!db.objectStoreNames.contains("offlineAccess")) db.createObjectStore("offlineAccess", { keyPath: "id" });
+            if (!db.objectStoreNames.contains("offlineDocuments")) db.createObjectStore("offlineDocuments", { keyPath: "id" });
         };
-        request.onsuccess = () => resolve(request.result);
+        request.onsuccess = () => {
+            const db = request.result;
+            db.onversionchange = () => db.close();
+            resolve(db);
+        };
+        request.onblocked = () => console.warn("DocuKeep offline database upgrade is waiting for other open tabs to close.");
         request.onerror = () => reject(request.error);
     });
 }
@@ -5518,6 +5564,7 @@ function go(page) {
         "premium",
         "profile",
         "settings",
+        "offline-workspace",
         "people",
         "admin"
     ];
@@ -5527,6 +5574,7 @@ function go(page) {
     if (!currentProfile) {
         return toast("Please sign in first.");
     }
+    if (offlineMode && page !== "offline-workspace") return toast("This feature is unavailable in Offline Mode.");
 
     if (page === "admin" && currentProfile.role !== "staff") {
         return toast("Staff access required.");
@@ -5551,6 +5599,7 @@ function go(page) {
         premium: "Premium Plan",
         profile: "My Profile",
         settings: "Account Settings",
+        "offline-workspace": "Offline Workspace",
         people: "People",
         admin: "Staff Administration"
     })[page];
@@ -5558,7 +5607,7 @@ function go(page) {
     if (page === "admin") renderAdmin();
     if (page === "people") loadPeople();
     if (page === "profile") { renderProfileEditor(); loadStudentProfilePage(); }
-    if (page === "settings") renderProfileMenu();
+    if (page === "settings") { renderProfileMenu(); renderOfflineAccessSettings(); }
     if (page === "premium") loadMySubscriptionRequests();
     if (page === "folders") loadFolders();
     if (page === "dashboard") refreshStorageDashboard();
@@ -5614,6 +5663,7 @@ window.signOut = signOut;
 ========================================================= */
 
 async function restoreSession() {
+    if (!navigator.onLine) return; // Avoid treating a cached Supabase session as offline authentication.
     const { data, error } = await sb.auth.getSession();
 
     if (error) throw error;
@@ -5958,6 +6008,173 @@ async function finishDocuKeepTour(completed,skipImmediately=false){
   }finally{docuKeepTourSaving=false;if(finish){finish.disabled=false;finish.textContent="Finish";}}
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&docuKeepTourElement&&!docuKeepTourElement.classList.contains("hidden"))finishDocuKeepTour(false);});
+
+/* =========================================================
+   SECURE OFFLINE ACCESS — additive to existing Supabase Auth
+========================================================= */
+/* =========================================================
+   SECURE OFFLINE ACCESS — additive to existing Supabase Auth
+========================================================= */
+const OFFLINE_ED25519_PUBLIC_KEY = "iiZPcjRJGyJIqdiNEgIo+PmHmfLucvyqOGHRw4Nvh7Y=";
+const OFFLINE_KDF_ITERATIONS = 310000;
+let offlineSessionKey = null;
+let offlineClaims = null;
+
+function bytesToB64(bytes){let s="";for(const b of bytes)s+=String.fromCharCode(b);return btoa(s);}
+function b64ToBytes(value){return Uint8Array.from(atob(value),c=>c.charCodeAt(0));}
+function b64urlToBytes(value){return b64ToBytes(value.replaceAll("-","+").replaceAll("_","/")+"=".repeat((4-value.length%4)%4));}
+function utf8(value){return new TextEncoder().encode(value);}
+async function deriveOfflineKey(passphrase,salt){
+  const material=await crypto.subtle.importKey("raw",utf8(passphrase),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:OFFLINE_KDF_ITERATIONS,hash:"SHA-256"},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function verifyOfflineEnvelope(envelope){
+  if(!envelope||envelope.version!==1||envelope.algorithm!=="AES-256-GCM"||envelope.kdf!=="PBKDF2-SHA-256"||envelope.iterations!==OFFLINE_KDF_ITERATIONS)throw Error("Unsupported or invalid offline package format.");
+  if(!OFFLINE_ED25519_PUBLIC_KEY||OFFLINE_ED25519_PUBLIC_KEY.startsWith("__"))throw Error("Offline verification key is not configured in this DocuKeep deployment.");
+  const publicKey=await crypto.subtle.importKey("raw",b64ToBytes(OFFLINE_ED25519_PUBLIC_KEY),{name:"Ed25519"},false,["verify"]);
+  const salt=b64ToBytes(envelope.salt),iv=b64ToBytes(envelope.iv),key=await deriveOfflineKey(envelope.passphrase,salt);
+  let plaintext;
+  try{plaintext=await crypto.subtle.decrypt({name:"AES-GCM",iv},key,b64ToBytes(envelope.ciphertext));}
+  catch(_){throw Error("Incorrect offline passphrase or damaged package.");}
+  const signed=JSON.parse(new TextDecoder().decode(plaintext));
+  if(signed.algorithm!=="Ed25519"||signed.keyId!=="docukeep-offline-v1"||!signed.payload||!signed.signature)throw Error("The package signature is missing or unsupported.");
+  const payload=b64urlToBytes(signed.payload),signature=b64urlToBytes(signed.signature);
+  const valid=await crypto.subtle.verify("Ed25519",publicKey,signature,payload);
+  if(!valid)throw Error("Offline package signature is invalid or has been modified.");
+  const claims=JSON.parse(new TextDecoder().decode(payload));
+  const now=Math.floor(Date.now()/1000);
+  if(claims.iss!=="docukeep-offline-access"||claims.aud!=="docukeep-browser"||claims.version!==1||claims.status!=="approved"||!["student","teacher","staff"].includes(claims.role)||!Array.isArray(claims.permissions)||!claims.permissions.includes("cached_documents:read"))throw Error("Offline authorization claims are invalid.");
+  if(!claims.exp||claims.exp<=now)throw Error("This offline access package has expired. Reconnect and prepare a new package.");
+  if(claims.iat>now+300||claims.exp-claims.iat>7*86400+60)throw Error("Offline package validity period is invalid.");
+  return {claims,key};
+}
+async function encryptOfflinePackage(signed,passphrase){
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await deriveOfflineKey(passphrase,salt);
+  const ciphertext=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,utf8(JSON.stringify(signed)));
+  return {version:1,algorithm:"AES-256-GCM",kdf:"PBKDF2-SHA-256",iterations:OFFLINE_KDF_ITERATIONS,salt:bytesToB64(salt),iv:bytesToB64(iv),ciphertext:bytesToB64(new Uint8Array(ciphertext)),createdAt:new Date().toISOString()};
+}
+async function offlineStore(storeName,mode,operation){
+  const db=await openOfflineDB();
+  return new Promise((resolve,reject)=>{const tx=db.transaction(storeName,mode);const store=tx.objectStore(storeName);let result;try{result=operation(store);}catch(e){db.close();reject(e);return;}tx.oncomplete=()=>{db.close();resolve(result);};tx.onerror=()=>{db.close();reject(tx.error);};});
+}
+async function offlineGet(storeName,id){const db=await openOfflineDB();return new Promise((resolve,reject)=>{const tx=db.transaction(storeName,"readonly"),r=tx.objectStore(storeName).get(id);r.onsuccess=()=>{db.close();resolve(r.result||null);};r.onerror=()=>{db.close();reject(r.error);};});}
+async function offlineGetAll(storeName){const db=await openOfflineDB();return new Promise((resolve,reject)=>{const tx=db.transaction(storeName,"readonly"),r=tx.objectStore(storeName).getAll();r.onsuccess=()=>{db.close();resolve(r.result||[]);};r.onerror=()=>{db.close();reject(r.error);};});}
+async function saveEncryptedPackage(envelope,claims=null){await offlineStore("offlineAccess","readwrite",store=>store.put({id:"current",envelope,expiresAt:claims?.exp||null,accountId:claims?.sub||null,savedAt:new Date().toISOString()}));}
+async function readOfflinePackage(passphrase){const row=await offlineGet("offlineAccess","current");if(!row)throw Error("No offline access package is saved on this device.");const envelope={...row.envelope,passphrase};return verifyOfflineEnvelope(envelope);}
+function setOfflineStatusUI(){const online=navigator.onLine;const chip=$("dkConnectionStatus");if(chip){chip.textContent=online?"Browser reports online":"Browser reports offline";chip.className="pill "+(online?"approved":"pending");}const b=$("dkContinueOffline");if(b)b.disabled=false;}
+window.addEventListener("online",()=>{setOfflineStatusUI();if(offlineMode){signOutOffline();setAuthMessage("Internet connection restored. Please sign in with Supabase to revalidate your account and refresh permissions.","warn");}else if(currentProfile){revalidateOfflineAccessOnReconnect().catch(e=>console.warn("Offline revalidation:",e));}});
+window.addEventListener("offline",setOfflineStatusUI);
+setOfflineStatusUI();
+
+async function prepareOfflineAccess(){
+  if(offlineMode||!navigator.onLine||!currentProfile)return toast("Sign in online before preparing offline access.");
+  const pass=$("dkOfflinePassphrase").value,confirmPass=$("dkOfflinePassphraseConfirm").value;
+  if(pass.length<12)return toast("Use a separate offline passphrase with at least 12 characters.");
+  if(pass!==confirmPass)return toast("The offline passphrases do not match.");
+  try{
+    const {data,error}=await sb.functions.invoke("docukeep-offline-access",{body:{days:Number($("dkOfflineDays")?.value||7)}});
+    if(error)throw error;if(!data?.payload||!data?.signature)throw Error(data?.error||"The server did not issue a signed authorization package.");
+    const signed={algorithm:data.algorithm,keyId:data.keyId,payload:data.payload,signature:data.signature};
+    const envelope=await encryptOfflinePackage(signed,pass);
+    // Verify the just-created package through the same import verification path before persisting it.
+    const verified=await verifyOfflineEnvelope({...envelope,passphrase:pass});
+    if(verified.claims.sub!==currentProfile.id)throw Error("The issued package does not match the signed-in account.");
+    await saveEncryptedPackage(envelope,verified.claims);
+    const file={...envelope};
+    const blob=new Blob([JSON.stringify(file,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="DocuKeep-Offline-Access.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
+    $("dkOfflinePassphrase").value=$("dkOfflinePassphraseConfirm").value="";
+    await renderOfflineAccessSettings();toast("Offline access package prepared, verified, saved, and exported.");
+  }catch(e){console.error("Offline package preparation failed",e);toast("Could not prepare offline access: "+(e.message||"Unknown error"));}
+}
+window.prepareOfflineAccess=prepareOfflineAccess;
+
+async function importOfflinePackage(file,passphrase){
+  if(!file)throw Error("Choose an offline access JSON file.");if(!passphrase)throw Error("Enter the separate offline passphrase.");
+  let envelope;try{envelope=JSON.parse(await file.text());}catch(_){throw Error("The selected file is not valid JSON.");}
+  const verified=await verifyOfflineEnvelope({...envelope,passphrase});
+  await saveEncryptedPackage(envelope,verified.claims);
+  return verified.claims;
+}
+async function importOfflinePackageFromSettings(){
+  const file=$("dkSettingsImportFile").files?.[0],pass=$("dkImportPassphrase").value;
+  try{const claims=await importOfflinePackage(file,pass);$("dkImportPassphrase").value="";$("dkOfflineSettingsMessage").textContent=`Package imported for ${claims.email}. Expires ${new Date(claims.exp*1000).toLocaleString()}.`;await renderOfflineAccessSettings();toast("Offline access package imported and verified.");}
+  catch(e){$("dkOfflineSettingsMessage").textContent=e.message;toast("Import failed: "+e.message);}
+}
+window.importOfflinePackageFromSettings=importOfflinePackageFromSettings;
+$("dkImportFile")?.addEventListener("change",async e=>{const file=e.target.files?.[0];if(!file)return;const pass=prompt("Enter your separate offline passphrase:");try{const claims=await importOfflinePackage(file,pass);$("dkAuthOfflineMessage").textContent=`Verified package for ${claims.email}. You can now continue offline when disconnected.`;toast("Offline access package imported and verified.");}catch(err){$("dkAuthOfflineMessage").textContent=err.message;toast("Package import failed: "+err.message);}e.target.value="";});
+
+async function renderOfflineAccessSettings(){
+  const row=await offlineGet("offlineAccess","current").catch(()=>null),expiry=$("dkOfflineExpiry");
+  if(expiry){if(row){const exp=row.expiresAt?new Date(row.expiresAt*1000):null;expiry.textContent=exp?(exp.getTime()<=Date.now()?"Expired · "+exp.toLocaleString():"Expires "+exp.toLocaleString()):"Encrypted package saved";expiry.className=exp&&exp.getTime()<=Date.now()?"pill rejected":"pill approved";}else{expiry.textContent="Not configured";expiry.className="pill";}}
+}
+async function removeOfflineAccess(){if(!confirm("Remove the saved offline authorization package and all encrypted offline document copies from this device? Pending uploads will remain untouched."))return;
+  await offlineStore("offlineAccess","readwrite",s=>s.delete("current"));await offlineStore("offlineDocuments","readwrite",s=>s.clear());offlineSessionKey=null;offlineClaims=null;await renderOfflineAccessSettings();toast("Local offline access and cached offline copies removed. Pending uploads were preserved.");}
+window.removeOfflineAccess=removeOfflineAccess;
+
+async function continueOfflineLogin(){
+  // navigator.onLine is only a hint; it can report online even when the internet is unreachable.
+  // This is an explicit local-only path and never claims that Supabase authenticated the user.
+  const pass=prompt("Enter your separate offline passphrase:");if(!pass)return;
+  try{
+    const verified=await readOfflinePackage(pass);offlineClaims=verified.claims;offlineSessionKey=verified.key;offlineMode=true;
+    currentProfile={id:offlineClaims.sub,full_name:offlineClaims.full_name,email:offlineClaims.email,role:offlineClaims.role,status:"approved"};accountType=offlineClaims.role;
+    $("auth").classList.add("hidden");$("app").classList.remove("hidden");$("adminNav").classList.add("hidden");
+    document.querySelectorAll(".nav button").forEach(b=>b.classList.add("hidden"));
+    document.querySelector(".sidebar")?.classList.add("hidden");$("profileMenu")?.classList.add("hidden");$("topNotificationMenu")?.classList.add("hidden");
+    $("dkOfflineModeBanner").classList.add("visible");$("dkOfflineProfile").innerHTML=`<div class="profile-info-item"><small>Name</small><b>${escapeHTML(currentProfile.full_name||"User")}</b></div><div class="profile-info-item"><small>Email</small><b>${escapeHTML(currentProfile.email||"")}</b></div><div class="profile-info-item"><small>Role</small><b>${escapeHTML(currentProfile.role)}</b></div><div class="profile-info-item"><small>Authorization expires</small><b>${new Date(offlineClaims.exp*1000).toLocaleString()}</b></div>`;
+    go("offline-workspace");await renderOfflineDocuments();toast("Offline authorization verified. Limited local workspace opened.");
+  }catch(e){console.error("Offline login rejected",e);toast("Offline login failed: "+e.message);}
+}
+window.continueOfflineLogin=continueOfflineLogin;
+async function signOutOffline(){offlineMode=false;offlineSessionKey=null;offlineClaims=null;currentProfile=null;documents=[];$("dkOfflineModeBanner").classList.remove("visible");document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("hidden"));document.querySelector(".sidebar")?.classList.remove("hidden");$("profileMenu")?.classList.remove("hidden");$("topNotificationMenu")?.classList.remove("hidden");$("app").classList.add("hidden");$("auth").classList.remove("hidden");backChoice();}
+window.signOutOffline=signOutOffline;
+
+async function cacheDocumentForOffline(id){
+  if(offlineMode||!navigator.onLine)return toast("Save documents for offline use while signed in online.");
+  const doc=documents.find(d=>d.id===id);if(!doc||doc.owner_id!==currentProfile?.id)return toast("Only your own documents can be saved for offline access.");
+  const pass=prompt("Enter your separate offline passphrase to encrypt this document for offline use:");if(!pass)return;
+  try{
+    const verified=await readOfflinePackage(pass);if(verified.claims.sub!==currentProfile.id)throw Error("The offline package belongs to another account.");
+    const {data,error}=await sb.storage.from(BUCKET).createSignedUrl(doc.storage_path,120);if(error)throw error;
+    const response=await fetch(data.signedUrl);if(!response.ok)throw Error("Could not download the document.");
+    const blob=await response.blob(),fileIv=crypto.getRandomValues(new Uint8Array(12)),metaIv=crypto.getRandomValues(new Uint8Array(12));
+    const fileAad=utf8(`docukeep-offline-file:${currentProfile.id}:${doc.id}`),metaAad=utf8(`docukeep-offline-meta:${currentProfile.id}:${doc.id}`);
+    const metadata={title:doc.title,file_name:doc.file_name,mime_type:doc.mime_type,size_bytes:doc.size_bytes,created_at:doc.created_at,status:doc.status,owner_id:doc.owner_id};
+    const [encryptedFile,encryptedMeta]=await Promise.all([
+      crypto.subtle.encrypt({name:"AES-GCM",iv:fileIv,additionalData:fileAad},verified.key,await blob.arrayBuffer()),
+      crypto.subtle.encrypt({name:"AES-GCM",iv:metaIv,additionalData:metaAad},verified.key,utf8(JSON.stringify(metadata)))
+    ]);
+    const record={id:doc.id,fileIv:bytesToB64(fileIv),fileCiphertext:bytesToB64(new Uint8Array(encryptedFile)),metaIv:bytesToB64(metaIv),metaCiphertext:bytesToB64(new Uint8Array(encryptedMeta)),savedAt:new Date().toISOString()};
+    await offlineStore("offlineDocuments","readwrite",s=>s.put(record));toast("Document and its metadata saved as encrypted offline content.");
+  }catch(e){toast("Could not save for offline use: "+e.message);}
+}
+window.cacheDocumentForOffline=cacheDocumentForOffline;
+async function decryptOfflineDocumentMetadata(d){
+  const aad=utf8(`docukeep-offline-meta:${offlineClaims.sub}:${d.id}`);
+  const plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64ToBytes(d.metaIv),additionalData:aad},offlineSessionKey,b64ToBytes(d.metaCiphertext));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+async function renderOfflineDocuments(){
+  const host=$("dkOfflineDocuments");if(!host)return;const rows=await offlineGetAll("offlineDocuments");
+  if(!rows.length){host.innerHTML='<div class="empty">No documents have been saved for offline access.</div>';return;}
+  const items=await Promise.all(rows.map(async d=>{try{return {id:d.id,metadata:await decryptOfflineDocumentMetadata(d),savedAt:d.savedAt};}catch(_){return null;}}));
+  host.innerHTML=items.filter(Boolean).map(d=>`<div class="dk-offline-doc"><div><strong>${escapeHTML(d.metadata.title||d.metadata.file_name||"Document")}</strong><small>${escapeHTML(d.metadata.file_name||"")} · Saved ${new Date(d.savedAt).toLocaleDateString()}</small></div><button class="btn secondary small" type="button" onclick="openOfflineDocument('${d.id}')">Open</button></div>`).join("")||'<div class="empty">No valid encrypted documents are available for this account.</div>';
+}
+async function openOfflineDocument(id){
+  try{if(!offlineMode||!offlineSessionKey)throw Error("Offline session is not active.");const d=await offlineGet("offlineDocuments",id);if(!d)throw Error("Cached document not found.");
+    const metadata=await decryptOfflineDocumentMetadata(d);if(metadata.owner_id!==offlineClaims?.sub)throw Error("This cached document is not authorized for the current offline account.");
+    const aad=utf8(`docukeep-offline-file:${offlineClaims.sub}:${d.id}`);
+    const plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64ToBytes(d.fileIv),additionalData:aad},offlineSessionKey,b64ToBytes(d.fileCiphertext));const blob=new Blob([plain],{type:metadata.mime_type||"application/octet-stream"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=metadata.file_name||"DocuKeep-document";a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }catch(e){toast("Could not open cached document: "+e.message);}
+}
+window.openOfflineDocument=openOfflineDocument;
+async function revalidateOfflineAccessOnReconnect(){
+  if(!navigator.onLine||offlineMode||!currentProfile)return;
+  // Existing Supabase session remains the source of truth. Never silently elevate from a cached package.
+  const {data,error}=await sb.auth.getSession();if(error||!data.session)return;
+  try{await loadProfile(data.session.user,null);await renderOfflineAccessSettings();}catch(e){console.warn("Account revalidation failed after reconnect",e);}
+}
 
 /* =========================================================
    SERVICE WORKER

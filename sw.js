@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "docukeep-shell-";
-const CACHE_NAME = "docukeep-shell-v7";
+const CACHE_NAME = "docukeep-shell-v8";
 const APP_SHELL = [
   "./",
   "./index.html",
